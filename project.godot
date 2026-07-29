@@ -22,6 +22,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+PieceSkinManager="*res://scripts/autoload/PieceSkinManager.gd"
 Localization="*res://scripts/autoload/Localization.gd"
 EventBus="*res://scripts/autoload/EventBus.gd"
 GameState="*res://scripts/autoload/GameState.gd"

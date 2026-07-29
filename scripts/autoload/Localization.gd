@@ -15,6 +15,8 @@ const LOCALES := {
 			"MENU_QUIT": "Quit Game",
 			"SETTINGS_TITLE": "Settings",
 			"SETTINGS_LANGUAGE": "Language",
+			"SETTINGS_PIECE_SKIN": "Piece Skin",
+			"SETTINGS_SKIN_PREVIEW": "Preview",
 			"SETTINGS_MUSIC": "Music Volume",
 			"SETTINGS_SOUND": "SFX Volume",
 			"COMMON_BACK": "Back",

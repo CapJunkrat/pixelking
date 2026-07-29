@@ -5,6 +5,12 @@ extends Control
 @onready var battle_placeholder: ColorRect = $BattlePlaceholder
 @onready var new_game_button: Button = $SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton
 @onready var language_option: OptionButton = $SettingsOverlay/SettingsPanel/SettingsContent/LanguageOption
+@onready var piece_skin_option: OptionButton = $SettingsOverlay/SettingsPanel/SettingsContent/PieceSkinOption
+@onready var white_skin_preview: HBoxContainer = $SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview/WhitePieces
+@onready var black_skin_preview: HBoxContainer = $SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview/BlackPieces
+@onready var piece_skin_manager: Node = get_node("/root/PieceSkinManager")
+
+const PIECE_TYPES: Array[StringName] = [&"king", &"queen", &"rook", &"bishop", &"knight", &"pawn"]
 
 func _ready() -> void:
 	$SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton.pressed.connect(_on_new_game_pressed)
@@ -14,9 +20,13 @@ func _ready() -> void:
 	$SettingsOverlay/SettingsPanel/SettingsContent/BackButton.pressed.connect(_close_settings)
 	$BattlePlaceholder/BattleContent/BackButton.pressed.connect(_close_battle_placeholder)
 	language_option.item_selected.connect(_on_language_selected)
+	piece_skin_option.item_selected.connect(_on_piece_skin_selected)
+	piece_skin_manager.skin_changed.connect(_on_piece_skin_changed)
 	Localization.locale_changed.connect(_apply_locale)
 	_populate_languages()
 	_apply_locale(Localization.current_locale)
+	_populate_piece_skins()
+	_build_skin_preview()
 	new_game_button.grab_focus()
 	_play_intro()
 	_play_title_float()
@@ -52,6 +62,8 @@ func _apply_locale(_locale: String) -> void:
 	$SettingsOverlay/SettingsPanel/SettingsContent/LanguageLabel.text = Localization.text("SETTINGS_LANGUAGE")
 	$SettingsOverlay/SettingsPanel/SettingsContent/MusicLabel.text = Localization.text("SETTINGS_MUSIC")
 	$SettingsOverlay/SettingsPanel/SettingsContent/SoundLabel.text = Localization.text("SETTINGS_SOUND")
+	$SettingsOverlay/SettingsPanel/SettingsContent/PieceSkinLabel.text = Localization.text("SETTINGS_PIECE_SKIN")
+	$SettingsOverlay/SettingsPanel/SettingsContent/PreviewLabel.text = Localization.text("SETTINGS_SKIN_PREVIEW")
 	$SettingsOverlay/SettingsPanel/SettingsContent/BackButton.text = Localization.text("COMMON_BACK")
 	$BattlePlaceholder/BattleContent/Title.text = Localization.text("JOURNEY_TITLE")
 	$BattlePlaceholder/BattleContent/Description.text = Localization.text("JOURNEY_DESCRIPTION")
@@ -92,6 +104,41 @@ func _play_intro() -> void:
 	modulate.a = 0.0
 	var tween := create_tween()
 	tween.tween_property(self, "modulate:a", 1.0, 0.45)
+
+func _populate_piece_skins() -> void:
+	piece_skin_option.clear()
+	var selected_index := 0
+	for skin in piece_skin_manager.available_skins():
+		var index := piece_skin_option.item_count
+		piece_skin_option.add_item(skin.display_name)
+		piece_skin_option.set_item_metadata(index, skin.skin_id)
+		if skin.skin_id == piece_skin_manager.current_skin_id:
+			selected_index = index
+	piece_skin_option.select(selected_index)
+
+func _build_skin_preview() -> void:
+	for row in [white_skin_preview, black_skin_preview]:
+		for child in row.get_children():
+			child.queue_free()
+	for piece_type in PIECE_TYPES:
+		white_skin_preview.add_child(_make_preview_piece(&"white", piece_type))
+		black_skin_preview.add_child(_make_preview_piece(&"black", piece_type))
+
+func _make_preview_piece(color: StringName, piece_type: StringName) -> TextureRect:
+	var preview := TextureRect.new()
+	preview.custom_minimum_size = Vector2(38, 38)
+	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	preview.texture = piece_skin_manager.piece_texture(color, piece_type)
+	preview.tooltip_text = "%s %s" % [String(color).capitalize(), String(piece_type).capitalize()]
+	return preview
+
+func _on_piece_skin_selected(index: int) -> void:
+	piece_skin_manager.set_skin(StringName(piece_skin_option.get_item_metadata(index)))
+
+func _on_piece_skin_changed(_skin_id: StringName) -> void:
+	_build_skin_preview()
 
 func _play_title_float() -> void:
 	var start_y := title_logo.position.y
