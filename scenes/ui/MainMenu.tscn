@@ -1,0 +1,572 @@
+[gd_scene load_steps=30 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/MainMenu.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/ui/main_menu_background_clean.png" id="2_bg"]
+[ext_resource type="Texture2D" path="res://assets/ui/titles/pixel_king_en.png" id="3_title"]
+[ext_resource type="FontFile" path="res://assets/fonts/fusion-pixel-12px-proportional-zh_hans.ttf" id="4_font"]
+[ext_resource type="Texture2D" path="res://assets/ui/menu/buttons/chess_button_normal.png" id="5_btn_normal"]
+[ext_resource type="Texture2D" path="res://assets/ui/menu/buttons/chess_button_hover.png" id="6_btn_hover"]
+[ext_resource type="Texture2D" path="res://assets/ui/menu/buttons/chess_button_pressed.png" id="7_btn_pressed"]
+[ext_resource type="Texture2D" path="res://assets/ui/menu/buttons/chess_button_disabled.png" id="8_btn_disabled"]
+[ext_resource type="Texture2D" path="res://assets/ui/menu/icons/new_journey.png" id="9_icon_new"]
+[ext_resource type="Texture2D" path="res://assets/ui/menu/icons/continue.png" id="10_icon_continue"]
+[ext_resource type="Texture2D" path="res://assets/ui/menu/icons/settings.png" id="11_icon_settings"]
+[ext_resource type="Texture2D" path="res://assets/ui/menu/icons/quit.png" id="12_icon_quit"]
+[ext_resource type="Shader" path="res://assets/shaders/main_menu_background.gdshader" id="13_bg_shader"]
+[ext_resource type="Texture2D" path="res://assets/ui/effects/menu_spark.png" id="14_spark"]
+[ext_resource type="Texture2D" path="res://assets/ui/main_menu_flags.png" id="15_flags"]
+[ext_resource type="Shader" path="res://assets/shaders/main_menu_flags.gdshader" id="16_flag_shader"]
+[ext_resource type="Shader" path="res://assets/shaders/title_gem_glint.gdshader" id="17_title_shader"]
+
+[sub_resource type="ShaderMaterial" id="BackgroundMotionMaterial"]
+shader = ExtResource("13_bg_shader")
+shader_parameter/moonlight_strength = 0.22
+shader_parameter/moonlight_color = Color(0.28, 0.43, 0.82, 1)
+
+[sub_resource type="ShaderMaterial" id="FlagMotionMaterial"]
+shader = ExtResource("16_flag_shader")
+shader_parameter/wave_strength = 0.85
+
+[sub_resource type="ShaderMaterial" id="TitleGlintMaterial"]
+shader = ExtResource("17_title_shader")
+shader_parameter/glint_strength = 0.75
+shader_parameter/glint_color = Color(0.64, 0.88, 1, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleMenu"]
+bg_color = Color(0.045, 0.05, 0.095, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.68, 0.48, 0.2, 0.85)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+shadow_color = Color(0, 0, 0, 0.65)
+shadow_size = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleButton"]
+bg_color = Color(0.08, 0.09, 0.15, 0.94)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.48, 0.39, 0.27, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleButtonHover"]
+bg_color = Color(0.26, 0.13, 0.15, 0.97)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.76, 0.28, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleButtonPressed"]
+bg_color = Color(0.42, 0.19, 0.18, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.86, 0.48, 1)
+
+[sub_resource type="StyleBoxEmpty" id="StyleMenuEmpty"]
+
+[sub_resource type="StyleBoxTexture" id="StyleChessNormal"]
+texture = ExtResource("5_btn_normal")
+texture_margin_left = 16.0
+texture_margin_top = 10.0
+texture_margin_right = 16.0
+texture_margin_bottom = 10.0
+content_margin_left = 52.0
+content_margin_right = 20.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StyleBoxTexture" id="StyleChessHover"]
+texture = ExtResource("6_btn_hover")
+texture_margin_left = 16.0
+texture_margin_top = 10.0
+texture_margin_right = 16.0
+texture_margin_bottom = 10.0
+content_margin_left = 52.0
+content_margin_right = 20.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StyleBoxTexture" id="StyleChessPressed"]
+texture = ExtResource("7_btn_pressed")
+texture_margin_left = 16.0
+texture_margin_top = 10.0
+texture_margin_right = 16.0
+texture_margin_bottom = 10.0
+content_margin_left = 52.0
+content_margin_top = 2.0
+content_margin_right = 20.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StyleBoxTexture" id="StyleChessDisabled"]
+texture = ExtResource("8_btn_disabled")
+texture_margin_left = 16.0
+texture_margin_top = 10.0
+texture_margin_right = 16.0
+texture_margin_bottom = 10.0
+content_margin_left = 52.0
+content_margin_right = 20.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StyleBoxFlat" id="StylePopup"]
+bg_color = Color(0.055, 0.06, 0.11, 0.98)
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 16.0
+content_margin_bottom = 12.0
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.85, 0.62, 0.25, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+shadow_color = Color(0, 0, 0, 0.8)
+shadow_size = 10
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_fonts/font = ExtResource("4_font")
+script = ExtResource("1_script")
+
+[node name="Background" type="TextureRect" parent="."]
+material = SubResource("BackgroundMotionMaterial")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2_bg")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="FlagLayer" type="TextureRect" parent="."]
+material = SubResource("FlagMotionMaterial")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("15_flags")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="DarkOverlay" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.015, 0.02, 0.055, 0.2)
+
+[node name="LeftSparks" type="CPUParticles2D" parent="."]
+position = Vector2(48, 610)
+amount = 8
+lifetime = 4.2
+preprocess = 4.2
+randomness = 0.7
+texture = ExtResource("14_spark")
+emission_shape = 3
+emission_rect_extents = Vector2(34, 8)
+direction = Vector2(0, -1)
+spread = 22.0
+gravity = Vector2(0, -2)
+initial_velocity_min = 18.0
+initial_velocity_max = 36.0
+scale_amount_min = 0.7
+scale_amount_max = 1.4
+color = Color(1, 0.62, 0.22, 0.95)
+
+[node name="RightSparks" type="CPUParticles2D" parent="."]
+position = Vector2(312, 610)
+amount = 8
+lifetime = 4.6
+preprocess = 4.6
+randomness = 0.75
+texture = ExtResource("14_spark")
+emission_shape = 3
+emission_rect_extents = Vector2(34, 8)
+direction = Vector2(0, -1)
+spread = 24.0
+gravity = Vector2(0, -2)
+initial_velocity_min = 17.0
+initial_velocity_max = 34.0
+scale_amount_min = 0.7
+scale_amount_max = 1.35
+color = Color(1, 0.56, 0.18, 0.92)
+
+[node name="TopShade" type="ColorRect" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 245.0
+grow_horizontal = 2
+mouse_filter = 2
+color = Color(0.01, 0.015, 0.04, 0.62)
+
+[node name="SafeArea" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 24.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Layout" type="VBoxContainer" parent="SafeArea"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Header" type="VBoxContainer" parent="SafeArea/Layout"]
+layout_mode = 2
+theme_override_constants/separation = -4
+alignment = 1
+
+[node name="TitleLogo" type="TextureRect" parent="SafeArea/Layout/Header"]
+material = SubResource("TitleGlintMaterial")
+custom_minimum_size = Vector2(300, 170)
+layout_mode = 2
+texture = ExtResource("3_title")
+expand_mode = 3
+stretch_mode = 5
+
+[node name="Spacer" type="Control" parent="SafeArea/Layout"]
+custom_minimum_size = Vector2(0, 132)
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="MenuPanel" type="PanelContainer" parent="SafeArea/Layout"]
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/panel = SubResource("StyleMenuEmpty")
+
+[node name="MenuButtons" type="VBoxContainer" parent="SafeArea/Layout/MenuPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="NewGameButton" type="Button" parent="SafeArea/Layout/MenuPanel/MenuButtons"]
+custom_minimum_size = Vector2(280, 48)
+layout_mode = 2
+focus_neighbor_bottom = NodePath("../ContinueButton")
+theme_override_styles/normal = SubResource("StyleChessNormal")
+theme_override_styles/hover = SubResource("StyleChessHover")
+theme_override_styles/focus = SubResource("StyleChessHover")
+theme_override_styles/pressed = SubResource("StyleChessPressed")
+
+[node name="Content" type="CenterContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Group" type="HBoxContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+mouse_filter = 2
+
+[node name="Icon" type="TextureRect" parent="SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton/Content/Group"]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("9_icon_new")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Label" type="Label" parent="SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton/Content/Group"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.94, 0.9, 0.78, 1)
+theme_override_font_sizes/font_size = 24
+text = "MENU_NEW_GAME"
+vertical_alignment = 1
+
+[node name="ContinueButton" type="Button" parent="SafeArea/Layout/MenuPanel/MenuButtons"]
+custom_minimum_size = Vector2(280, 48)
+layout_mode = 2
+disabled = true
+theme_override_styles/normal = SubResource("StyleChessDisabled")
+theme_override_styles/disabled = SubResource("StyleChessDisabled")
+
+[node name="Content" type="CenterContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Group" type="HBoxContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+mouse_filter = 2
+
+[node name="Icon" type="TextureRect" parent="SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton/Content/Group"]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("10_icon_continue")
+expand_mode = 1
+stretch_mode = 5
+modulate = Color(0.48, 0.48, 0.5, 1)
+
+[node name="Label" type="Label" parent="SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton/Content/Group"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.48, 0.48, 0.5, 1)
+theme_override_font_sizes/font_size = 24
+text = "MENU_CONTINUE"
+vertical_alignment = 1
+
+[node name="SettingsButton" type="Button" parent="SafeArea/Layout/MenuPanel/MenuButtons"]
+custom_minimum_size = Vector2(280, 48)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleChessNormal")
+theme_override_styles/hover = SubResource("StyleChessHover")
+theme_override_styles/focus = SubResource("StyleChessHover")
+theme_override_styles/pressed = SubResource("StyleChessPressed")
+
+[node name="Content" type="CenterContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Group" type="HBoxContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+mouse_filter = 2
+
+[node name="Icon" type="TextureRect" parent="SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton/Content/Group"]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("11_icon_settings")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Label" type="Label" parent="SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton/Content/Group"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.94, 0.9, 0.78, 1)
+theme_override_font_sizes/font_size = 24
+text = "MENU_SETTINGS"
+vertical_alignment = 1
+
+[node name="QuitButton" type="Button" parent="SafeArea/Layout/MenuPanel/MenuButtons"]
+custom_minimum_size = Vector2(280, 48)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleChessNormal")
+theme_override_styles/hover = SubResource("StyleChessHover")
+theme_override_styles/focus = SubResource("StyleChessHover")
+theme_override_styles/pressed = SubResource("StyleChessPressed")
+
+[node name="Content" type="CenterContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Group" type="HBoxContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+mouse_filter = 2
+
+[node name="Icon" type="TextureRect" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton/Content/Group"]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("12_icon_quit")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Label" type="Label" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton/Content/Group"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.94, 0.9, 0.78, 1)
+theme_override_font_sizes/font_size = 24
+text = "MENU_QUIT"
+vertical_alignment = 1
+
+[node name="Version" type="Label" parent="SafeArea/Layout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.64, 0.62, 0.67, 1)
+theme_override_font_sizes/font_size = 12
+text = "PRE-ALPHA  v0.1.0"
+horizontal_alignment = 1
+
+[node name="SettingsOverlay" type="ColorRect" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.005, 0.008, 0.02, 0.86)
+
+[node name="SettingsPanel" type="PanelContainer" parent="SettingsOverlay"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -165.0
+offset_top = -200.0
+offset_right = 165.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StylePopup")
+
+[node name="SettingsContent" type="VBoxContainer" parent="SettingsOverlay/SettingsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="Title" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.82, 0.34, 1)
+theme_override_font_sizes/font_size = 24
+text = "SETTINGS_TITLE"
+horizontal_alignment = 1
+
+[node name="LanguageLabel" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "SETTINGS_LANGUAGE"
+
+[node name="LanguageOption" type="OptionButton" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleButton")
+theme_override_styles/hover = SubResource("StyleButtonHover")
+theme_override_styles/focus = SubResource("StyleButtonHover")
+
+[node name="MusicLabel" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "SETTINGS_MUSIC"
+
+[node name="MusicSlider" type="HSlider" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+layout_mode = 2
+value = 75.0
+
+[node name="SoundLabel" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "SETTINGS_SOUND"
+
+[node name="SoundSlider" type="HSlider" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+layout_mode = 2
+value = 85.0
+
+[node name="BackButton" type="Button" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleButton")
+theme_override_styles/hover = SubResource("StyleButtonHover")
+theme_override_styles/focus = SubResource("StyleButtonHover")
+text = "COMMON_BACK"
+
+[node name="BattlePlaceholder" type="ColorRect" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.025, 0.055, 0.97)
+
+[node name="BattleContent" type="VBoxContainer" parent="BattlePlaceholder"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -145.0
+offset_top = -110.0
+offset_right = 145.0
+offset_bottom = 110.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 22
+alignment = 1
+
+[node name="Title" type="Label" parent="BattlePlaceholder/BattleContent"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.82, 0.34, 1)
+theme_override_font_sizes/font_size = 24
+text = "JOURNEY_TITLE"
+horizontal_alignment = 1
+
+[node name="Description" type="Label" parent="BattlePlaceholder/BattleContent"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.8, 0.75, 1)
+theme_override_font_sizes/font_size = 12
+text = "JOURNEY_DESCRIPTION"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="BackButton" type="Button" parent="BattlePlaceholder/BattleContent"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleButton")
+theme_override_styles/hover = SubResource("StyleButtonHover")
+theme_override_styles/focus = SubResource("StyleButtonHover")
+text = "JOURNEY_BACK"

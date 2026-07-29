@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3 uid="uid://c8k1p2xj3v4h1"]
+
+[ext_resource type="Script" path="res://scripts/tests/TestRunnerNode.gd" id="1_a1b2c"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1_a1b2c")
+
+[node name="Label" type="Label" parent="."]
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 760.0
+offset_bottom = 560.0
+theme_override_font_sizes/font_size = 20
+text = "正在运行测试..."
+autowrap_mode = 3

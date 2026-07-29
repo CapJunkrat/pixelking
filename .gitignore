@@ -1,0 +1,18 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# Generated imports, translations, temporary files, and export secrets
+.import/
+*.translation
+*.tmp
+export.cfg
+export_credentials.cfg
+
+# C# / Mono generated files
+.mono/
+data_*/
+mono_crash.*.json
+
+# Local editor tooling (contains bundled platform binaries)
+/addons/ziva_agent/
