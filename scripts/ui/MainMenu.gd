@@ -11,6 +11,10 @@ extends Control
 @onready var piece_skin_manager: Node = get_node("/root/PieceSkinManager")
 
 const PIECE_TYPES: Array[StringName] = [&"king", &"queen", &"rook", &"bishop", &"knight", &"pawn"]
+const INTRO_BUTTON_DELAY := 0.15
+
+var _intro_tween: Tween
+var _intro_playing := false
 
 func _ready() -> void:
 	$SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton.pressed.connect(_on_new_game_pressed)
@@ -27,11 +31,14 @@ func _ready() -> void:
 	_apply_locale(Localization.current_locale)
 	_populate_piece_skins()
 	_build_skin_preview()
-	new_game_button.grab_focus()
 	_play_intro()
-	_play_title_float()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _intro_playing and event.is_pressed():
+		_finish_intro(true)
+		get_viewport().set_input_as_handled()
+		return
+
 	if event.is_action_pressed("ui_cancel"):
 		if settings_overlay.visible:
 			_close_settings()
@@ -101,9 +108,57 @@ func _on_language_selected(index: int) -> void:
 	Localization.set_locale(locale)
 
 func _play_intro() -> void:
-	modulate.a = 0.0
-	var tween := create_tween()
-	tween.tween_property(self, "modulate:a", 1.0, 0.45)
+	modulate.a = 1.0
+	_intro_playing = true
+	title_logo.modulate.a = 0.0
+
+	var version_label := $SafeArea/Layout/Version as Label
+	version_label.modulate.a = 0.0
+
+	var buttons: Array[Button] = []
+	for child in $SafeArea/Layout/MenuPanel/MenuButtons.get_children():
+		var button := child as Button
+		if button == null:
+			continue
+		buttons.append(button)
+		button.modulate.a = 0.0
+		button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		button.focus_mode = Control.FOCUS_NONE
+
+	_intro_tween = create_tween().set_parallel(true)
+	_intro_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_intro_tween.tween_property(title_logo, "modulate:a", 1.0, 0.70).set_delay(0.10)
+
+	for index in buttons.size():
+		var button := buttons[index]
+		var delay := 0.55 + index * INTRO_BUTTON_DELAY
+		_intro_tween.tween_property(button, "modulate:a", 1.0, 0.60).set_delay(delay)
+
+	_intro_tween.tween_property(version_label, "modulate:a", 1.0, 0.40).set_delay(1.35)
+	_intro_tween.chain().tween_callback(_finish_intro)
+
+func _finish_intro(skip_tween: bool = false) -> void:
+	if not _intro_playing:
+		return
+	_intro_playing = false
+	if skip_tween and is_instance_valid(_intro_tween):
+		_intro_tween.kill()
+	_intro_tween = null
+
+	title_logo.modulate.a = 1.0
+	var version_label := $SafeArea/Layout/Version as Label
+	version_label.modulate.a = 1.0
+
+	for child in $SafeArea/Layout/MenuPanel/MenuButtons.get_children():
+		var button := child as Button
+		if button == null:
+			continue
+		button.modulate.a = 1.0
+		button.mouse_filter = Control.MOUSE_FILTER_STOP
+		button.focus_mode = Control.FOCUS_ALL
+
+	new_game_button.grab_focus()
+	_play_title_float()
 
 func _populate_piece_skins() -> void:
 	piece_skin_option.clear()

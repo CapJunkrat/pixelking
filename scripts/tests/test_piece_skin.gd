@@ -24,7 +24,6 @@ func _init() -> void:
 	var menu := packed_scene.instantiate()
 	root.add_child(menu)
 	await process_frame
-	await create_timer(0.55).timeout
 	var option := menu.get_node("SettingsOverlay/SettingsPanel/SettingsContent/PieceSkinOption") as OptionButton
 	var white_preview := menu.get_node("SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview/WhitePieces") as HBoxContainer
 	var black_preview := menu.get_node("SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview/BlackPieces") as HBoxContainer
@@ -33,10 +32,6 @@ func _init() -> void:
 		ok = false
 	if white_preview.get_child_count() != 6 or black_preview.get_child_count() != 6:
 		push_error("Piece skin preview must show both sets of six pieces")
-		ok = false
-
-	if menu.modulate.a < 0.99:
-		push_error("Main menu intro did not restore visibility")
 		ok = false
 	print("[PASS] Piece skin test" if ok else "[FAIL] Piece skin test")
 	quit(0 if ok else 1)
