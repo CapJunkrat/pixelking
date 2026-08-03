@@ -16,3 +16,6 @@ mono_crash.*.json
 
 # Local editor tooling (contains bundled platform binaries)
 /addons/ziva_agent/
+
+# Local IDE settings
+.vscode
