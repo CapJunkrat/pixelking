@@ -9,6 +9,8 @@ const LOCALES := {
 		"enabled": true,
 		"title_path": "res://assets/ui/titles/pixel_king_en.png",
 		"strings": {
+			"COLOR_WHITE": "White",
+			"COLOR_BLACK": "Black",
 			"MENU_NEW_GAME": "New Journey",
 			"MENU_CONTINUE": "Continue",
 			"MENU_SETTINGS": "Settings",

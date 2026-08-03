@@ -23,6 +23,8 @@ func run_all() -> Dictionary:
 	_log("===== PixelKing rule tests =====")
 
 	test_default_and_dynamic_board_sizes()
+	test_color_uses_localization_keys()
+	test_simulation_clone_preserves_identity()
 	test_basic_standard_moves()
 	test_make_move_rejects_illegal_move()
 	test_has_any_legal_move_uses_explicit_color()
@@ -68,6 +70,26 @@ func test_default_and_dynamic_board_sizes() -> void:
 	var board7 := BoardState.new(7)
 	_assert(board6.board_size == 6 and board6.in_bounds(Vector2i(5, 5)), "test_default_and_dynamic_board_sizes assertion 5")
 	_assert(board7.board_size == 7 and board7.in_bounds(Vector2i(6, 6)), "test_default_and_dynamic_board_sizes assertion 6")
+
+func test_color_uses_localization_keys() -> void:
+	_log("\n-- test_color_uses_localization_keys --")
+	_assert(GameRules.color_key(GameRules.PieceColor.WHITE) == &"COLOR_WHITE", "white color returns a localization key")
+	_assert(GameRules.color_key(GameRules.PieceColor.BLACK) == &"COLOR_BLACK", "black color returns a localization key")
+
+func test_simulation_clone_preserves_identity() -> void:
+	_log("\n-- test_simulation_clone_preserves_identity --")
+	var original := _piece("rook", GameRules.PieceColor.WHITE)
+	original.has_moved = true
+	var simulation_copy := original.clone_for_simulation()
+	var board := _empty_board()
+	board.set_piece(Vector2i(0, 0), original)
+	var board_copy := board.clone()
+	var next_real_piece := _piece("pawn", GameRules.PieceColor.WHITE)
+	_assert(simulation_copy != original, "simulation clone is an independent object")
+	_assert(simulation_copy.instance_id == original.instance_id, "simulation clone preserves logical identity")
+	_assert(simulation_copy.has_moved == original.has_moved, "simulation clone copies mutable state")
+	_assert(board_copy.get_piece(Vector2i(0, 0)).instance_id == original.instance_id, "board clone preserves piece identity")
+	_assert(next_real_piece.instance_id == original.instance_id + 1, "simulation clones do not consume a real instance ID")
 
 func test_basic_standard_moves() -> void:
 	_log("\n-- test_basic_standard_moves --")

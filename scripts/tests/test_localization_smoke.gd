@@ -10,6 +10,12 @@ func _init() -> void:
 	if localization.text("MENU_NEW_GAME") != "New Journey":
 		push_error("English menu translation is unavailable")
 		ok = false
+	if localization.text(String(GameRules.color_key(GameRules.PieceColor.WHITE))) != "White":
+		push_error("White color localization is unavailable")
+		ok = false
+	if localization.text(String(GameRules.color_key(GameRules.PieceColor.BLACK))) != "Black":
+		push_error("Black color localization is unavailable")
+		ok = false
 	if localization.title_texture() == null:
 		push_error("English title texture is unavailable")
 		ok = false

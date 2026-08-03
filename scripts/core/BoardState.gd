@@ -239,7 +239,7 @@ func clone() -> BoardState:
 	for x in range(board_size):
 		for y in range(board_size):
 			var piece: ChessPiece = grid[x][y]
-			copy.grid[x][y] = piece.duplicate_piece() if piece != null else null
+			copy.grid[x][y] = piece.clone_for_simulation() if piece != null else null
 	copy.turn = turn
 	copy.en_passant_target = en_passant_target
 	copy.king_pos = king_pos.duplicate()

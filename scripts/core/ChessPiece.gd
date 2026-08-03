@@ -13,17 +13,19 @@ var has_moved: bool = false
 static var _next_instance_id: int = 1
 var instance_id: int = 0
 
-func _init(p_def: PieceDef = null, p_color: int = 0) -> void:
+func _init(p_def: PieceDef = null, p_color: int = 0, allocate_instance_id: bool = true) -> void:
 	def = p_def
 	color = p_color
-	instance_id = _next_instance_id
-	_next_instance_id += 1
+	if allocate_instance_id:
+		instance_id = _next_instance_id
+		_next_instance_id += 1
 
-func duplicate_piece() -> ChessPiece:
-	var copy := ChessPiece.new(def, color)
+## Creates an independent runtime-state copy for move validation and AI search.
+## It preserves the logical piece identity and does not consume a new real instance ID.
+func clone_for_simulation() -> ChessPiece:
+	var copy := ChessPiece.new(def, color, false)
+	copy.instance_id = instance_id
 	copy.has_moved = has_moved
-	# 注意:duplicate_piece 会分配一个新的 instance_id,
-	# 因为它通常用于"模拟一步棋"这种临时场景,不代表真的产生了新棋子。
 	return copy
 
 func get_id() -> String:
