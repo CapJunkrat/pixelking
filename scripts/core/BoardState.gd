@@ -221,18 +221,12 @@ func _promotion_rank(color: int) -> int:
 
 ## Rule-engine implementation note.
 func _is_castling_move(from: Vector2i, to: Vector2i, piece: ChessPiece = null) -> bool:
-	var king := piece if piece != null else get_piece(from)
-	var rook := get_piece(to)
-	if king == null or rook == null:
+	var moving_piece := piece if piece != null else get_piece(from)
+	var partner := get_piece(to)
+	if moving_piece == null or partner == null or from.y != to.y:
 		return false
-	return (
-		king.def.is_king
-		and not king.has_moved
-		and rook.def.id == "rook"
-		and rook.color == king.color
-		and not rook.has_moved
-		and from.y == to.y
-	)
+	var castling_rule := moving_piece.def.movement_rule(&"castling") as CastlingMovementRule
+	return castling_rule != null and castling_rule.is_valid_partner(moving_piece, partner)
 
 func clone() -> BoardState:
 	var copy := BoardState.new(board_size, false)

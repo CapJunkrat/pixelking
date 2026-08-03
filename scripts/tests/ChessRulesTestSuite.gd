@@ -25,6 +25,9 @@ func run_all() -> Dictionary:
 	test_default_and_dynamic_board_sizes()
 	test_color_uses_localization_keys()
 	test_simulation_clone_preserves_identity()
+	test_inherited_king_movement_can_be_extended()
+	test_royal_tag_does_not_define_the_king()
+	test_black_pawn_double_step_uses_dynamic_board_size()
 	test_basic_standard_moves()
 	test_make_move_rejects_illegal_move()
 	test_has_any_legal_move_uses_explicit_color()
@@ -90,6 +93,67 @@ func test_simulation_clone_preserves_identity() -> void:
 	_assert(simulation_copy.has_moved == original.has_moved, "simulation clone copies mutable state")
 	_assert(board_copy.get_piece(Vector2i(0, 0)).instance_id == original.instance_id, "board clone preserves piece identity")
 	_assert(next_real_piece.instance_id == original.instance_id + 1, "simulation clones do not consume a real instance ID")
+
+func test_inherited_king_movement_can_be_extended() -> void:
+	_log("\n-- test_inherited_king_movement_can_be_extended --")
+	var king_definition := PieceDefDatabase.get_def("king")
+	var inherited_profile := MovementProfile.new()
+	inherited_profile.parent = king_definition.movement_profile
+	var rook_slide := SlideMovementRule.new()
+	rook_slide.directions = [
+		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+	]
+	rook_slide.max_distance = 5
+	inherited_profile.rules.append(rook_slide)
+
+	var definition := PieceDef.new()
+	definition.id = "royal_tower"
+	definition.movement_profile = inherited_profile
+	var board := _empty_board()
+	board.set_piece(Vector2i(2, 2), ChessPiece.new(definition, GameRules.PieceColor.WHITE))
+	var moves := MoveGenerator.generate_pseudo_legal(board, Vector2i(2, 2))
+	_assert(Vector2i(3, 3) in moves, "child profile inherits the king diagonal step")
+	_assert(Vector2i(2, 0) in moves and Vector2i(4, 2) in moves, "child profile extends king movement with rook slides")
+	_assert(Vector2i(4, 4) not in moves, "inherited king diagonal remains range one")
+	_assert(moves.size() == 12, "inherited and added movement rules are deduplicated")
+	_assert(not definition.has_movement_rule(&"castling"), "inheriting king movement does not inherit castling")
+
+	var extra_jump := JumpMovementRule.new()
+	extra_jump.offsets = [Vector2i(2, 2)]
+	king_definition.movement_profile.rules.append(extra_jump)
+	var updated_moves := MoveGenerator.generate_pseudo_legal(board, Vector2i(2, 2))
+	_assert(Vector2i(4, 4) in updated_moves, "changes to the parent king profile propagate to inheritors")
+	king_definition.movement_profile.rules.erase(extra_jump)
+
+func test_royal_tag_does_not_define_the_king() -> void:
+	_log("\n-- test_royal_tag_does_not_define_the_king --")
+	var king_definition := PieceDefDatabase.get_def("king")
+	var royal_guard_definition := PieceDef.new()
+	royal_guard_definition.id = "royal_guard"
+	royal_guard_definition.is_royal = true
+	royal_guard_definition.is_king = false
+	royal_guard_definition.movement_profile = MovementProfile.new()
+	royal_guard_definition.movement_profile.parent = king_definition.movement_profile
+
+	_assert(king_definition.is_royal and king_definition.is_king, "standard king is both Royal and the loss-condition king")
+	_assert(royal_guard_definition.is_royal, "Royal guard keeps the Royal category tag")
+	_assert(not royal_guard_definition.is_king, "Royal guard is not the loss-condition king")
+	_assert(not royal_guard_definition.has_movement_rule(&"castling"), "Royal guard does not inherit the king special action")
+
+	var board := _empty_board()
+	_place_kings(board, Vector2i(0, 0), Vector2i(4, 4))
+	board.set_piece(Vector2i(1, 1), ChessPiece.new(royal_guard_definition, GameRules.PieceColor.WHITE))
+	var result := board.make_move(Vector2i(1, 1), Vector2i(1, 2))
+	_assert(result["success"], "Royal non-king piece can move normally")
+	_assert(board.king_pos[GameRules.PieceColor.WHITE] == Vector2i(0, 0), "moving a Royal non-king does not change tracked king position")
+
+func test_black_pawn_double_step_uses_dynamic_board_size() -> void:
+	_log("\n-- test_black_pawn_double_step_uses_dynamic_board_size --")
+	var board := _empty_board()
+	board.set_piece(Vector2i(2, 3), _piece("pawn", GameRules.PieceColor.BLACK))
+	var moves := MoveGenerator.generate_pseudo_legal(board, Vector2i(2, 3))
+	_assert(Vector2i(2, 2) in moves, "black pawn can move one square on 5x5 board")
+	_assert(Vector2i(2, 1) in moves, "black pawn double step derives its start rank from board size")
 
 func test_basic_standard_moves() -> void:
 	_log("\n-- test_basic_standard_moves --")

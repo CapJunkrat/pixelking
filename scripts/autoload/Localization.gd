@@ -11,6 +11,12 @@ const LOCALES := {
 		"strings": {
 			"COLOR_WHITE": "White",
 			"COLOR_BLACK": "Black",
+			"PIECE_PAWN": "Pawn",
+			"PIECE_KNIGHT": "Knight",
+			"PIECE_BISHOP": "Bishop",
+			"PIECE_ROOK": "Rook",
+			"PIECE_QUEEN": "Queen",
+			"PIECE_KING": "King",
 			"MENU_NEW_GAME": "New Journey",
 			"MENU_CONTINUE": "Continue",
 			"MENU_SETTINGS": "Settings",

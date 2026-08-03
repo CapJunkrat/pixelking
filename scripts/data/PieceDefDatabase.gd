@@ -1,10 +1,5 @@
-extends RefCounted
 class_name PieceDefDatabase
-
-## P1阶段:标准6种棋子的定义直接在代码里构建。
-## P4/P5阶段(特殊棋子/Roguelike内容扩充)时,可以把这里换成
-## "扫描 res://resources/piece_defs/*.tres 目录自动加载"的方式,
-## 对外接口 get_def(id) 保持不变,不影响 MoveGenerator / BoardState。
+extends RefCounted
 
 static var _cache: Dictionary = {}
 
@@ -22,63 +17,73 @@ static func _build_all() -> void:
 	_cache["king"] = _king()
 
 static func _pawn() -> PieceDef:
-	var d := PieceDef.new()
-	d.id = "pawn"
-	d.display_name = "兵"
-	d.is_pawn = true
-	d.base_value = 1
-	return d
+	var definition := _base_def("pawn", &"PIECE_PAWN", 1)
+	definition.is_pawn = true
+	definition.movement_profile = _profile([PawnMovementRule.new()])
+	return definition
 
 static func _knight() -> PieceDef:
-	var d := PieceDef.new()
-	d.id = "knight"
-	d.display_name = "马"
-	d.jump_offsets = [
+	var definition := _base_def("knight", &"PIECE_KNIGHT", 3)
+	definition.movement_profile = _profile([_jump([
 		Vector2i(1, 2), Vector2i(2, 1), Vector2i(2, -1), Vector2i(1, -2),
-		Vector2i(-1, -2), Vector2i(-2, -1), Vector2i(-2, 1), Vector2i(-1, 2)
-	]
-	d.base_value = 3
-	return d
+		Vector2i(-1, -2), Vector2i(-2, -1), Vector2i(-2, 1), Vector2i(-1, 2),
+	])])
+	return definition
 
 static func _bishop() -> PieceDef:
-	var d := PieceDef.new()
-	d.id = "bishop"
-	d.display_name = "象"
-	d.slide_directions = [Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]
-	d.max_slide_distance = 8
-	d.base_value = 3
-	return d
+	var definition := _base_def("bishop", &"PIECE_BISHOP", 3)
+	definition.movement_profile = _profile([_slide([
+		Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1),
+	], 8)])
+	return definition
 
 static func _rook() -> PieceDef:
-	var d := PieceDef.new()
-	d.id = "rook"
-	d.display_name = "车"
-	d.slide_directions = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-	d.max_slide_distance = 8
-	d.base_value = 5
-	return d
+	var definition := _base_def("rook", &"PIECE_ROOK", 5)
+	definition.movement_profile = _profile([_slide([
+		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+	], 8)])
+	return definition
 
 static func _queen() -> PieceDef:
-	var d := PieceDef.new()
-	d.id = "queen"
-	d.display_name = "后"
-	d.slide_directions = [
+	var definition := _base_def("queen", &"PIECE_QUEEN", 9)
+	definition.movement_profile = _profile([_slide([
 		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
-		Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)
-	]
-	d.max_slide_distance = 8
-	d.base_value = 9
-	return d
+		Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1),
+	], 8)])
+	return definition
 
 static func _king() -> PieceDef:
-	var d := PieceDef.new()
-	d.id = "king"
-	d.display_name = "王"
-	d.slide_directions = [
+	var definition := _base_def("king", &"PIECE_KING", 1000)
+	definition.is_royal = true
+	definition.is_king = true
+	definition.movement_profile = _profile([_slide([
 		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
-		Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)
-	]
-	d.max_slide_distance = 1
-	d.is_king = true
-	d.base_value = 1000
-	return d
+		Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1),
+	], 1)])
+	definition.special_move_rules.append(CastlingMovementRule.new())
+	return definition
+
+static func _base_def(id: String, display_name_key: StringName, base_value: int) -> PieceDef:
+	var definition := PieceDef.new()
+	definition.id = id
+	definition.display_name_key = display_name_key
+	definition.base_value = base_value
+	return definition
+
+static func _profile(rules: Array[MovementRule], parent: MovementProfile = null) -> MovementProfile:
+	var profile := MovementProfile.new()
+	profile.parent = parent
+	for rule in rules:
+		profile.rules.append(rule)
+	return profile
+
+static func _slide(directions: Array[Vector2i], max_distance: int) -> SlideMovementRule:
+	var rule := SlideMovementRule.new()
+	rule.directions = directions
+	rule.max_distance = max_distance
+	return rule
+
+static func _jump(offsets: Array[Vector2i]) -> JumpMovementRule:
+	var rule := JumpMovementRule.new()
+	rule.offsets = offsets
+	return rule

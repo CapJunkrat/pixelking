@@ -16,6 +16,9 @@ func _init() -> void:
 	if localization.text(String(GameRules.color_key(GameRules.PieceColor.BLACK))) != "Black":
 		push_error("Black color localization is unavailable")
 		ok = false
+	if localization.text(String(PieceDefDatabase.get_def("king").display_name_key)) != "King":
+		push_error("Piece display-name localization is unavailable")
+		ok = false
 	if localization.title_texture() == null:
 		push_error("English title texture is unavailable")
 		ok = false
