@@ -1,12 +1,11 @@
 extends SceneTree
 
-## 验证 autoload (GameState/EventBus) 在真实项目运行环境下可用。
-## 运行: godot --headless --path game --script res://scripts/tests/test_autoload_smoke.gd
+## 楠岃瘉 autoload (GameState/EventBus) 鍦ㄧ湡瀹為」鐩繍琛岀幆澧冧笅鍙敤銆?## 杩愯: godot --headless --path game --script res://scripts/tests/test_autoload_smoke.gd
 
 func _init() -> void:
-	print("===== Autoload 冒烟测试 =====")
+	print("===== Autoload 鍐掔儫娴嬭瘯 =====")
 
-	# 等一帧,确保 autoload 的 _ready() 已经跑过
+	# 绛変竴甯?纭繚 autoload 鐨?_ready() 宸茬粡璺戣繃
 	await process_frame
 
 	var game_state := root.get_node("GameState")
@@ -14,37 +13,37 @@ func _init() -> void:
 
 	var ok := true
 	if game_state == null:
-		print("[FAIL] GameState autoload 未找到")
+		print("[FAIL] GameState autoload 鏈壘鍒?)
 		ok = false
 	elif game_state.board == null:
-		print("[FAIL] GameState.board 未初始化")
+		print("[FAIL] GameState.board 鏈垵濮嬪寲")
 		ok = false
 	else:
-		print("[PASS] GameState autoload 正常,初始棋盘已生成")
+		print("[PASS] GameState autoload 姝ｅ父,鍒濆妫嬬洏宸茬敓鎴?)
 
 	if event_bus == null:
-		print("[FAIL] EventBus autoload 未找到")
+		print("[FAIL] EventBus autoload 鏈壘鍒?)
 		ok = false
 	else:
-		print("[PASS] EventBus autoload 正常")
+		print("[PASS] EventBus autoload 姝ｅ父")
 
-	# 通过 GameState.try_move 走一步真实的棋,顺带验证信号广播不会报错
-	var got_signal := [false]  # GDScript的lambda按值捕获局部变量,这里用数组当可变容器
+	# 閫氳繃 GameState.try_move 璧颁竴姝ョ湡瀹炵殑妫?椤哄甫楠岃瘉淇″彿骞挎挱涓嶄細鎶ラ敊
+	var got_signal := [false]  # GDScript鐨刲ambda鎸夊€兼崟鑾峰眬閮ㄥ彉閲?杩欓噷鐢ㄦ暟缁勫綋鍙彉瀹瑰櫒
 	event_bus.move_made.connect(func(_f, _t, _r): got_signal[0] = true)
 
-	var success: bool = game_state.try_move(Vector2i(4, 1), Vector2i(4, 2))  # e2-e3 on the default 5x5 board
+	var success: bool = game_state.try_move(Vector2i(1, 0), Vector2i(0, 2))  # Knight move in the pawn-free battle setup
 	if success and got_signal[0]:
-		print("[PASS] 通过 GameState.try_move 走子成功,并正确广播 move_made 信号")
+		print("[PASS] 閫氳繃 GameState.try_move 璧板瓙鎴愬姛,骞舵纭箍鎾?move_made 淇″彿")
 	else:
-		print("[FAIL] try_move 或信号广播异常 (success=%s, got_signal=%s)" % [success, got_signal[0]])
+		print("[FAIL] try_move 鎴栦俊鍙峰箍鎾紓甯?(success=%s, got_signal=%s)" % [success, got_signal[0]])
 		ok = false
 
 	var illegal: bool = game_state.try_move(Vector2i(0, 0), Vector2i(0, 5))
 	if not illegal:
-		print("[PASS] 非法走子被正确拒绝")
+		print("[PASS] 闈炴硶璧板瓙琚纭嫆缁?)
 	else:
-		print("[FAIL] 非法走子竟然被接受了")
+		print("[FAIL] 闈炴硶璧板瓙绔熺劧琚帴鍙椾簡")
 		ok = false
 
-	print("===== 结果: %s =====" % ("全部通过" if ok else "存在失败"))
+	print("===== 缁撴灉: %s =====" % ("鍏ㄩ儴閫氳繃" if ok else "瀛樺湪澶辫触"))
 	quit(0 if ok else 1)

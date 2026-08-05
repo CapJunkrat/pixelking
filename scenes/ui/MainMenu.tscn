@@ -1,22 +1,21 @@
-[gd_scene load_steps=30 format=3]
+[gd_scene format=3 uid="uid://db71dspb5iy8b"]
 
-[ext_resource type="Script" path="res://scripts/ui/MainMenu.gd" id="1_script"]
-[ext_resource type="Texture2D" path="res://assets/ui/main_menu_background_clean.png" id="2_bg"]
-[ext_resource type="Texture2D" path="res://assets/ui/titles/pixel_king_en.png" id="3_title"]
-[ext_resource type="FontFile" path="res://assets/fonts/fusion-pixel-12px-proportional-zh_hans.ttf" id="4_font"]
-[ext_resource type="Texture2D" path="res://assets/ui/menu/buttons/chess_button_normal.png" id="5_btn_normal"]
-[ext_resource type="Texture2D" path="res://assets/ui/menu/buttons/chess_button_hover.png" id="6_btn_hover"]
-[ext_resource type="Texture2D" path="res://assets/ui/menu/buttons/chess_button_pressed.png" id="7_btn_pressed"]
-[ext_resource type="Texture2D" path="res://assets/ui/menu/buttons/chess_button_disabled.png" id="8_btn_disabled"]
-[ext_resource type="Texture2D" path="res://assets/ui/menu/icons/new_journey.png" id="9_icon_new"]
-[ext_resource type="Texture2D" path="res://assets/ui/menu/icons/continue.png" id="10_icon_continue"]
-[ext_resource type="Texture2D" path="res://assets/ui/menu/icons/settings.png" id="11_icon_settings"]
-[ext_resource type="Texture2D" path="res://assets/ui/menu/icons/quit.png" id="12_icon_quit"]
-[ext_resource type="Shader" path="res://assets/shaders/main_menu_background.gdshader" id="13_bg_shader"]
-[ext_resource type="Texture2D" path="res://assets/ui/effects/menu_spark.png" id="14_spark"]
-[ext_resource type="Texture2D" path="res://assets/ui/main_menu_flags.png" id="15_flags"]
-[ext_resource type="Shader" path="res://assets/shaders/main_menu_flags.gdshader" id="16_flag_shader"]
-[ext_resource type="Shader" path="res://assets/shaders/title_gem_glint.gdshader" id="17_title_shader"]
+[ext_resource type="Script" uid="uid://ba1rgfrgs4wdn" path="res://scripts/ui/MainMenu.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://cb57ojybrfvwt" path="res://assets/ui/main_menu_background_clean.png" id="2_bg"]
+[ext_resource type="Texture2D" uid="uid://mqyjb5ghpecd" path="res://assets/ui/titles/pixel_king_en.png" id="3_title"]
+[ext_resource type="Texture2D" uid="uid://d0i6wqlk77uqv" path="res://assets/ui/menu/buttons/chess_button_normal.png" id="5_btn_normal"]
+[ext_resource type="Texture2D" uid="uid://biag7ua6y0jxb" path="res://assets/ui/menu/buttons/chess_button_hover.png" id="6_btn_hover"]
+[ext_resource type="Texture2D" uid="uid://jeruewst4vh0" path="res://assets/ui/menu/buttons/chess_button_pressed.png" id="7_btn_pressed"]
+[ext_resource type="Texture2D" uid="uid://bhk55jvuaecgx" path="res://assets/ui/menu/buttons/chess_button_disabled.png" id="8_btn_disabled"]
+[ext_resource type="Texture2D" uid="uid://dpvnf7l6wts57" path="res://assets/ui/menu/icons/new_journey.png" id="9_icon_new"]
+[ext_resource type="Texture2D" uid="uid://dtkqfua868g20" path="res://assets/ui/menu/icons/continue.png" id="10_icon_continue"]
+[ext_resource type="Texture2D" uid="uid://cjayecxxem0jc" path="res://assets/ui/menu/icons/settings.png" id="11_icon_settings"]
+[ext_resource type="Texture2D" uid="uid://ch60csfluh606" path="res://assets/ui/menu/icons/quit.png" id="12_icon_quit"]
+[ext_resource type="Shader" uid="uid://cyxb7pyf7jsns" path="res://assets/shaders/main_menu_background.gdshader" id="13_bg_shader"]
+[ext_resource type="Texture2D" uid="uid://2pv3mwhn4ov2" path="res://assets/ui/effects/menu_spark.png" id="14_spark"]
+[ext_resource type="Texture2D" uid="uid://ct57h3b5gkicn" path="res://assets/ui/main_menu_flags.png" id="15_flags"]
+[ext_resource type="Shader" uid="uid://ciwkifb1dqo23" path="res://assets/shaders/main_menu_flags.gdshader" id="16_flag_shader"]
+[ext_resource type="Shader" uid="uid://cxt52q5majkau" path="res://assets/shaders/title_gem_glint.gdshader" id="17_title_shader"]
 
 [sub_resource type="ShaderMaterial" id="BackgroundMotionMaterial"]
 shader = ExtResource("13_bg_shader")
@@ -32,19 +31,70 @@ shader = ExtResource("17_title_shader")
 shader_parameter/glint_strength = 0.75
 shader_parameter/glint_color = Color(0.64, 0.88, 1, 1)
 
-[sub_resource type="StyleBoxFlat" id="StyleMenu"]
-bg_color = Color(0.045, 0.05, 0.095, 0.9)
+[sub_resource type="StyleBoxEmpty" id="StyleMenuEmpty"]
+
+[sub_resource type="StyleBoxTexture" id="StyleChessNormal"]
+content_margin_left = 52.0
+content_margin_right = 20.0
+texture = ExtResource("5_btn_normal")
+texture_margin_left = 16.0
+texture_margin_top = 10.0
+texture_margin_right = 16.0
+texture_margin_bottom = 10.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StyleBoxTexture" id="StyleChessPressed"]
+content_margin_left = 52.0
+content_margin_top = 2.0
+content_margin_right = 20.0
+texture = ExtResource("7_btn_pressed")
+texture_margin_left = 16.0
+texture_margin_top = 10.0
+texture_margin_right = 16.0
+texture_margin_bottom = 10.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StyleBoxTexture" id="StyleChessHover"]
+content_margin_left = 52.0
+content_margin_right = 20.0
+texture = ExtResource("6_btn_hover")
+texture_margin_left = 16.0
+texture_margin_top = 10.0
+texture_margin_right = 16.0
+texture_margin_bottom = 10.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StyleBoxTexture" id="StyleChessDisabled"]
+content_margin_left = 52.0
+content_margin_right = 20.0
+texture = ExtResource("8_btn_disabled")
+texture_margin_left = 16.0
+texture_margin_top = 10.0
+texture_margin_right = 16.0
+texture_margin_bottom = 10.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StyleBoxFlat" id="StylePopup"]
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 16.0
+content_margin_bottom = 12.0
+bg_color = Color(0.055, 0.06, 0.11, 0.98)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(0.68, 0.48, 0.2, 0.85)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-shadow_color = Color(0, 0, 0, 0.65)
-shadow_size = 6
+border_color = Color(0.85, 0.62, 0.25, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+shadow_color = Color(0, 0, 0, 0.8)
+shadow_size = 10
 
 [sub_resource type="StyleBoxFlat" id="StyleButton"]
 bg_color = Color(0.08, 0.09, 0.15, 0.94)
@@ -70,90 +120,16 @@ corner_radius_top_right = 2
 corner_radius_bottom_right = 2
 corner_radius_bottom_left = 2
 
-[sub_resource type="StyleBoxFlat" id="StyleButtonPressed"]
-bg_color = Color(0.42, 0.19, 0.18, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(1, 0.86, 0.48, 1)
-
-[sub_resource type="StyleBoxEmpty" id="StyleMenuEmpty"]
-
-[sub_resource type="StyleBoxTexture" id="StyleChessNormal"]
-texture = ExtResource("5_btn_normal")
-texture_margin_left = 16.0
-texture_margin_top = 10.0
-texture_margin_right = 16.0
-texture_margin_bottom = 10.0
-content_margin_left = 52.0
-content_margin_right = 20.0
-axis_stretch_horizontal = 1
-axis_stretch_vertical = 1
-
-[sub_resource type="StyleBoxTexture" id="StyleChessHover"]
-texture = ExtResource("6_btn_hover")
-texture_margin_left = 16.0
-texture_margin_top = 10.0
-texture_margin_right = 16.0
-texture_margin_bottom = 10.0
-content_margin_left = 52.0
-content_margin_right = 20.0
-axis_stretch_horizontal = 1
-axis_stretch_vertical = 1
-
-[sub_resource type="StyleBoxTexture" id="StyleChessPressed"]
-texture = ExtResource("7_btn_pressed")
-texture_margin_left = 16.0
-texture_margin_top = 10.0
-texture_margin_right = 16.0
-texture_margin_bottom = 10.0
-content_margin_left = 52.0
-content_margin_top = 2.0
-content_margin_right = 20.0
-axis_stretch_horizontal = 1
-axis_stretch_vertical = 1
-
-[sub_resource type="StyleBoxTexture" id="StyleChessDisabled"]
-texture = ExtResource("8_btn_disabled")
-texture_margin_left = 16.0
-texture_margin_top = 10.0
-texture_margin_right = 16.0
-texture_margin_bottom = 10.0
-content_margin_left = 52.0
-content_margin_right = 20.0
-axis_stretch_horizontal = 1
-axis_stretch_vertical = 1
-
-[sub_resource type="StyleBoxFlat" id="StylePopup"]
-bg_color = Color(0.055, 0.06, 0.11, 0.98)
-content_margin_left = 16.0
-content_margin_top = 12.0
-content_margin_right = 16.0
-content_margin_bottom = 12.0
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.85, 0.62, 0.25, 1)
-corner_radius_top_left = 5
-corner_radius_top_right = 5
-corner_radius_bottom_right = 5
-corner_radius_bottom_left = 5
-shadow_color = Color(0, 0, 0, 0.8)
-shadow_size = 10
-
-[node name="MainMenu" type="Control"]
+[node name="MainMenu" type="Control" unique_id=2101099803]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_fonts/font = ExtResource("4_font")
 script = ExtResource("1_script")
 
-[node name="Background" type="TextureRect" parent="."]
+[node name="Background" type="TextureRect" parent="." unique_id=446504371]
 material = SubResource("BackgroundMotionMaterial")
 layout_mode = 1
 anchors_preset = 15
@@ -166,7 +142,7 @@ texture = ExtResource("2_bg")
 expand_mode = 1
 stretch_mode = 6
 
-[node name="FlagLayer" type="TextureRect" parent="."]
+[node name="FlagLayer" type="TextureRect" parent="." unique_id=707429873]
 material = SubResource("FlagMotionMaterial")
 layout_mode = 1
 anchors_preset = 15
@@ -179,7 +155,7 @@ texture = ExtResource("15_flags")
 expand_mode = 1
 stretch_mode = 6
 
-[node name="DarkOverlay" type="ColorRect" parent="."]
+[node name="DarkOverlay" type="ColorRect" parent="." unique_id=513972834]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -189,13 +165,12 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.015, 0.02, 0.055, 0.2)
 
-[node name="LeftSparks" type="CPUParticles2D" parent="."]
+[node name="LeftSparks" type="CPUParticles2D" parent="." unique_id=94359268]
 position = Vector2(48, 610)
-amount = 8
+texture = ExtResource("14_spark")
 lifetime = 4.2
 preprocess = 4.2
 randomness = 0.7
-texture = ExtResource("14_spark")
 emission_shape = 3
 emission_rect_extents = Vector2(34, 8)
 direction = Vector2(0, -1)
@@ -207,13 +182,12 @@ scale_amount_min = 0.7
 scale_amount_max = 1.4
 color = Color(1, 0.62, 0.22, 0.95)
 
-[node name="RightSparks" type="CPUParticles2D" parent="."]
+[node name="RightSparks" type="CPUParticles2D" parent="." unique_id=174032117]
 position = Vector2(312, 610)
-amount = 8
+texture = ExtResource("14_spark")
 lifetime = 4.6
 preprocess = 4.6
 randomness = 0.75
-texture = ExtResource("14_spark")
 emission_shape = 3
 emission_rect_extents = Vector2(34, 8)
 direction = Vector2(0, -1)
@@ -225,7 +199,7 @@ scale_amount_min = 0.7
 scale_amount_max = 1.35
 color = Color(1, 0.56, 0.18, 0.92)
 
-[node name="TopShade" type="ColorRect" parent="."]
+[node name="TopShade" type="ColorRect" parent="." unique_id=1199710160]
 visible = false
 layout_mode = 1
 anchors_preset = 10
@@ -235,7 +209,7 @@ grow_horizontal = 2
 mouse_filter = 2
 color = Color(0.01, 0.015, 0.04, 0.62)
 
-[node name="SafeArea" type="MarginContainer" parent="."]
+[node name="SafeArea" type="MarginContainer" parent="." unique_id=12143839]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -247,16 +221,16 @@ offset_bottom = -20.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Layout" type="VBoxContainer" parent="SafeArea"]
+[node name="Layout" type="VBoxContainer" parent="SafeArea" unique_id=553224240]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="Header" type="VBoxContainer" parent="SafeArea/Layout"]
+[node name="Header" type="VBoxContainer" parent="SafeArea/Layout" unique_id=2136181246]
 layout_mode = 2
 theme_override_constants/separation = -4
 alignment = 1
 
-[node name="TitleLogo" type="TextureRect" parent="SafeArea/Layout/Header"]
+[node name="TitleLogo" type="TextureRect" parent="SafeArea/Layout/Header" unique_id=971031972]
 material = SubResource("TitleGlintMaterial")
 custom_minimum_size = Vector2(300, 170)
 layout_mode = 2
@@ -264,32 +238,32 @@ texture = ExtResource("3_title")
 expand_mode = 3
 stretch_mode = 5
 
-[node name="Spacer" type="Control" parent="SafeArea/Layout"]
+[node name="Spacer" type="Control" parent="SafeArea/Layout" unique_id=502877708]
 custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
 
-[node name="MenuPanel" type="PanelContainer" parent="SafeArea/Layout"]
+[node name="MenuPanel" type="PanelContainer" parent="SafeArea/Layout" unique_id=2056352538]
 custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_styles/panel = SubResource("StyleMenuEmpty")
 
-[node name="MenuButtons" type="VBoxContainer" parent="SafeArea/Layout/MenuPanel"]
+[node name="MenuButtons" type="VBoxContainer" parent="SafeArea/Layout/MenuPanel" unique_id=6744782]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="NewGameButton" type="Button" parent="SafeArea/Layout/MenuPanel/MenuButtons"]
+[node name="NewGameButton" type="Button" parent="SafeArea/Layout/MenuPanel/MenuButtons" unique_id=968210923]
 custom_minimum_size = Vector2(280, 48)
 layout_mode = 2
 focus_neighbor_bottom = NodePath("../ContinueButton")
 theme_override_styles/normal = SubResource("StyleChessNormal")
+theme_override_styles/pressed = SubResource("StyleChessPressed")
 theme_override_styles/hover = SubResource("StyleChessHover")
 theme_override_styles/focus = SubResource("StyleChessHover")
-theme_override_styles/pressed = SubResource("StyleChessPressed")
 
-[node name="Content" type="CenterContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton"]
+[node name="Content" type="CenterContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton" unique_id=901929715]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -298,13 +272,13 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Group" type="HBoxContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton/Content"]
+[node name="Group" type="HBoxContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton/Content" unique_id=364349610]
 layout_mode = 2
+mouse_filter = 2
 theme_override_constants/separation = 8
 alignment = 1
-mouse_filter = 2
 
-[node name="Icon" type="TextureRect" parent="SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton/Content/Group"]
+[node name="Icon" type="TextureRect" parent="SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton/Content/Group" unique_id=129299373]
 custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
 mouse_filter = 2
@@ -312,22 +286,21 @@ texture = ExtResource("9_icon_new")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Label" type="Label" parent="SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton/Content/Group"]
+[node name="Label" type="Label" parent="SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton/Content/Group" unique_id=1329863565]
 layout_mode = 2
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.94, 0.9, 0.78, 1)
 theme_override_font_sizes/font_size = 24
 text = "MENU_NEW_GAME"
 vertical_alignment = 1
 
-[node name="ContinueButton" type="Button" parent="SafeArea/Layout/MenuPanel/MenuButtons"]
+[node name="ContinueButton" type="Button" parent="SafeArea/Layout/MenuPanel/MenuButtons" unique_id=627469139]
 custom_minimum_size = Vector2(280, 48)
 layout_mode = 2
-disabled = true
 theme_override_styles/normal = SubResource("StyleChessDisabled")
 theme_override_styles/disabled = SubResource("StyleChessDisabled")
+disabled = true
 
-[node name="Content" type="CenterContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton"]
+[node name="Content" type="CenterContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton" unique_id=1705738930]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -336,38 +309,37 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Group" type="HBoxContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton/Content"]
+[node name="Group" type="HBoxContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton/Content" unique_id=289969849]
 layout_mode = 2
+mouse_filter = 2
 theme_override_constants/separation = 8
 alignment = 1
-mouse_filter = 2
 
-[node name="Icon" type="TextureRect" parent="SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton/Content/Group"]
+[node name="Icon" type="TextureRect" parent="SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton/Content/Group" unique_id=108260438]
+modulate = Color(0.48, 0.48, 0.5, 1)
 custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
 mouse_filter = 2
 texture = ExtResource("10_icon_continue")
 expand_mode = 1
 stretch_mode = 5
-modulate = Color(0.48, 0.48, 0.5, 1)
 
-[node name="Label" type="Label" parent="SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton/Content/Group"]
+[node name="Label" type="Label" parent="SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton/Content/Group" unique_id=445779166]
 layout_mode = 2
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.48, 0.48, 0.5, 1)
 theme_override_font_sizes/font_size = 24
 text = "MENU_CONTINUE"
 vertical_alignment = 1
 
-[node name="SettingsButton" type="Button" parent="SafeArea/Layout/MenuPanel/MenuButtons"]
+[node name="SettingsButton" type="Button" parent="SafeArea/Layout/MenuPanel/MenuButtons" unique_id=1851281161]
 custom_minimum_size = Vector2(280, 48)
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleChessNormal")
+theme_override_styles/pressed = SubResource("StyleChessPressed")
 theme_override_styles/hover = SubResource("StyleChessHover")
 theme_override_styles/focus = SubResource("StyleChessHover")
-theme_override_styles/pressed = SubResource("StyleChessPressed")
 
-[node name="Content" type="CenterContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton"]
+[node name="Content" type="CenterContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton" unique_id=821195892]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -376,13 +348,13 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Group" type="HBoxContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton/Content"]
+[node name="Group" type="HBoxContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton/Content" unique_id=1338036107]
 layout_mode = 2
+mouse_filter = 2
 theme_override_constants/separation = 8
 alignment = 1
-mouse_filter = 2
 
-[node name="Icon" type="TextureRect" parent="SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton/Content/Group"]
+[node name="Icon" type="TextureRect" parent="SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton/Content/Group" unique_id=1084232396]
 custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
 mouse_filter = 2
@@ -390,23 +362,22 @@ texture = ExtResource("11_icon_settings")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Label" type="Label" parent="SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton/Content/Group"]
+[node name="Label" type="Label" parent="SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton/Content/Group" unique_id=1768062802]
 layout_mode = 2
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.94, 0.9, 0.78, 1)
 theme_override_font_sizes/font_size = 24
 text = "MENU_SETTINGS"
 vertical_alignment = 1
 
-[node name="QuitButton" type="Button" parent="SafeArea/Layout/MenuPanel/MenuButtons"]
+[node name="QuitButton" type="Button" parent="SafeArea/Layout/MenuPanel/MenuButtons" unique_id=1962372393]
 custom_minimum_size = Vector2(280, 48)
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleChessNormal")
+theme_override_styles/pressed = SubResource("StyleChessPressed")
 theme_override_styles/hover = SubResource("StyleChessHover")
 theme_override_styles/focus = SubResource("StyleChessHover")
-theme_override_styles/pressed = SubResource("StyleChessPressed")
 
-[node name="Content" type="CenterContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton"]
+[node name="Content" type="CenterContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton" unique_id=2092613678]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -415,13 +386,13 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Group" type="HBoxContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton/Content"]
+[node name="Group" type="HBoxContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton/Content" unique_id=1468785558]
 layout_mode = 2
+mouse_filter = 2
 theme_override_constants/separation = 8
 alignment = 1
-mouse_filter = 2
 
-[node name="Icon" type="TextureRect" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton/Content/Group"]
+[node name="Icon" type="TextureRect" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton/Content/Group" unique_id=1728595479]
 custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
 mouse_filter = 2
@@ -429,22 +400,21 @@ texture = ExtResource("12_icon_quit")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Label" type="Label" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton/Content/Group"]
+[node name="Label" type="Label" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton/Content/Group" unique_id=347100095]
 layout_mode = 2
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.94, 0.9, 0.78, 1)
 theme_override_font_sizes/font_size = 24
 text = "MENU_QUIT"
 vertical_alignment = 1
 
-[node name="Version" type="Label" parent="SafeArea/Layout"]
+[node name="Version" type="Label" parent="SafeArea/Layout" unique_id=2146758185]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.64, 0.62, 0.67, 1)
 theme_override_font_sizes/font_size = 12
 text = "PRE-ALPHA  v0.1.0"
 horizontal_alignment = 1
 
-[node name="SettingsOverlay" type="ColorRect" parent="."]
+[node name="SettingsOverlay" type="ColorRect" parent="." unique_id=1329766734]
 visible = false
 layout_mode = 1
 anchors_preset = 15
@@ -454,7 +424,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.005, 0.008, 0.02, 0.86)
 
-[node name="SettingsPanel" type="PanelContainer" parent="SettingsOverlay"]
+[node name="SettingsPanel" type="PanelContainer" parent="SettingsOverlay" unique_id=272146040]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -469,24 +439,24 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StylePopup")
 
-[node name="SettingsContent" type="VBoxContainer" parent="SettingsOverlay/SettingsPanel"]
+[node name="SettingsContent" type="VBoxContainer" parent="SettingsOverlay/SettingsPanel" unique_id=1413428224]
 layout_mode = 2
 theme_override_constants/separation = 8
 alignment = 1
 
-[node name="Title" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+[node name="Title" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent" unique_id=791387953]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.82, 0.34, 1)
 theme_override_font_sizes/font_size = 24
 text = "SETTINGS_TITLE"
 horizontal_alignment = 1
 
-[node name="LanguageLabel" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+[node name="LanguageLabel" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent" unique_id=1122923373]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "SETTINGS_LANGUAGE"
 
-[node name="LanguageOption" type="OptionButton" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+[node name="LanguageOption" type="OptionButton" parent="SettingsOverlay/SettingsPanel/SettingsContent" unique_id=1957038093]
 custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
@@ -494,12 +464,12 @@ theme_override_styles/normal = SubResource("StyleButton")
 theme_override_styles/hover = SubResource("StyleButtonHover")
 theme_override_styles/focus = SubResource("StyleButtonHover")
 
-[node name="PieceSkinLabel" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+[node name="PieceSkinLabel" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent" unique_id=2061679691]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "SETTINGS_PIECE_SKIN"
 
-[node name="PieceSkinOption" type="OptionButton" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+[node name="PieceSkinOption" type="OptionButton" parent="SettingsOverlay/SettingsPanel/SettingsContent" unique_id=1574883912]
 custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
@@ -507,45 +477,45 @@ theme_override_styles/normal = SubResource("StyleButton")
 theme_override_styles/hover = SubResource("StyleButtonHover")
 theme_override_styles/focus = SubResource("StyleButtonHover")
 
-[node name="PreviewLabel" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+[node name="PreviewLabel" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent" unique_id=121295449]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "SETTINGS_SKIN_PREVIEW"
 
-[node name="SkinPreview" type="VBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+[node name="SkinPreview" type="VBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsContent" unique_id=1806369434]
 custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="WhitePieces" type="HBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview"]
+[node name="WhitePieces" type="HBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview" unique_id=1749901856]
 layout_mode = 2
 theme_override_constants/separation = 4
 alignment = 1
 
-[node name="BlackPieces" type="HBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview"]
+[node name="BlackPieces" type="HBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview" unique_id=557177737]
 layout_mode = 2
 theme_override_constants/separation = 4
 alignment = 1
 
-[node name="MusicLabel" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+[node name="MusicLabel" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent" unique_id=2018349805]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "SETTINGS_MUSIC"
 
-[node name="MusicSlider" type="HSlider" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+[node name="MusicSlider" type="HSlider" parent="SettingsOverlay/SettingsPanel/SettingsContent" unique_id=1068670605]
 layout_mode = 2
 value = 75.0
 
-[node name="SoundLabel" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+[node name="SoundLabel" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent" unique_id=753600515]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "SETTINGS_SOUND"
 
-[node name="SoundSlider" type="HSlider" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+[node name="SoundSlider" type="HSlider" parent="SettingsOverlay/SettingsPanel/SettingsContent" unique_id=1428570742]
 layout_mode = 2
 value = 85.0
 
-[node name="BackButton" type="Button" parent="SettingsOverlay/SettingsPanel/SettingsContent"]
+[node name="BackButton" type="Button" parent="SettingsOverlay/SettingsPanel/SettingsContent" unique_id=650510219]
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
@@ -554,7 +524,7 @@ theme_override_styles/hover = SubResource("StyleButtonHover")
 theme_override_styles/focus = SubResource("StyleButtonHover")
 text = "COMMON_BACK"
 
-[node name="BattlePlaceholder" type="ColorRect" parent="."]
+[node name="BattlePlaceholder" type="ColorRect" parent="." unique_id=626075408]
 visible = false
 layout_mode = 1
 anchors_preset = 15
@@ -564,7 +534,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.02, 0.025, 0.055, 0.97)
 
-[node name="BattleContent" type="VBoxContainer" parent="BattlePlaceholder"]
+[node name="BattleContent" type="VBoxContainer" parent="BattlePlaceholder" unique_id=608336100]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -580,14 +550,14 @@ grow_vertical = 2
 theme_override_constants/separation = 22
 alignment = 1
 
-[node name="Title" type="Label" parent="BattlePlaceholder/BattleContent"]
+[node name="Title" type="Label" parent="BattlePlaceholder/BattleContent" unique_id=939543965]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.82, 0.34, 1)
 theme_override_font_sizes/font_size = 24
 text = "JOURNEY_TITLE"
 horizontal_alignment = 1
 
-[node name="Description" type="Label" parent="BattlePlaceholder/BattleContent"]
+[node name="Description" type="Label" parent="BattlePlaceholder/BattleContent" unique_id=1896376248]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.82, 0.8, 0.75, 1)
 theme_override_font_sizes/font_size = 12
@@ -595,7 +565,7 @@ text = "JOURNEY_DESCRIPTION"
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="BackButton" type="Button" parent="BattlePlaceholder/BattleContent"]
+[node name="BackButton" type="Button" parent="BattlePlaceholder/BattleContent" unique_id=839990058]
 custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24

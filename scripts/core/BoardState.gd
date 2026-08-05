@@ -66,6 +66,13 @@ func _default_back_rank() -> Array:
 func _place(pos: Vector2i, def_id: String, color: int) -> void:
 	grid[pos.x][pos.y] = ChessPiece.new(PieceDefDatabase.get_def(def_id), color)
 
+func remove_all_pawns() -> void:
+	for x in range(board_size):
+		for y in range(board_size):
+			var piece := get_piece(Vector2i(x, y))
+			if piece != null and piece.def.is_pawn:
+				grid[x][y] = null
+
 func in_bounds(pos: Vector2i) -> bool:
 	return pos.x >= 0 and pos.x < board_size and pos.y >= 0 and pos.y < board_size
 
@@ -200,7 +207,7 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 			king_pos[moving_color] = to
 
 	if is_pawn_move and abs(to.y - from.y) == 2:
-		en_passant_target = Vector2i(from.x, (from.y + to.y) / 2)
+		en_passant_target = Vector2i(from.x, floori((from.y + to.y) / 2.0))
 	else:
 		en_passant_target = Vector2i(-1, -1)
 

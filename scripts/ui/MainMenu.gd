@@ -203,8 +203,8 @@ func _play_title_float() -> void:
 	tween.tween_property(title_logo, "position:y", start_y, 1.5)
 
 func _on_new_game_pressed() -> void:
-	battle_placeholder.visible = true
-	$BattlePlaceholder/BattleContent/BackButton.grab_focus()
+	GameState.start_new_game()
+	get_tree().change_scene_to_file("res://scenes/battle/BattleScene.tscn")
 
 func _close_battle_placeholder() -> void:
 	battle_placeholder.visible = false
