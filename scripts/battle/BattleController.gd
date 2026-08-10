@@ -11,8 +11,7 @@ const SLOT_COUNT := 6
 @onready var layout: VBoxContainer = $Margin/Layout
 @onready var board_frame: Control = $Margin/Layout/BoardFrame
 @onready var board_grid: GridContainer = $Margin/Layout/BoardFrame/BoardCenter/BoardGrid
-@onready var settings_manager: AppSettingsManager = get_node("/root/SettingsManager") as AppSettingsManager
-@onready var audio_manager: AppAudioManager = get_node("/root/AudioManager") as AppAudioManager
+@onready var settings_overlay: BattleSettingsPanel = $SettingsOverlay as BattleSettingsPanel
 
 var selected_square := Vector2i(-1, -1)
 var legal_targets: Array[Vector2i] = []
@@ -21,8 +20,6 @@ var challenger_slots: Array[Button] = []
 var turn_label: Label
 var round_label: Label
 var enemy_portrait: TextureRect
-var settings_overlay: ColorRect
-var leave_confirmation: ConfirmationDialog
 var battle_font: Font
 
 func _ready() -> void:
@@ -34,7 +31,6 @@ func _ready() -> void:
 	_build_top_bar()
 	_build_background_vista()
 	_build_challenger_bar()
-	_build_settings()
 	board_frame.custom_minimum_size = Vector2(351, 351)
 	board_frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	board_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -45,8 +41,8 @@ func _ready() -> void:
 	_refresh_challenger_slots()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel") and settings_overlay.visible:
-		settings_overlay.hide()
+	if event.is_action_pressed("ui_cancel") and settings_overlay.is_open():
+		settings_overlay.close()
 		get_viewport().set_input_as_handled()
 
 func _exit_tree() -> void:
@@ -181,7 +177,7 @@ func _build_top_bar() -> void:
 	gear.add_theme_stylebox_override("normal", gear_style)
 	gear.add_theme_stylebox_override("hover", gear_style)
 	gear.add_theme_stylebox_override("pressed", gear_style)
-	gear.pressed.connect(func() -> void: settings_overlay.show())
+	gear.pressed.connect(settings_overlay.open)
 	var gear_icon := TextureRect.new()
 	gear_icon.name = "GearIcon"
 	gear_icon.anchor_left = 0.5
@@ -269,70 +265,6 @@ func _build_challenger_bar() -> void:
 	title_panel.add_child(heading)
 	layout.add_child(root_panel)
 	layout.move_child(root_panel, push_down.get_index() + 1)
-func _build_settings() -> void:
-	settings_overlay = ColorRect.new()
-	settings_overlay.name = "SettingsOverlay"
-	settings_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	settings_overlay.color = Color(0, 0, 0, 0.78)
-	settings_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	settings_overlay.hide()
-	add_child(settings_overlay)
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	settings_overlay.add_child(center)
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(300, 330)
-	panel.add_theme_stylebox_override("panel", _style(Color("#0b1020"), GOLD, 2, 10))
-	center.add_child(panel)
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_bottom", 18)
-	panel.add_child(margin)
-	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 10)
-	margin.add_child(content)
-	var heading := Label.new()
-	heading.text = Localization.text("SETTINGS_TITLE")
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heading.add_theme_color_override("font_color", GOLD)
-	heading.add_theme_font_size_override("font_size", 22)
-	content.add_child(heading)
-	_add_volume(content, Localization.text("SETTINGS_MUSIC"), &"Music")
-	_add_volume(content, Localization.text("SETTINGS_SOUND"), &"SFX")
-	_add_settings_button(content, Localization.text("BATTLE_SETTINGS_RESUME"), func() -> void: settings_overlay.hide())
-	_add_settings_button(content, Localization.text("BATTLE_SETTINGS_MAIN_MENU"), _request_main_menu)
-	leave_confirmation = ConfirmationDialog.new()
-	leave_confirmation.title = Localization.text("BATTLE_SETTINGS_MAIN_MENU")
-	leave_confirmation.dialog_text = Localization.text("BATTLE_SETTINGS_CONFIRM")
-	leave_confirmation.confirmed.connect(_return_to_menu)
-	add_child(leave_confirmation)
-
-func _add_volume(parent: VBoxContainer, text: String, bus_name: StringName) -> void:
-	var label := Label.new()
-	label.text = text
-	parent.add_child(label)
-	var slider := HSlider.new()
-	slider.name = "%sVolume" % bus_name
-	slider.min_value = 0.0
-	slider.max_value = 1.0
-	slider.step = 0.05
-	slider.value = audio_manager.music_volume() if bus_name == &"Music" else audio_manager.sfx_volume()
-	slider.value_changed.connect(_on_volume_changed.bind(bus_name))
-	if bus_name == &"Music":
-		settings_manager.music_volume_changed.connect(_sync_volume_slider.bind(slider))
-	else:
-		settings_manager.sfx_volume_changed.connect(_sync_volume_slider.bind(slider))
-	parent.add_child(slider)
-
-func _add_settings_button(parent: VBoxContainer, text: String, callback: Callable) -> void:
-	var button := Button.new()
-	button.custom_minimum_size = Vector2(0, 44)
-	button.text = text
-	button.pressed.connect(callback)
-	parent.add_child(button)
-
 func _build_board() -> void:
 	board_grid.custom_minimum_size = Vector2(315, 315)
 	board_grid.add_theme_constant_override("h_separation", 0)
@@ -554,8 +486,6 @@ func _treasure_slot_style(hovered: bool) -> StyleBoxFlat:
 	style.shadow_offset = Vector2(0, 2)
 	style.anti_aliasing = false
 	return style
-func _request_main_menu() -> void:
-	leave_confirmation.popup_centered()
 func _texture_style(path: String, margin: float) -> StyleBoxTexture:
 	return _frame_style(path, margin, 0)
 
@@ -572,18 +502,5 @@ func _frame_style(path: String, texture_margin: float, content_margin: float) ->
 	style.content_margin_bottom = content_margin
 	style.draw_center = true
 	return style
-func _on_volume_changed(value: float, bus_name: StringName) -> void:
-	if bus_name == &"Music":
-		audio_manager.set_music_volume(value)
-	else:
-		audio_manager.set_sfx_volume(value)
-
-func _sync_volume_slider(value: float, slider: HSlider) -> void:
-	if is_instance_valid(slider):
-		slider.set_value_no_signal(value)
-
 func _on_skin_changed(_skin_id: StringName) -> void:
 	_refresh_board()
-
-func _return_to_menu() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/MainMenu.tscn")

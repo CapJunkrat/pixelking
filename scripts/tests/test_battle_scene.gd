@@ -28,6 +28,7 @@ func _run() -> void:
 				pawn_count += 1
 	_expect(pawn_count == 0, "the temporary battle setup contains no pawns")
 	_expect(battle.get_node("Margin/Layout/TopBar/SettingsButton") != null, "top bar owns the settings button")
+	_expect(battle.get_node("SettingsOverlay") is BattleSettingsPanel, "battle settings are extracted into a static scene component")
 	_expect(not battle.get_node("Margin/Layout/BackButton").visible, "persistent bottom return button is removed")
 	_expect(battle.challenger_slots.size() == 6, "persistent and consumable objects share six challenger slots")
 
