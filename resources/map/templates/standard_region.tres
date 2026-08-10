@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="MapTemplateDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/MapTemplateDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"standard_region"
+min_layers = 6
+max_layers = 8
+min_nodes_per_layer = 2
+max_nodes_per_layer = 3
+boss_node_type_id = &"boss"
+guaranteed_node_type_ids = Array[StringName]([&"elite_battle", &"shop", &"rest"])
+filler_node_type_ids = Array[StringName]([&"normal_battle", &"event"])

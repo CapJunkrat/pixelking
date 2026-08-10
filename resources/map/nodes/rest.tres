@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="MapNodeDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/MapNodeDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"rest"
+display_name_key = &"MAP_NODE_REST"
+description_key = &"MAP_DESC_REST"
+enemy_hint_key = &"MAP_ENEMY_NONE"
+reward_hint_key = &"MAP_REWARD_REST"
+icon_text = "+"
+generation_weight = 0
