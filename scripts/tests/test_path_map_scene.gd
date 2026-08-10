@@ -41,6 +41,12 @@ func _run() -> void:
 			selectable_cards.append(card)
 	_expect(selectable_cards.size() >= 2 and selectable_cards.size() <= 3, "first layer exposes two to three route choices")
 	var selected_card: Button = selectable_cards[0]
+	for candidate: Button in selectable_cards:
+		var candidate_type_id: StringName = candidate.get_meta("node_type_id", &"")
+		var candidate_definition: MapNodeDef = MapNodeDefDatabase.get_def(candidate_type_id)
+		if candidate_definition != null and not candidate_definition.is_battle:
+			selected_card = candidate
+			break
 	var selected_id: StringName = selected_card.get_meta("node_id", &"")
 	selected_card.pressed.emit()
 	await process_frame
@@ -48,6 +54,14 @@ func _run() -> void:
 	var overlay: ColorRect = path_map.get_node("NodeOverlay") as ColorRect
 	_expect(overlay.visible, "selected node opens a full-information confirmation panel")
 	_expect(run_manager.available_map_node_ids() == [selected_id], "unresolved selected node is the only resumable map action")
+	var selected_node: MapNodeState = run_manager.current_run.map_state.get_node(selected_id)
+	var selected_definition: MapNodeDef = MapNodeDefDatabase.get_def(selected_node.node_type_id)
+	if not selected_definition.is_battle:
+		var action_button: Button = path_map.get_node("NodeOverlay/Center/Panel/Content/ActionButton") as Button
+		action_button.pressed.emit()
+		await process_frame
+		_expect(run_manager.map_progress_service.is_current_node_resolved(run_manager.current_run), "placeholder node action resolves and saves the current node")
+		_expect(run_manager.available_map_node_ids() == selected_node.outgoing_node_ids, "placeholder resolution unlocks connected next-layer choices")
 	path_map.queue_free()
 	run_manager.abandon_run()
 	_cleanup()
