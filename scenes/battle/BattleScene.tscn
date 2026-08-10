@@ -57,14 +57,6 @@ custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="Title" type="Label" parent="Margin/Layout"]
-layout_mode = 2
-text = "Legacy title"
-
-[node name="TurnLabel" type="Label" parent="Margin/Layout"]
-layout_mode = 2
-text = "Legacy turn"
-
 [node name="BoardFrame" parent="Margin/Layout" instance=ExtResource("7_board")]
 layout_mode = 2
 
@@ -79,12 +71,6 @@ layout_mode = 2
 
 [node name="BattleFlow" type="Node" parent="."]
 script = ExtResource("4_flow")
-
-[node name="StatusLabel" type="Label" parent="Margin/Layout"]
-layout_mode = 2
-
-[node name="BackButton" type="Button" parent="Margin/Layout"]
-layout_mode = 2text = "Legacy back"
 
 [node name="ResultOverlay" parent="." instance=ExtResource("9_result")]
 
