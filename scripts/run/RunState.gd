@@ -1,7 +1,7 @@
 class_name RunState
 extends RefCounted
 
-const CURRENT_RUN_VERSION := 2
+const CURRENT_RUN_VERSION := 3
 const MODE_STANDARD := "standard"
 const MODE_ENDLESS := "endless"
 const MAX_ACTIVE_NON_KING_PIECES := 5
@@ -28,6 +28,7 @@ var gold: int = 0
 var protected_piece_ids: Array[int] = []
 var current_encounter_id: StringName = &""
 var current_encounter_seed: int = 0
+var deployment_state: DeploymentState = null
 var pending_choice: Dictionary = {}
 var run_statistics: Dictionary = {}
 var next_piece_instance_id: int = 1
@@ -53,6 +54,7 @@ func initialize_new(seed_value: int, mode_value: String = MODE_STANDARD) -> void
 	protected_piece_ids.clear()
 	current_encounter_id = &""
 	current_encounter_seed = 0
+	deployment_state = null
 	pending_choice.clear()
 	run_statistics.clear()
 	next_piece_instance_id = 1
@@ -133,7 +135,14 @@ func is_valid() -> bool:
 		if not roster_ids.has(instance_id):
 			return false
 	var king: PieceInstanceState = _king_piece()
-	return king != null and king.instance_id in active_piece_ids
+	if king == null or king.instance_id not in active_piece_ids:
+		return false
+	if deployment_state != null:
+		if not deployment_state.is_valid(self):
+			return false
+		if resolved_node_payloads.has(String(current_node_id)):
+			return false
+	return true
 
 func to_dictionary() -> Dictionary:
 	var roster_data: Array[Dictionary] = []
@@ -160,6 +169,7 @@ func to_dictionary() -> Dictionary:
 		"protected_piece_ids": protected_piece_ids.duplicate(),
 		"current_encounter_id": String(current_encounter_id),
 		"current_encounter_seed": current_encounter_seed,
+		"deployment_state": deployment_state.to_dictionary() if deployment_state != null else {},
 		"pending_choice": pending_choice.duplicate(true),
 		"run_statistics": run_statistics.duplicate(true),
 		"next_piece_instance_id": next_piece_instance_id,
@@ -206,6 +216,14 @@ func load_from_dictionary(data: Dictionary) -> bool:
 	protected_piece_ids = _to_int_array(data.get("protected_piece_ids", []))
 	current_encounter_id = StringName(str(data.get("current_encounter_id", "")))
 	current_encounter_seed = int(data.get("current_encounter_seed", 0))
+	deployment_state = null
+	var deployment_value: Variant = data.get("deployment_state", {})
+	if deployment_value is Dictionary and not (deployment_value as Dictionary).is_empty():
+		deployment_state = DeploymentState.new()
+		if not deployment_state.load_from_dictionary(deployment_value as Dictionary, self):
+			return false
+	elif not deployment_value is Dictionary:
+		return false
 	pending_choice = _dictionary_value(data, "pending_choice")
 	run_statistics = _dictionary_value(data, "run_statistics")
 	next_piece_instance_id = int(data.get("next_piece_instance_id", 1))
