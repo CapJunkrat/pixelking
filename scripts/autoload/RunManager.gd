@@ -7,6 +7,8 @@ signal opening_draft_completed(run_state: RunState)
 signal map_generated(run_state: RunState)
 signal map_node_selected(run_state: RunState, node_id: StringName)
 signal map_node_resolved(run_state: RunState, node_id: StringName)
+signal roster_changed(run_state: RunState)
+signal deployment_changed(run_state: RunState)
 signal run_saved
 
 const DEFAULT_SAVE_PATH := "user://active_run.save"
@@ -16,6 +18,8 @@ var rng_service: RunRngService = null
 var save_service: ActiveRunSaveService = null
 var opening_draft_service: OpeningDraftService = null
 var map_progress_service: MapProgressService = null
+var roster_service: RosterService = null
+var deployment_service: DeploymentService = null
 var save_path: String = DEFAULT_SAVE_PATH
 var _initialized: bool = false
 
@@ -151,7 +155,101 @@ func current_map_node() -> MapNodeState:
 		return null
 	return current_run.map_state.get_node(current_run.current_node_id)
 
+func move_roster_piece(instance_id: int, to_active: bool) -> Error:
+	_ensure_services()
+	if current_run == null:
+		return ERR_DOES_NOT_EXIST
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var roster_run: RunState = transaction["run"] as RunState
+	var roster_rng: RunRngService = transaction["rng"] as RunRngService
+	var error: Error = roster_service.move_to_active(roster_run, instance_id) if to_active else roster_service.move_to_reserve(roster_run, instance_id)
+	if error != OK:
+		return error
+	if roster_run.deployment_state != null:
+		error = deployment_service.synchronize_with_roster(roster_run)
+		if error != OK:
+			return error
+	var commit_error: Error = _commit_transaction(roster_run, roster_rng)
+	if commit_error == OK:
+		roster_changed.emit(current_run)
+	return commit_error
+
+func begin_deployment() -> Error:
+	_ensure_services()
+	if current_run == null:
+		return ERR_DOES_NOT_EXIST
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var deployment_run: RunState = transaction["run"] as RunState
+	var deployment_rng: RunRngService = transaction["rng"] as RunRngService
+	var error: Error = deployment_service.ensure_deployment(deployment_run)
+	if error != OK:
+		return error
+	var commit_error: Error = _commit_transaction(deployment_run, deployment_rng)
+	if commit_error == OK:
+		deployment_changed.emit(current_run)
+	return commit_error
+
+func move_deployed_piece(instance_id: int, target: Vector2i) -> Error:
+	_ensure_services()
+	if current_run == null:
+		return ERR_DOES_NOT_EXIST
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var deployment_run: RunState = transaction["run"] as RunState
+	var deployment_rng: RunRngService = transaction["rng"] as RunRngService
+	var error: Error = deployment_service.move_piece(deployment_run, instance_id, target)
+	if error != OK:
+		return error
+	var commit_error: Error = _commit_transaction(deployment_run, deployment_rng)
+	if commit_error == OK:
+		deployment_changed.emit(current_run)
+	return commit_error
+
+func confirm_deployment() -> Error:
+	_ensure_services()
+	if current_run == null:
+		return ERR_DOES_NOT_EXIST
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var deployment_run: RunState = transaction["run"] as RunState
+	var deployment_rng: RunRngService = transaction["rng"] as RunRngService
+	var error: Error = deployment_service.confirm(deployment_run)
+	if error != OK:
+		return error
+	var commit_error: Error = _commit_transaction(deployment_run, deployment_rng)
+	if commit_error == OK:
+		deployment_changed.emit(current_run)
+	return commit_error
+
+func resolve_current_battle_node(payload: Dictionary = {}) -> Error:
+	_ensure_services()
+	if current_run == null or current_run.deployment_state == null:
+		return ERR_DOES_NOT_EXIST
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var battle_run: RunState = transaction["run"] as RunState
+	var battle_rng: RunRngService = transaction["rng"] as RunRngService
+	var node_id: StringName = battle_run.current_node_id
+	var error: Error = map_progress_service.resolve_current_node(battle_run, payload)
+	if error != OK:
+		return error
+	deployment_service.clear(battle_run)
+	var commit_error: Error = _commit_transaction(battle_run, battle_rng)
+	if commit_error == OK:
+		map_node_resolved.emit(current_run, node_id)
+		deployment_changed.emit(current_run)
+	return commit_error
+
 func resume_scene_path() -> String:
+	if current_run != null and current_run.deployment_state != null:
+		return "res://scenes/run/DeploymentScene.tscn"
 	if opening_draft_complete():
 		return "res://scenes/run/PathMapScene.tscn"
 	return "res://scenes/run/OpeningDraftScene.tscn"
@@ -236,6 +334,8 @@ func _initialize_services() -> void:
 	rng_service = RunRngService.new()
 	opening_draft_service = OpeningDraftService.new()
 	map_progress_service = MapProgressService.new()
+	roster_service = RosterService.new()
+	deployment_service = DeploymentService.new()
 	_initialized = true
 
 func _ensure_services() -> void:
