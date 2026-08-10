@@ -14,8 +14,10 @@ export_credentials.cfg
 data_*/
 mono_crash.*.json
 
-# Local editor tooling (contains bundled platform binaries)
+# Local editor tooling and agent workspace
 /addons/ziva_agent/
+/.ziva/
+/nul
 
 # Local IDE settings
 .vscode
