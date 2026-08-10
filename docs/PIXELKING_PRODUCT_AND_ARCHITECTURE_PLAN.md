@@ -4,7 +4,7 @@
 >
 > **优先级说明：** 本文档是后续 PK-02（路线选择流程）与 PK-03（战斗架构拆分）的主要依据。项目根目录的 `README.md` 属于早期历史文档，已经过时，不应再作为当前功能与规划的事实来源。
 >
-> **当前状态：** 阶段 A–D 已完成：Run 数据与存档、三轮选秀、确定性路线地图、阵容管理和战前自由部署均已接通。现有 5×5 原型战斗会读取 Run 部署；下一步是阶段 E 的 BattleController 小步拆分。
+> **当前状态：** 阶段 A–E 已完成：Run 数据与存档、三轮选秀、确定性路线地图、阵容管理、战前自由部署和战斗界面模块化均已接通。现有 5×5 原型战斗会读取 Run 部署；下一步是阶段 F 的战斗动作、事件与效果队列。
 
 ---
 
@@ -662,9 +662,7 @@ BattleLog
 
 ### 18.3 BattleController 拆分
 
-当前 `BattleController.gd` 不应继续同时负责全部 UI、棋盘输入、设置、道具栏和流程。
-
-建议拆成小场景组件：
+`BattleController.gd` 已不再同时负责全部 UI、棋盘输入、设置、道具栏和流程；阶段 E 已按下列方向完成首轮小场景拆分：
 
 ```text
 BattleScene.tscn
@@ -804,6 +802,8 @@ scenes/run/RunSummaryScene.tscn
 
 ### 阶段 E：BattleController 小步拆分
 
+**实施状态：已完成。** 已将设置面板、ChallengerTray、BattleBoardView、HUD 与结果面板抽成静态场景组件；`BattleController.gd` 从约 740 行降为约 60 行协调器，保留现有测试所需兼容代理，且不再动态创建主要界面。
+
 1. 先抽离设置面板。
 2. 抽离 ChallengerTray。
 3. 抽离 BattleBoardView。
@@ -930,14 +930,14 @@ scenes/run/RunSummaryScene.tscn
 下次继续时，应先阅读本文档，然后按以下顺序恢复上下文：
 
 1. 检查当前工程与本文档是否发生偏差。
-2. 阶段 A、B、C、D 已完成，从 **阶段 E：BattleController 小步拆分** 开始。
-3. 保持现有 RunState、阵容和部署快照接口稳定；拆分战斗 UI 时不能让运行时棋盘反向污染持久化的战前部署。
-4. PK-03 采用小步迁移，保持现有战斗持续可玩。
+2. 阶段 A、B、C、D、E 已完成，从 **阶段 F：战斗动作、事件与效果队列** 开始。
+3. 保持现有 RunState、阵容、部署快照和已拆分战斗组件接口稳定；运行时棋盘不能反向污染持久化的战前部署。
+4. PK-03 继续采用小步迁移，先以特征测试固定现有命令执行、事件顺序和终局时机。
 5. 每完成一个阶段立即运行现有测试，并补充该阶段的新测试。
 
 建议下一条执行指令：
 
-> 根据 `docs/PIXELKING_PRODUCT_AND_ARCHITECTURE_PLAN.md`，开始阶段 E：BattleController 小步拆分。先调查现有控制器职责和场景测试，再依次抽离设置面板、ChallengerTray、BattleBoardView、HUD 与结果面板，并在每一步保持回归测试通过。
+> 根据 `docs/PIXELKING_PRODUCT_AND_ARCHITECTURE_PLAN.md`，开始阶段 F：战斗动作、事件与效果队列。先为现有移动命令和终局时机补特征测试，再小步引入 BattleAction、CommandProcessor、不可变 BattleEvent 与确定性 BattleEffectQueue，并保持现有战斗持续可玩。
 
 ---
 
@@ -980,8 +980,11 @@ scenes/run/RunSummaryScene.tscn
 - `GameState.start_run_battle()` 会根据确认后的部署创建临时 5×5 棋盘；战斗移动不修改持久化部署，退出或战败后 Continue 返回战前部署，胜利后清除部署并返回地图。
 - RunState 活动存档版本已升级为 3；旧开发期活动 Run 按既定策略安全作废。
 - 已新增阵容容量、部署合法性、事务恢复、场景交互、Run 战斗初始化和战败恢复测试；核心棋规仍为 60/60 通过。
+- 已将 `BattleSettingsPanel`、`ChallengerTray`、`BattleBoardView`、`BattleHUD` 和 `BattleResultPanel` 抽成独立静态场景组件。
+- `BattleController` 已降级为约 60 行协调器；棋盘格仍按尺寸动态创建，但主要布局、设置、HUD、共享六槽和结果界面均可在编辑器中预览。
+- 阶段 E 每次抽离后均通过战斗场景、音频设置和 Run 战斗集成测试；最终全量自动化回归及核心棋规 60/60 通过。
 
 仍未实现的两项主要工作：
 
 - **PK-02：奖励/融合、失败牺牲重试和完整 Run 结算。**
-- **PK-03：BattleController 拆分和可扩展战斗事件/效果架构。**
+- **PK-03：可扩展战斗动作、事件、效果队列、动画与日志架构。**
