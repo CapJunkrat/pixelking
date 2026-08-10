@@ -66,6 +66,35 @@ func _default_back_rank() -> Array:
 func _place(pos: Vector2i, def_id: String, color: int) -> void:
 	grid[pos.x][pos.y] = ChessPiece.new(PieceDefDatabase.get_def(def_id), color)
 
+func clear_for_setup() -> void:
+	_create_empty_grid()
+	king_pos.clear()
+	turn = GameRules.PieceColor.WHITE
+	en_passant_target = Vector2i(-1, -1)
+	move_history.clear()
+	last_move_was_capture = false
+	halfmove_clock = 0
+
+func place_piece_for_setup(pos: Vector2i, piece: ChessPiece) -> bool:
+	if piece == null or piece.def == null or not in_bounds(pos) or get_piece(pos) != null:
+		return false
+	if piece.def.is_king and king_pos.has(piece.color):
+		return false
+	set_piece(pos, piece)
+	if piece.def.is_king:
+		king_pos[piece.color] = pos
+	return true
+
+func finalize_setup(starting_color: int = GameRules.PieceColor.WHITE) -> bool:
+	if not king_pos.has(GameRules.PieceColor.WHITE) or not king_pos.has(GameRules.PieceColor.BLACK):
+		return false
+	turn = starting_color
+	en_passant_target = Vector2i(-1, -1)
+	move_history.clear()
+	last_move_was_capture = false
+	halfmove_clock = 0
+	return true
+
 func remove_all_pawns() -> void:
 	for x in range(board_size):
 		for y in range(board_size):

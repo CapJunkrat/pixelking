@@ -146,23 +146,28 @@ func _integrate_run_result(player_won: bool) -> void:
 		retry_button.show()
 		exit_button.text = Localization.text("BATTLE_RESULT_MAIN_MENU")
 		return
-	exit_button.text = Localization.text("BATTLE_RESULT_MAP")
 	if player_won:
-		var error: Error = manager.resolve_current_map_node({"outcome": "prototype_victory"})
+		var error: Error = manager.resolve_current_battle_node({"outcome": "prototype_victory"})
 		if error == OK:
 			retry_button.hide()
+			exit_button.text = Localization.text("BATTLE_RESULT_MAP")
+	else:
+		exit_button.text = Localization.text("BATTLE_RESULT_DEPLOYMENT")
 
 func _return_after_result() -> void:
 	GameState.start_new_game()
 	var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
-	if manager != null and manager.current_run != null and manager.current_run.map_state != null:
-		get_tree().change_scene_to_file("res://scenes/run/PathMapScene.tscn")
+	if manager != null and manager.current_run != null:
+		get_tree().change_scene_to_file(manager.resume_scene_path())
 	else:
 		get_tree().change_scene_to_file("res://scenes/ui/MainMenu.tscn")
 
 func _restart() -> void:
-
-	GameState.start_new_game()
+	var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
+	if manager != null and manager.current_run != null and manager.current_run.deployment_state != null:
+		GameState.start_run_battle(manager.current_run)
+	else:
+		GameState.start_new_game()
 	get_tree().reload_current_scene()
 
 func _return_to_menu() -> void:

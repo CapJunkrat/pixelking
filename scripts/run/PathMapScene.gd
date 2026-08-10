@@ -93,9 +93,11 @@ func _on_action_pressed() -> void:
 	var node: MapNodeState = run_manager.current_run.map_state.get_node(presented_node_id)
 	var definition: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id)
 	if definition.is_battle:
-		var game_state: Node = get_node("/root/GameState")
-		game_state.call("start_new_game")
-		get_tree().change_scene_to_file("res://scenes/battle/BattleScene.tscn")
+		var deployment_error: Error = run_manager.begin_deployment()
+		if deployment_error != OK:
+			_show_error(_text("SAVE_ERROR"))
+			return
+		get_tree().change_scene_to_file("res://scenes/run/DeploymentScene.tscn")
 		return
 	var error: Error = run_manager.resolve_current_map_node({"outcome": "phase_c_placeholder"})
 	if error != OK:

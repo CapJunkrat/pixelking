@@ -31,8 +31,10 @@ func _run() -> void:
 		_finish()
 		return
 	manager.select_map_node(battle_node_id)
+	manager.begin_deployment()
+	manager.confirm_deployment()
 	var game_state: Node = root.get_node("GameState")
-	game_state.call("start_new_game")
+	_expect(bool(game_state.call("start_run_battle", manager.current_run)), "confirmed Run deployment initializes prototype battle")
 	var battle_scene: PackedScene = load("res://scenes/battle/BattleScene.tscn") as PackedScene
 	var battle: Control = battle_scene.instantiate() as Control
 	root.add_child(battle)
