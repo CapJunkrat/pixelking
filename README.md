@@ -1,5 +1,9 @@
 # PixelKing (像素国王) —— 像素风国际象棋Roguelike
 
+> **历史文档 / 已过时：** 本项目采用快速 Vibe Coding 节奏，当前实现迭代速度高于文档维护速度。下文仅保留为早期阶段参考，实际功能、场景与测试状态请以当前工程为准。
+>
+> 当前产品结论、Roguelike 规则、PK-02/PK-03 架构方向及后续行动计划请阅读：[`docs/PIXELKING_PRODUCT_AND_ARCHITECTURE_PLAN.md`](docs/PIXELKING_PRODUCT_AND_ARCHITECTURE_PLAN.md)。
+
 仿《衔尾蛇国王 The Ouroboros King》玩法:在小棋盘上以国王为核心,不断招募/升级各种棋子(含大量自定义特殊棋子),迎战一波波AI控制的敌方棋子,搭配遗物、商店构成完整roguelike循环。
 
 ## 当前进度:P0(项目骨架)+ P1(核心象棋规则引擎)已完成

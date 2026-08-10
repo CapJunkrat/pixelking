@@ -22,6 +22,13 @@ func _init() -> void:
 	if localization.title_texture() == null:
 		push_error("English title texture is unavailable")
 		ok = false
+	if not localization.set_locale("en"):
+		push_error("Enabled locale could not be selected")
+		ok = false
+	var config: ConfigFile = ConfigFile.new()
+	if config.load("user://settings.cfg") != OK or str(config.get_value("general", "locale", "")) != "en":
+		push_error("Selected locale was not persisted")
+		ok = false
 	if localization.set_locale("zh_CN"):
 		push_error("Incomplete Chinese locale must remain disabled")
 		ok = false

@@ -73,6 +73,36 @@ func remove_all_pawns() -> void:
 			if piece != null and piece.def.is_pawn:
 				grid[x][y] = null
 
+func has_non_king_piece(color: int) -> bool:
+	for x in range(board_size):
+		for y in range(board_size):
+			var piece := get_piece(Vector2i(x, y))
+			if piece != null and piece.color == color and not piece.def.is_king:
+				return true
+	return false
+
+func has_only_king(color: int) -> bool:
+	var has_king := false
+	for x in range(board_size):
+		for y in range(board_size):
+			var piece := get_piece(Vector2i(x, y))
+			if piece == null or piece.color != color:
+				continue
+			if not piece.def.is_king:
+				return false
+			has_king = true
+	return has_king
+
+## Returns the losing color when the side waiting for its turn has only its
+## king while the active side still owns a non-king piece.
+## Returning -1 means that the lone-king loss condition is not active.
+func get_lone_king_loser() -> int:
+	var active_color := turn
+	var waiting_color := GameRules.opposite(active_color)
+	if has_non_king_piece(active_color) and has_only_king(waiting_color):
+		return waiting_color
+	return -1
+
 func in_bounds(pos: Vector2i) -> bool:
 	return pos.x >= 0 and pos.x < board_size and pos.y >= 0 and pos.y < board_size
 
@@ -176,13 +206,12 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 	var is_pawn_move := piece.def.is_pawn
 	var target_piece := get_piece(to)
 	var castling := _is_castling_move(from, to, piece)
-
 	if castling:
-		var rook := target_piece
-		set_piece(from, rook)
+		# Custom PixelKing rule: swap the king and its unmoved rook partner.
+		set_piece(from, target_piece)
 		set_piece(to, piece)
 		piece.has_moved = true
-		rook.has_moved = true
+		target_piece.has_moved = true
 		king_pos[moving_color] = to
 		result["castled"] = true
 	else:

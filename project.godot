@@ -26,6 +26,9 @@ PieceSkinManager="*res://scripts/autoload/PieceSkinManager.gd"
 Localization="*res://scripts/autoload/Localization.gd"
 EventBus="*res://scripts/autoload/EventBus.gd"
 GameState="*res://scripts/autoload/GameState.gd"
+SettingsManager="*res://scripts/autoload/SettingsManager.gd"
+AudioManager="*res://scripts/autoload/AudioManager.gd"
+RunManager="*res://scripts/autoload/RunManager.gd"
 
 [display]
 

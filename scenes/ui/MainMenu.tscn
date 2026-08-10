@@ -296,8 +296,13 @@ vertical_alignment = 1
 [node name="ContinueButton" type="Button" parent="SafeArea/Layout/MenuPanel/MenuButtons" unique_id=627469139]
 custom_minimum_size = Vector2(280, 48)
 layout_mode = 2
-theme_override_styles/normal = SubResource("StyleChessDisabled")
+focus_neighbor_top = NodePath("../NewGameButton")
+focus_neighbor_bottom = NodePath("../SettingsButton")
+theme_override_styles/normal = SubResource("StyleChessNormal")
+theme_override_styles/pressed = SubResource("StyleChessPressed")
+theme_override_styles/hover = SubResource("StyleChessHover")
 theme_override_styles/disabled = SubResource("StyleChessDisabled")
+theme_override_styles/focus = SubResource("StyleChessHover")
 disabled = true
 
 [node name="Content" type="CenterContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton" unique_id=1705738930]

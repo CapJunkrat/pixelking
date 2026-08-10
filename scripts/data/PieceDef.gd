@@ -1,6 +1,13 @@
 class_name PieceDef
 extends Resource
 
+enum Rarity {
+	COMMON,
+	RARE,
+	EPIC,
+	LEGENDARY,
+}
+
 ## Immutable definition shared by every runtime instance of this piece type.
 @export var id: String = ""
 @export var display_name_key: StringName
@@ -16,6 +23,20 @@ extends Resource
 @export var is_king: bool = false
 @export var is_pawn: bool = false
 @export var base_value: int = 0
+@export var rarity: Rarity = Rarity.COMMON
+@export var available_in_opening_draft: bool = false
+@export_range(0, 100, 1) var opening_draft_weight: int = 0
+
+func is_rare_or_higher() -> bool:
+	return rarity >= Rarity.RARE
+
+func is_valid_opening_draft_piece() -> bool:
+	return (
+		available_in_opening_draft
+		and opening_draft_weight > 0
+		and not is_king
+		and rarity in [Rarity.COMMON, Rarity.RARE]
+	)
 
 func resolved_movement_rules() -> Array[MovementRule]:
 	var result: Array[MovementRule] = []

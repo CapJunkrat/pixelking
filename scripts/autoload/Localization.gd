@@ -21,6 +21,31 @@ const LOCALES := {
 			"MENU_CONTINUE": "Continue",
 			"MENU_SETTINGS": "Settings",
 			"MENU_QUIT": "Quit Game",
+			"MENU_OVERWRITE_TITLE": "Start a New Journey?",
+			"MENU_OVERWRITE_MESSAGE": "Your current journey will be replaced only after the new Run is safely saved.",
+			"RUN_SEED_TITLE": "Choose a Run Seed",
+			"RUN_SEED_PROMPT": "Enter a signed integer, or leave it blank for a random journey.",
+			"RUN_SEED_PLACEHOLDER": "Random seed",
+			"RUN_SEED_RANDOM": "Random",
+			"RUN_SEED_INVALID": "Please enter a valid integer seed.",
+			"COMMON_CONFIRM": "Confirm",
+			"COMMON_CANCEL": "Cancel",
+			"DRAFT_TITLE": "Opening Draft",
+			"DRAFT_ROUND": "Choice %d / %d",
+			"DRAFT_INSTRUCTION": "Choose one piece. Every offer includes a Rare contender.",
+			"DRAFT_POWER": "Base value: %d",
+			"DRAFT_SELECTED": "ROSTER",
+			"DRAFT_SEED": "Seed: %d",
+			"DRAFT_COMPLETE": "Draft Complete",
+			"DRAFT_COMPLETE_DETAIL": "Your opening roster is ready. The path map arrives in the next milestone.",
+			"DRAFT_PROTOTYPE_BATTLE": "Enter Prototype Battle",
+			"DRAFT_RETURN_MENU": "Return to Main Menu",
+			"DRAFT_NO_ACTIVE_RUN": "No active journey was found.",
+			"RARITY_COMMON": "Common",
+			"RARITY_RARE": "Rare",
+			"RARITY_EPIC": "Epic",
+			"RARITY_LEGENDARY": "Legendary",
+			"SAVE_ERROR": "The journey could not be saved. Your previous state is still safe.",
 			"SETTINGS_TITLE": "Settings",
 			"SETTINGS_LANGUAGE": "Language",
 			"SETTINGS_PIECE_SKIN": "Piece Skin",
@@ -38,16 +63,24 @@ const LOCALES := {
 			"BATTLE_BACK": "Return to Hall",
 			"BATTLE_YOUR_TURN": "YOUR TURN",
 			"BATTLE_ENEMY_TURN": "ENEMY TURN",
-			"BATTLE_ENEMY": "ENEMY",
+			"BATTLE_ENEMY": "BOSS",
 			"BATTLE_CHALLENGER": "ITEMS",
 			"BATTLE_SETTINGS_RESUME": "Resume",
 			"BATTLE_SETTINGS_MAIN_MENU": "Return to Main Menu",
 			"BATTLE_SETTINGS_CONFIRM": "Leave this battle and return to the main menu?",
 			"BATTLE_EMPTY_SLOT": "Empty challenger slot",
+			"BATTLE_VICTORY": "VICTORY",
+			"BATTLE_DEFEAT": "DEFEAT",
+			"BATTLE_DRAW": "DRAW",
+			"BATTLE_VICTORY_DETAIL": "The enemy king has fallen.",
+			"BATTLE_DEFEAT_DETAIL": "Your king has fallen.",
+			"BATTLE_DRAW_DETAIL": "Neither side can continue the battle.",
+			"BATTLE_RETRY": "Retry Battle",
+			"BATTLE_RESULT_MAIN_MENU": "Return to Main Menu",
 		},
 	},
 	"zh_CN": {
-		"label": "\u7b80\u4f53\u4e2d\u6587 - Coming Soon",
+		"label": "简体中文 - Coming Soon",
 		"enabled": false,
 		"title_path": "",
 		"strings": {},
@@ -57,13 +90,22 @@ const LOCALES := {
 var current_locale: String = DEFAULT_LOCALE
 
 func _ready() -> void:
-	TranslationServer.set_locale(DEFAULT_LOCALE)
+	call_deferred("_restore_saved_locale")
 
-func set_locale(locale: String) -> bool:
-	if not LOCALES.has(locale) or not LOCALES[locale].get("enabled", false):
+func _restore_saved_locale() -> void:
+	var settings_manager: AppSettingsManager = get_node("/root/SettingsManager") as AppSettingsManager
+	var saved_locale: String = settings_manager.locale
+	if not set_locale(saved_locale, false):
+		set_locale(DEFAULT_LOCALE, true)
+
+func set_locale(locale: String, should_persist: bool = true) -> bool:
+	if not LOCALES.has(locale) or not bool(LOCALES[locale].get("enabled", false)):
 		return false
 	current_locale = locale
 	TranslationServer.set_locale(locale)
+	if should_persist:
+		var settings_manager: AppSettingsManager = get_node("/root/SettingsManager") as AppSettingsManager
+		settings_manager.set_locale(locale)
 	locale_changed.emit(locale)
 	return true
 

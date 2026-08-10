@@ -40,6 +40,7 @@ func run_all() -> Dictionary:
 	test_en_passant_is_capture()
 	test_promotion_validation()
 	test_pin_prevents_illegal_move()
+	test_lone_king_terminal_conditions()
 
 	_log("\n===== Result: %d passed / %d failed =====" % [pass_count, fail_count])
 	return {"pass_count": pass_count, "fail_count": fail_count, "log_lines": log_lines}
@@ -261,3 +262,25 @@ func test_pin_prevents_illegal_move() -> void:
 	board.set_piece(Vector2i(4, 3), _piece("knight", GameRules.PieceColor.WHITE))
 	board.set_piece(Vector2i(4, 7), _piece("rook", GameRules.PieceColor.BLACK))
 	_assert(board.get_legal_moves(Vector2i(4, 3)).is_empty(), "test_pin_prevents_illegal_move assertion 1")
+
+func test_lone_king_terminal_conditions() -> void:
+	_log("\n-- test_lone_king_terminal_conditions --")
+	var board := _empty_board()
+	_place_kings(board, Vector2i(0, 0), Vector2i(4, 4))
+	board.set_piece(Vector2i(3, 4), _piece("rook", GameRules.PieceColor.BLACK))
+
+	board.turn = GameRules.PieceColor.BLACK
+	_assert(board.get_lone_king_loser() == GameRules.PieceColor.WHITE, "active equipped side defeats the waiting lone king")
+
+	board.turn = GameRules.PieceColor.WHITE
+	_assert(board.get_lone_king_loser() == -1, "lone king receives its response turn before losing")
+
+	board.set_piece(Vector2i(3, 4), null)
+	_assert(board.has_only_king(GameRules.PieceColor.WHITE), "white has only its king")
+	_assert(board.has_only_king(GameRules.PieceColor.BLACK), "black has only its king")
+	_assert(board.get_lone_king_loser() == -1, "two lone kings do not defeat either side")
+
+	board.set_piece(Vector2i(1, 0), _piece("knight", GameRules.PieceColor.WHITE))
+	board.set_piece(Vector2i(3, 4), _piece("rook", GameRules.PieceColor.BLACK))
+	board.turn = GameRules.PieceColor.BLACK
+	_assert(board.get_lone_king_loser() == -1, "no lone-king loss while both sides retain non-king pieces")

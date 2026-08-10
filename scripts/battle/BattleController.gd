@@ -11,6 +11,8 @@ const SLOT_COUNT := 6
 @onready var layout: VBoxContainer = $Margin/Layout
 @onready var board_frame: Control = $Margin/Layout/BoardFrame
 @onready var board_grid: GridContainer = $Margin/Layout/BoardFrame/BoardCenter/BoardGrid
+@onready var settings_manager: AppSettingsManager = get_node("/root/SettingsManager") as AppSettingsManager
+@onready var audio_manager: AppAudioManager = get_node("/root/AudioManager") as AppAudioManager
 
 var selected_square := Vector2i(-1, -1)
 var legal_targets: Array[Vector2i] = []
@@ -123,7 +125,7 @@ func _build_top_bar() -> void:
 	enemy_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	enemy_text.add_theme_color_override("font_color", Color("#f1dfbd"))
 	enemy_text.add_theme_font_override("font", battle_font)
-	enemy_text.add_theme_font_size_override("font_size", 8)
+	enemy_text.add_theme_font_size_override("font_size", 15)
 	enemy_text.add_theme_constant_override("outline_size", 1)
 	enemy_text.add_theme_color_override("font_outline_color", Color("#071522"))
 	enemy_panel.add_child(enemy_text)
@@ -138,7 +140,7 @@ func _build_top_bar() -> void:
 	turn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	turn_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	turn_label.add_theme_font_override("font", battle_font)
-	turn_label.add_theme_font_size_override("font_size", 14)
+	turn_label.add_theme_font_size_override("font_size", 20)
 	turn_label.add_theme_constant_override("outline_size", 2)
 	turn_label.add_theme_color_override("font_outline_color", Color("#071522"))
 	turn_panel.add_child(turn_label)
@@ -146,25 +148,27 @@ func _build_top_bar() -> void:
 
 	var round_panel := PanelContainer.new()
 	round_panel.name = "RoundSegment"
-	round_panel.custom_minimum_size = Vector2(54, 42)
+	round_panel.custom_minimum_size = Vector2(58, 42)
 	round_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	round_panel.add_theme_stylebox_override("panel", _frame_style("res://assets/ui/battle/modern_v2/turn_counter_frame.png", 8, 4))
-	var round_content := VBoxContainer.new()
+	var round_content := HBoxContainer.new()
 	round_content.alignment = BoxContainer.ALIGNMENT_CENTER
-	round_content.add_theme_constant_override("separation", -3)
+	round_content.add_theme_constant_override("separation", 2)
 	round_panel.add_child(round_content)
 	var round_caption := Label.new()
-	round_caption.text = "TURN"
+	round_caption.text = "T"
 	round_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	round_caption.add_theme_color_override("font_color", Color("#f1dfbd"))
 	round_caption.add_theme_font_override("font", battle_font)
-	round_caption.add_theme_font_size_override("font_size", 7)
+	round_caption.add_theme_font_size_override("font_size", 20)
+	round_caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	round_content.add_child(round_caption)
 	round_label = Label.new()
 	round_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	round_label.add_theme_color_override("font_color", Color("#f1dfbd"))
 	round_label.add_theme_font_override("font", battle_font)
-	round_label.add_theme_font_size_override("font_size", 11)
+	round_label.add_theme_font_size_override("font_size", 20)
+	round_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	round_content.add_child(round_label)
 	bar.add_child(round_panel)
 
@@ -314,9 +318,12 @@ func _add_volume(parent: VBoxContainer, text: String, bus_name: StringName) -> v
 	slider.min_value = 0.0
 	slider.max_value = 1.0
 	slider.step = 0.05
-	var bus := AudioServer.get_bus_index(bus_name)
-	slider.value = db_to_linear(AudioServer.get_bus_volume_db(bus)) if bus >= 0 else 1.0
+	slider.value = audio_manager.music_volume() if bus_name == &"Music" else audio_manager.sfx_volume()
 	slider.value_changed.connect(_on_volume_changed.bind(bus_name))
+	if bus_name == &"Music":
+		settings_manager.music_volume_changed.connect(_sync_volume_slider.bind(slider))
+	else:
+		settings_manager.sfx_volume_changed.connect(_sync_volume_slider.bind(slider))
 	parent.add_child(slider)
 
 func _add_settings_button(parent: VBoxContainer, text: String, callback: Callable) -> void:
@@ -566,10 +573,14 @@ func _frame_style(path: String, texture_margin: float, content_margin: float) ->
 	style.draw_center = true
 	return style
 func _on_volume_changed(value: float, bus_name: StringName) -> void:
-	var bus := AudioServer.get_bus_index(bus_name)
-	if bus >= 0:
-		AudioServer.set_bus_volume_db(bus, linear_to_db(maxf(value, 0.0001)))
-		AudioServer.set_bus_mute(bus, value <= 0.0)
+	if bus_name == &"Music":
+		audio_manager.set_music_volume(value)
+	else:
+		audio_manager.set_sfx_volume(value)
+
+func _sync_volume_slider(value: float, slider: HSlider) -> void:
+	if is_instance_valid(slider):
+		slider.set_value_no_signal(value)
 
 func _on_skin_changed(_skin_id: StringName) -> void:
 	_refresh_board()

@@ -23,7 +23,7 @@ func _run() -> void:
 	var pawn_count := 0
 	for x in range(game_state.board.board_size):
 		for y in range(game_state.board.board_size):
-			var piece := game_state.board.get_piece(Vector2i(x, y))
+			var piece: ChessPiece = game_state.board.get_piece(Vector2i(x, y))
 			if piece != null and piece.def.is_pawn:
 				pawn_count += 1
 	_expect(pawn_count == 0, "the temporary battle setup contains no pawns")
@@ -53,6 +53,10 @@ func _run() -> void:
 	await process_frame
 	_expect(game_state.board.get_piece(Vector2i(0, 2)) != null, "clicking a legal knight target executes the move")
 	_expect(game_state.board.turn == GameRules.PieceColor.BLACK, "successful move advances the turn")
+	await create_timer(0.7).timeout
+	_expect(game_state.board.move_history.size() == 2, "enemy AI automatically chooses and executes a reply")
+	_expect(game_state.board.turn == GameRules.PieceColor.WHITE, "enemy reply returns control to the player")
+	_expect(battle.get_node("ResultOverlay") != null, "battle flow creates the terminal result overlay")
 	_finish()
 
 func _expect(condition: bool, message: String) -> void:

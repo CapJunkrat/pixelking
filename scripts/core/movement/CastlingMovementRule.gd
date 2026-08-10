@@ -6,6 +6,7 @@ extends MovementRule
 func rule_id() -> StringName:
 	return &"castling"
 
+## PixelKing castling is intentionally a king-rook position swap, not standard chess castling.
 func get_moves(board: BoardState, pos: Vector2i, piece: ChessPiece) -> Array[Vector2i]:
 	var moves: Array[Vector2i] = []
 	if piece.has_moved:

@@ -4,20 +4,31 @@ extends Control
 @onready var settings_overlay: ColorRect = $SettingsOverlay
 @onready var battle_placeholder: ColorRect = $BattlePlaceholder
 @onready var new_game_button: Button = $SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton
+@onready var continue_button: Button = $SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton
 @onready var language_option: OptionButton = $SettingsOverlay/SettingsPanel/SettingsContent/LanguageOption
 @onready var piece_skin_option: OptionButton = $SettingsOverlay/SettingsPanel/SettingsContent/PieceSkinOption
 @onready var white_skin_preview: HBoxContainer = $SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview/WhitePieces
 @onready var black_skin_preview: HBoxContainer = $SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview/BlackPieces
+@onready var music_slider: HSlider = $SettingsOverlay/SettingsPanel/SettingsContent/MusicSlider
+@onready var sound_slider: HSlider = $SettingsOverlay/SettingsPanel/SettingsContent/SoundSlider
 @onready var piece_skin_manager: Node = get_node("/root/PieceSkinManager")
+@onready var settings_manager: AppSettingsManager = get_node("/root/SettingsManager") as AppSettingsManager
+@onready var audio_manager: AppAudioManager = get_node("/root/AudioManager") as AppAudioManager
+@onready var run_manager: AppRunManager = get_node("/root/RunManager") as AppRunManager
 
 const PIECE_TYPES: Array[StringName] = [&"king", &"queen", &"rook", &"bishop", &"knight", &"pawn"]
+const RUN_SETUP_SCENE: PackedScene = preload("res://scenes/run/RunSetupOverlay.tscn")
 const INTRO_BUTTON_DELAY := 0.15
 
 var _intro_tween: Tween
-var _intro_playing := false
+var _intro_playing: bool = false
+var _run_setup_overlay: RunSetupOverlay
+var _overwrite_confirmation: ConfirmationDialog
+var _allow_overwrite_for_setup: bool = false
 
 func _ready() -> void:
 	$SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton.pressed.connect(_on_new_game_pressed)
+	continue_button.pressed.connect(_on_continue_pressed)
 	$SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton.pressed.connect(_on_settings_pressed)
 	$SafeArea/Layout/MenuPanel/MenuButtons/QuitButton.pressed.connect(_on_quit_pressed)
 	_setup_menu_button_visuals()
@@ -31,6 +42,9 @@ func _ready() -> void:
 	_apply_locale(Localization.current_locale)
 	_populate_piece_skins()
 	_build_skin_preview()
+	_setup_audio_controls()
+	_setup_run_controls()
+	_refresh_run_buttons()
 	_play_intro()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -48,10 +62,10 @@ func _unhandled_input(event: InputEvent) -> void:
 func _populate_languages() -> void:
 	language_option.clear()
 	var selected_index := 0
-	for locale_variant in Localization.locale_codes():
-		var locale := str(locale_variant)
-		var info := Localization.locale_info(locale)
-		var index := language_option.item_count
+	for locale_variant: Variant in Localization.locale_codes():
+		var locale: String = str(locale_variant)
+		var info: Dictionary = Localization.locale_info(locale)
+		var index: int = language_option.item_count
 		language_option.add_item(info.get("label", locale))
 		language_option.set_item_metadata(index, locale)
 		language_option.set_item_disabled(index, not info.get("enabled", false))
@@ -104,8 +118,68 @@ func _refresh_menu_button(button: Button) -> void:
 	icon.modulate = Color(1.15, 1.08, 0.88, 1.0) if highlighted else Color.WHITE
 
 func _on_language_selected(index: int) -> void:
-	var locale := str(language_option.get_item_metadata(index))
+	var locale: String = str(language_option.get_item_metadata(index))
 	Localization.set_locale(locale)
+
+func _setup_audio_controls() -> void:
+	for slider: HSlider in [music_slider, sound_slider]:
+		slider.min_value = 0.0
+		slider.max_value = 1.0
+		slider.step = 0.05
+	music_slider.set_value_no_signal(audio_manager.music_volume())
+	sound_slider.set_value_no_signal(audio_manager.sfx_volume())
+	music_slider.value_changed.connect(_on_music_volume_changed)
+	sound_slider.value_changed.connect(_on_sfx_volume_changed)
+	settings_manager.music_volume_changed.connect(_sync_music_slider)
+	settings_manager.sfx_volume_changed.connect(_sync_sfx_slider)
+
+func _on_music_volume_changed(value: float) -> void:
+	audio_manager.set_music_volume(value)
+
+func _on_sfx_volume_changed(value: float) -> void:
+	audio_manager.set_sfx_volume(value)
+
+func _sync_music_slider(value: float) -> void:
+	music_slider.set_value_no_signal(value)
+
+func _sync_sfx_slider(value: float) -> void:
+	sound_slider.set_value_no_signal(value)
+
+func _setup_run_controls() -> void:
+	_run_setup_overlay = RUN_SETUP_SCENE.instantiate() as RunSetupOverlay
+	add_child(_run_setup_overlay)
+	_run_setup_overlay.seed_confirmed.connect(_on_seed_confirmed)
+	_run_setup_overlay.cancelled.connect(_focus_new_game_button)
+	_overwrite_confirmation = ConfirmationDialog.new()
+	_overwrite_confirmation.name = "OverwriteConfirmation"
+	_overwrite_confirmation.title = Localization.text("MENU_OVERWRITE_TITLE")
+	_overwrite_confirmation.dialog_text = Localization.text("MENU_OVERWRITE_MESSAGE")
+	_overwrite_confirmation.confirmed.connect(_show_run_setup.bind(true))
+	_overwrite_confirmation.canceled.connect(_focus_new_game_button)
+	add_child(_overwrite_confirmation)
+	run_manager.active_run_changed.connect(_on_active_run_changed)
+
+func _focus_new_game_button() -> void:
+	if new_game_button.focus_mode != Control.FOCUS_NONE:
+		new_game_button.grab_focus()
+
+func _refresh_run_buttons() -> void:
+	continue_button.disabled = not run_manager.can_continue()
+	_refresh_menu_button(continue_button)
+
+func _on_active_run_changed(_run_state: RunState) -> void:
+	_refresh_run_buttons()
+
+func _show_run_setup(allow_overwrite: bool = false) -> void:
+	_allow_overwrite_for_setup = allow_overwrite
+	_run_setup_overlay.show_setup()
+
+func _on_seed_confirmed(run_seed: int) -> void:
+	var created: bool = run_manager.create_run(run_seed, RunState.MODE_STANDARD, _allow_overwrite_for_setup)
+	if not created:
+		_run_setup_overlay.show_error(Localization.text("SAVE_ERROR"))
+		return
+	get_tree().change_scene_to_file(run_manager.resume_scene_path())
 
 func _play_intro() -> void:
 	modulate.a = 1.0
@@ -203,8 +277,17 @@ func _play_title_float() -> void:
 	tween.tween_property(title_logo, "position:y", start_y, 1.5)
 
 func _on_new_game_pressed() -> void:
-	GameState.start_new_game()
-	get_tree().change_scene_to_file("res://scenes/battle/BattleScene.tscn")
+	if run_manager.can_continue():
+		_overwrite_confirmation.popup_centered()
+		return
+	_show_run_setup(false)
+
+func _on_continue_pressed() -> void:
+	var error: Error = run_manager.ensure_opening_draft_pending()
+	if error != OK:
+		_run_setup_overlay.show_error(Localization.text("SAVE_ERROR"))
+		return
+	get_tree().change_scene_to_file(run_manager.resume_scene_path())
 
 func _close_battle_placeholder() -> void:
 	battle_placeholder.visible = false

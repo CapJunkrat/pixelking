@@ -22,8 +22,14 @@ func _init(p_def: PieceDef = null, p_color: int = 0, allocate_instance_id: bool 
 
 ## Creates an independent runtime-state copy for move validation and AI search.
 ## It preserves the logical piece identity and does not consume a new real instance ID.
+static func create_with_instance_id(p_def: PieceDef, p_color: int, persistent_id: int) -> ChessPiece:
+	var piece: ChessPiece = ChessPiece.new(p_def, p_color, false)
+	piece.instance_id = persistent_id
+	_next_instance_id = maxi(_next_instance_id, persistent_id + 1)
+	return piece
+
 func clone_for_simulation() -> ChessPiece:
-	var copy := ChessPiece.new(def, color, false)
+	var copy: ChessPiece = ChessPiece.new(def, color, false)
 	copy.instance_id = instance_id
 	copy.has_moved = has_moved
 	return copy
