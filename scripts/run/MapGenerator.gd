@@ -53,7 +53,7 @@ func _guarantee_candidates(
 	for node: MapNodeState in unassigned:
 		if node.layer_index <= 0:
 			continue
-		if node_type_id == &"elite_battle" and node.layer_index < total_layers / 2:
+		if node_type_id == &"elite_battle" and node.layer_index < floori(float(total_layers) / 2.0):
 			continue
 		result.append(node)
 	return result

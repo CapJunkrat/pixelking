@@ -185,8 +185,11 @@ func _on_skin_changed(_skin_id: StringName) -> void:
 	_render()
 
 func _enter_prototype_battle() -> void:
-	GameState.start_new_game()
-	get_tree().change_scene_to_file("res://scenes/battle/BattleScene.tscn")
+	var error: Error = run_manager.ensure_run_map()
+	if error != OK:
+		_show_error(Localization.text("SAVE_ERROR"))
+		return
+	get_tree().change_scene_to_file("res://scenes/run/PathMapScene.tscn")
 
 func _return_to_menu() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/MainMenu.tscn")

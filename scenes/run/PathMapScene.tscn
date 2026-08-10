@@ -1,0 +1,259 @@
+[gd_scene format=3 uid="uid://bjxstv7vvbjlr"]
+
+[ext_resource type="Script" uid="uid://cc3ucimvwohj1" path="res://scripts/run/PathMapScene.gd" id="1_scene"]
+[ext_resource type="Script" uid="uid://bg4e4u5fp4dgo" path="res://scripts/run/PathMapView.gd" id="2_view"]
+[ext_resource type="Texture2D" uid="uid://cb57ojybrfvwt" path="res://assets/ui/main_menu_background_clean.png" id="3_bg"]
+
+[sub_resource type="StyleBoxFlat" id="StyleMapPanel"]
+content_margin_left = 3.0
+content_margin_top = 3.0
+content_margin_right = 3.0
+content_margin_bottom = 3.0
+bg_color = Color(0.025, 0.055, 0.09, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.36, 0.47, 0.53, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleButton"]
+bg_color = Color(0.07, 0.14, 0.2, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.7, 0.6, 0.4, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleButtonHover"]
+bg_color = Color(0.1, 0.25, 0.34, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.96, 0.81, 0.4, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleOverlayPanel"]
+content_margin_left = 16.0
+content_margin_top = 16.0
+content_margin_right = 16.0
+content_margin_bottom = 16.0
+bg_color = Color(0.035, 0.07, 0.11, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.88, 0.72, 0.39, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="PathMapScene" type="Control" unique_id=1408821209]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_scene")
+
+[node name="Background" type="TextureRect" parent="." unique_id=109079705]
+modulate = Color(0.42, 0.54, 0.67, 1)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3_bg")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Shade" type="ColorRect" parent="." unique_id=1469053125]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.005, 0.018, 0.035, 0.76)
+
+[node name="SafeArea" type="MarginContainer" parent="." unique_id=631090317]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Layout" type="VBoxContainer" parent="SafeArea" unique_id=79344242]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="VBoxContainer" parent="SafeArea/Layout" unique_id=774774962]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="Title" type="Label" parent="SafeArea/Layout/Header" unique_id=130606860]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.83, 0.5, 1)
+theme_override_colors/font_outline_color = Color(0.05, 0.02, 0.01, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 26
+text = "The Crown Road"
+horizontal_alignment = 1
+
+[node name="ProgressLabel" type="Label" parent="SafeArea/Layout/Header" unique_id=1910330832]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.31, 0.82, 0.86, 1)
+theme_override_font_sizes/font_size = 15
+text = "Layer 0 / 8"
+horizontal_alignment = 1
+
+[node name="CurrentStatus" type="Label" parent="SafeArea/Layout" unique_id=519069940]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.84, 0.82, 1)
+theme_override_font_sizes/font_size = 12
+text = "Choose your route"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MapPanel" type="PanelContainer" parent="SafeArea/Layout" unique_id=1842488823]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleMapPanel")
+
+[node name="MapScroll" type="ScrollContainer" parent="SafeArea/Layout/MapPanel" unique_id=692607434]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="MapView" type="Control" parent="SafeArea/Layout/MapPanel/MapScroll" unique_id=169540073]
+custom_minimum_size = Vector2(328, 640)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 1
+script = ExtResource("2_view")
+
+[node name="Legend" type="Label" parent="SafeArea/Layout" unique_id=1526799285]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.68, 0.7, 1)
+theme_override_font_sizes/font_size = 10
+text = "Battle · Elite · Shop · Event · Rest · Boss"
+horizontal_alignment = 1
+
+[node name="Footer" type="HBoxContainer" parent="SafeArea/Layout" unique_id=886505672]
+layout_mode = 2
+
+[node name="SeedLabel" type="Label" parent="SafeArea/Layout/Footer" unique_id=1304335829]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.57, 0.63, 0.67, 1)
+theme_override_font_sizes/font_size = 11
+text = "Seed"
+vertical_alignment = 1
+
+[node name="BackButton" type="Button" parent="SafeArea/Layout/Footer" unique_id=929584871]
+custom_minimum_size = Vector2(104, 40)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleButton")
+theme_override_styles/hover = SubResource("StyleButtonHover")
+theme_override_styles/focus = SubResource("StyleButtonHover")
+text = "Back"
+
+[node name="NodeOverlay" type="ColorRect" parent="." unique_id=1057570046]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.005, 0.012, 0.025, 0.9)
+
+[node name="Center" type="CenterContainer" parent="NodeOverlay" unique_id=1746025554]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="NodeOverlay/Center" unique_id=314562760]
+custom_minimum_size = Vector2(320, 350)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleOverlayPanel")
+
+[node name="Content" type="VBoxContainer" parent="NodeOverlay/Center/Panel" unique_id=615744561]
+layout_mode = 2
+theme_override_constants/separation = 13
+alignment = 1
+
+[node name="Title" type="Label" parent="NodeOverlay/Center/Panel/Content" unique_id=1425874210]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.83, 0.5, 1)
+theme_override_font_sizes/font_size = 23
+text = "Node"
+horizontal_alignment = 1
+
+[node name="Description" type="Label" parent="NodeOverlay/Center/Panel/Content" unique_id=1067283653]
+custom_minimum_size = Vector2(280, 42)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.84, 0.84, 1)
+text = "Description"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="EnemyHint" type="Label" parent="NodeOverlay/Center/Panel/Content" unique_id=1367282567]
+custom_minimum_size = Vector2(280, 28)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.58, 0.5, 1)
+text = "Enemy"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="RewardHint" type="Label" parent="NodeOverlay/Center/Panel/Content" unique_id=1440503547]
+custom_minimum_size = Vector2(280, 28)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.83, 0.62, 1)
+text = "Reward"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="ActionButton" type="Button" parent="NodeOverlay/Center/Panel/Content" unique_id=1833556030]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleButton")
+theme_override_styles/hover = SubResource("StyleButtonHover")
+theme_override_styles/focus = SubResource("StyleButtonHover")
+text = "Enter"
+
+[node name="CancelButton" type="Button" parent="NodeOverlay/Center/Panel/Content" unique_id=1094547222]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleButton")
+theme_override_styles/hover = SubResource("StyleButtonHover")
+theme_override_styles/focus = SubResource("StyleButtonHover")
+text = "Cancel"
+
+[node name="ErrorDialog" type="AcceptDialog" parent="." unique_id=1320600129]
