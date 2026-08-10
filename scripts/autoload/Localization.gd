@@ -113,6 +113,7 @@ const LOCALES := {
 			"BATTLE_DRAW_DETAIL": "Neither side can continue the battle.",
 			"BATTLE_RETRY": "Retry Battle",
 			"BATTLE_RESULT_MAIN_MENU": "Return to Main Menu",
+			"BATTLE_RESULT_MAP": "Return to Route Map",
 		},
 	},
 	"zh_CN": {

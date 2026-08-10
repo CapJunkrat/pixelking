@@ -9,6 +9,8 @@ var enemy_pending := false
 var result_overlay: ColorRect
 var result_title: Label
 var result_detail: Label
+var retry_button: Button
+var exit_button: Button
 var battle: Control
 
 func _ready() -> void:
@@ -105,16 +107,18 @@ func _build_result_overlay() -> void:
 	result_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	result_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content.add_child(result_detail)
-	var retry := Button.new()
-	retry.text = Localization.text("BATTLE_RETRY")
-	retry.custom_minimum_size = Vector2(0, 44)
-	retry.pressed.connect(_restart)
-	content.add_child(retry)
-	var menu := Button.new()
-	menu.text = Localization.text("BATTLE_RESULT_MAIN_MENU")
-	menu.custom_minimum_size = Vector2(0, 44)
-	menu.pressed.connect(_return_to_menu)
-	content.add_child(menu)
+	retry_button = Button.new()
+	retry_button.name = "RetryButton"
+	retry_button.text = Localization.text("BATTLE_RETRY")
+	retry_button.custom_minimum_size = Vector2(0, 44)
+	retry_button.pressed.connect(_restart)
+	content.add_child(retry_button)
+	exit_button = Button.new()
+	exit_button.name = "ExitButton"
+	exit_button.text = Localization.text("BATTLE_RESULT_MAIN_MENU")
+	exit_button.custom_minimum_size = Vector2(0, 44)
+	exit_button.pressed.connect(_return_after_result)
+	content.add_child(exit_button)
 
 func _show_result(player_won: bool, draw: bool) -> void:
 	phase = Phase.FINISHED
@@ -127,9 +131,37 @@ func _show_result(player_won: bool, draw: bool) -> void:
 	else:
 		result_title.text = Localization.text("BATTLE_DEFEAT")
 		result_detail.text = Localization.text("BATTLE_DEFEAT_DETAIL")
+	_integrate_run_result(player_won and not draw)
 	result_overlay.show()
 
+func _integrate_run_result(player_won: bool) -> void:
+	var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
+	if manager == null or manager.current_run == null:
+		retry_button.show()
+		exit_button.text = Localization.text("BATTLE_RESULT_MAIN_MENU")
+		return
+	var current: MapNodeState = manager.current_map_node()
+	var definition: MapNodeDef = MapNodeDefDatabase.get_def(current.node_type_id) if current != null else null
+	if definition == null or not definition.is_battle:
+		retry_button.show()
+		exit_button.text = Localization.text("BATTLE_RESULT_MAIN_MENU")
+		return
+	exit_button.text = Localization.text("BATTLE_RESULT_MAP")
+	if player_won:
+		var error: Error = manager.resolve_current_map_node({"outcome": "prototype_victory"})
+		if error == OK:
+			retry_button.hide()
+
+func _return_after_result() -> void:
+	GameState.start_new_game()
+	var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
+	if manager != null and manager.current_run != null and manager.current_run.map_state != null:
+		get_tree().change_scene_to_file("res://scenes/run/PathMapScene.tscn")
+	else:
+		get_tree().change_scene_to_file("res://scenes/ui/MainMenu.tscn")
+
 func _restart() -> void:
+
 	GameState.start_new_game()
 	get_tree().reload_current_scene()
 
