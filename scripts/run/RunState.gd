@@ -1,7 +1,7 @@
 class_name RunState
 extends RefCounted
 
-const CURRENT_RUN_VERSION := 1
+const CURRENT_RUN_VERSION := 2
 const MODE_STANDARD := "standard"
 const MODE_ENDLESS := "endless"
 const MAX_ACTIVE_NON_KING_PIECES := 5
@@ -13,6 +13,7 @@ var mode: String = MODE_STANDARD
 var run_seed: int = 0
 var rng_stream_states: Dictionary = {}
 var current_map_id: StringName = &""
+var map_state: MapState = null
 var current_node_id: StringName = &""
 var visited_node_ids: Array[StringName] = []
 var resolved_node_payloads: Dictionary = {}
@@ -37,6 +38,7 @@ func initialize_new(seed_value: int, mode_value: String = MODE_STANDARD) -> void
 	run_seed = seed_value
 	rng_stream_states.clear()
 	current_map_id = &""
+	map_state = null
 	current_node_id = &""
 	visited_node_ids.clear()
 	resolved_node_payloads.clear()
@@ -107,7 +109,7 @@ func is_valid() -> bool:
 		return false
 	if gold < 0 or challenger_slots.size() > 6:
 		return false
-	if not _pending_choice_is_valid():
+	if not _pending_choice_is_valid() or not _map_progress_is_valid():
 		return false
 	if _king_count() != 1 or _active_non_king_count() > MAX_ACTIVE_NON_KING_PIECES or reserve_piece_ids.size() > MAX_RESERVE_PIECES:
 		return false
@@ -143,6 +145,7 @@ func to_dictionary() -> Dictionary:
 		"seed": run_seed,
 		"rng_stream_states": rng_stream_states.duplicate(true),
 		"current_map_id": String(current_map_id),
+		"map_state": map_state.to_dictionary() if map_state != null else {},
 		"current_node_id": String(current_node_id),
 		"visited_node_ids": _string_name_array_to_strings(visited_node_ids),
 		"resolved_node_payloads": resolved_node_payloads.duplicate(true),
@@ -173,6 +176,14 @@ func load_from_dictionary(data: Dictionary) -> bool:
 	run_seed = int(data.get("seed", 0))
 	rng_stream_states = _dictionary_value(data, "rng_stream_states")
 	current_map_id = StringName(str(data.get("current_map_id", "")))
+	map_state = null
+	var map_value: Variant = data.get("map_state", {})
+	if map_value is Dictionary and not (map_value as Dictionary).is_empty():
+		map_state = MapState.new()
+		if not map_state.load_from_dictionary(map_value as Dictionary):
+			return false
+	elif not map_value is Dictionary:
+		return false
 	current_node_id = StringName(str(data.get("current_node_id", "")))
 	visited_node_ids = _to_string_name_array(data.get("visited_node_ids", []))
 	resolved_node_payloads = _dictionary_value(data, "resolved_node_payloads")
@@ -232,6 +243,45 @@ func _pending_choice_is_valid() -> bool:
 			actual[id] = int(actual.get(id, 0)) + 1
 	for selected_id: String in required:
 		if int(actual.get(selected_id, 0)) < int(required[selected_id]):
+			return false
+	return true
+
+func _map_progress_is_valid() -> bool:
+	if map_state == null:
+		return (
+			current_map_id.is_empty()
+			and current_node_id.is_empty()
+			and visited_node_ids.is_empty()
+			and resolved_node_payloads.is_empty()
+		)
+	if not bool(run_statistics.get("opening_draft_complete", false)):
+		return false
+	if not map_state.is_valid() or current_map_id != map_state.map_id:
+		return false
+	var visited: Dictionary = {}
+	var previous: MapNodeState = null
+	for index: int in range(visited_node_ids.size()):
+		var node_id: StringName = visited_node_ids[index]
+		if visited.has(node_id):
+			return false
+		var node: MapNodeState = map_state.get_node(node_id)
+		if node == null:
+			return false
+		if index == 0 and node.layer_index != 0:
+			return false
+		if previous != null and node_id not in previous.outgoing_node_ids:
+			return false
+		if index < visited_node_ids.size() - 1 and not resolved_node_payloads.has(String(node_id)):
+			return false
+		visited[node_id] = true
+		previous = node
+	if visited_node_ids.is_empty():
+		if not current_node_id.is_empty() or not resolved_node_payloads.is_empty():
+			return false
+	elif current_node_id != visited_node_ids[-1]:
+		return false
+	for resolved_id: Variant in resolved_node_payloads.keys():
+		if not visited.has(StringName(str(resolved_id))) or not resolved_node_payloads[resolved_id] is Dictionary:
 			return false
 	return true
 

@@ -4,6 +4,9 @@ extends Node
 signal active_run_changed(run_state: RunState)
 signal active_run_invalidated(reason: String)
 signal opening_draft_completed(run_state: RunState)
+signal map_generated(run_state: RunState)
+signal map_node_selected(run_state: RunState, node_id: StringName)
+signal map_node_resolved(run_state: RunState, node_id: StringName)
 signal run_saved
 
 const DEFAULT_SAVE_PATH := "user://active_run.save"
@@ -12,6 +15,7 @@ var current_run: RunState = null
 var rng_service: RunRngService = null
 var save_service: ActiveRunSaveService = null
 var opening_draft_service: OpeningDraftService = null
+var map_progress_service: MapProgressService = null
 var save_path: String = DEFAULT_SAVE_PATH
 var _initialized: bool = false
 
@@ -66,6 +70,7 @@ func submit_opening_draft_choice(piece_def_id: String) -> Error:
 	_ensure_services()
 	if current_run == null:
 		return ERR_DOES_NOT_EXIST
+	var was_complete: bool = opening_draft_service.is_complete(current_run)
 	var transaction: Dictionary = _clone_transaction()
 	if transaction.is_empty():
 		return ERR_INVALID_DATA
@@ -74,12 +79,81 @@ func submit_opening_draft_choice(piece_def_id: String) -> Error:
 	var error: Error = opening_draft_service.apply_choice(draft_run, draft_rng, piece_def_id)
 	if error != OK:
 		return error
-	return _commit_transaction(draft_run, draft_rng)
+	var commit_error: Error = _commit_transaction(draft_run, draft_rng)
+	if commit_error == OK and not was_complete and opening_draft_service.is_complete(current_run):
+		opening_draft_completed.emit(current_run)
+	return commit_error
 
 func opening_draft_complete() -> bool:
 	return current_run != null and opening_draft_service.is_complete(current_run)
 
+func ensure_run_map() -> Error:
+	_ensure_services()
+	if current_run == null:
+		return ERR_DOES_NOT_EXIST
+	var had_map: bool = current_run.map_state != null
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var map_run: RunState = transaction["run"] as RunState
+	var map_rng: RunRngService = transaction["rng"] as RunRngService
+	var error: Error = map_progress_service.ensure_map(map_run, map_rng)
+	if error != OK:
+		return error
+	if had_map:
+		return OK
+	var commit_error: Error = _commit_transaction(map_run, map_rng)
+	if commit_error == OK:
+		map_generated.emit(current_run)
+	return commit_error
+
+func available_map_node_ids() -> Array[StringName]:
+	_ensure_services()
+	return map_progress_service.available_node_ids(current_run)
+
+func select_map_node(node_id: StringName) -> Error:
+	_ensure_services()
+	if current_run == null:
+		return ERR_DOES_NOT_EXIST
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var map_run: RunState = transaction["run"] as RunState
+	var map_rng: RunRngService = transaction["rng"] as RunRngService
+	var error: Error = map_progress_service.select_node(map_run, map_rng, node_id)
+	if error != OK:
+		return error
+	var commit_error: Error = _commit_transaction(map_run, map_rng)
+	if commit_error == OK:
+		map_node_selected.emit(current_run, node_id)
+	return commit_error
+
+func resolve_current_map_node(payload: Dictionary = {}) -> Error:
+	_ensure_services()
+	if current_run == null:
+		return ERR_DOES_NOT_EXIST
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var map_run: RunState = transaction["run"] as RunState
+	var map_rng: RunRngService = transaction["rng"] as RunRngService
+	var node_id: StringName = map_run.current_node_id
+	var error: Error = map_progress_service.resolve_current_node(map_run, payload)
+	if error != OK:
+		return error
+	var commit_error: Error = _commit_transaction(map_run, map_rng)
+	if commit_error == OK:
+		map_node_resolved.emit(current_run, node_id)
+	return commit_error
+
+func current_map_node() -> MapNodeState:
+	if current_run == null or current_run.map_state == null:
+		return null
+	return current_run.map_state.get_node(current_run.current_node_id)
+
 func resume_scene_path() -> String:
+	if opening_draft_complete():
+		return "res://scenes/run/PathMapScene.tscn"
 	return "res://scenes/run/OpeningDraftScene.tscn"
 
 func save_active_run() -> Error:
@@ -155,14 +229,13 @@ func _commit_transaction(new_run: RunState, new_rng: RunRngService) -> Error:
 	rng_service = new_rng
 	run_saved.emit()
 	active_run_changed.emit(current_run)
-	if opening_draft_service.is_complete(current_run):
-		opening_draft_completed.emit(current_run)
 	return OK
 
 func _initialize_services() -> void:
 	save_service = ActiveRunSaveService.new(save_path)
 	rng_service = RunRngService.new()
 	opening_draft_service = OpeningDraftService.new()
+	map_progress_service = MapProgressService.new()
 	_initialized = true
 
 func _ensure_services() -> void:

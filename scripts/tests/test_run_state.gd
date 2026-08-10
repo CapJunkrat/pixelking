@@ -10,7 +10,6 @@ func _init() -> void:
 	var rook: RefCounted = state.call("allocate_piece", "rook", false) as RefCounted
 	state.call("move_piece_to_active", int(rook.get("instance_id")))
 	state.set("gold", 125)
-	state.set("current_node_id", &"node.test_battle")
 	state.set("rng_stream_states", {"map_rng": 9876543210123456})
 
 	_expect(int(king.get("instance_id")) == 1, "new Run owns deterministic piece IDs")
