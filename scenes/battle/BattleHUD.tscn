@@ -1,0 +1,175 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://scripts/battle/BattleHUD.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/ui/battle/modern_v2/enemy_avatar_fill.png" id="2_avatar"]
+[ext_resource type="Texture2D" path="res://assets/ui/battle/modern_v2/boss_frame_overlay.png" id="3_boss_frame"]
+[ext_resource type="Texture2D" path="res://assets/ui/battle/modern_v2/enemy_frame.png" id="4_enemy_frame"]
+[ext_resource type="Texture2D" path="res://assets/ui/battle/modern_v2/turn_action_frame.png" id="5_turn_frame"]
+[ext_resource type="Texture2D" path="res://assets/ui/battle/modern_v2/turn_counter_frame.png" id="6_counter_frame"]
+[ext_resource type="Texture2D" path="res://assets/ui/battle/modern_v2/settings_frame.png" id="7_settings_frame"]
+[ext_resource type="Texture2D" path="res://assets/ui/battle/modern/settings_gear.png" id="8_gear"]
+[ext_resource type="FontFile" path="res://assets/fonts/battle/PixelMplus10-Bold.ttf" id="9_font"]
+
+[sub_resource type="StyleBoxTexture" id="StyleEnemy"]
+texture = ExtResource("4_enemy_frame")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+content_margin_left = 5.0
+content_margin_top = 5.0
+content_margin_right = 5.0
+content_margin_bottom = 5.0
+
+[sub_resource type="StyleBoxTexture" id="StyleTurn"]
+texture = ExtResource("5_turn_frame")
+texture_margin_left = 12.0
+texture_margin_top = 12.0
+texture_margin_right = 12.0
+texture_margin_bottom = 12.0
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleCounter"]
+texture = ExtResource("6_counter_frame")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+
+[sub_resource type="StyleBoxTexture" id="StyleSettings"]
+texture = ExtResource("7_settings_frame")
+texture_margin_left = 10.0
+texture_margin_top = 10.0
+texture_margin_right = 10.0
+texture_margin_bottom = 10.0
+
+[node name="TopBar" type="HBoxContainer"]
+custom_minimum_size = Vector2(0, 54)
+theme_override_constants/separation = -1
+alignment = 1
+script = ExtResource("1_script")
+
+[node name="BossPortrait" type="Control" parent="."]
+custom_minimum_size = Vector2(52, 52)
+layout_mode = 2
+size_flags_vertical = 4
+
+[node name="Portrait" type="TextureRect" parent="BossPortrait"]
+layout_mode = 0
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+mouse_filter = 2
+texture = ExtResource("2_avatar")
+expand_mode = 1
+stretch_mode = 0
+texture_filter = 1
+
+[node name="FrameOverlay" type="TextureRect" parent="BossPortrait"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3_boss_frame")
+expand_mode = 1
+stretch_mode = 0
+texture_filter = 1
+
+[node name="EnemySegment" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(50, 42)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleEnemy")
+
+[node name="EnemyLabel" type="Label" parent="EnemySegment"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.945, 0.875, 0.741, 1)
+theme_override_colors/font_outline_color = Color(0.027, 0.082, 0.133, 1)
+theme_override_constants/outline_size = 1
+theme_override_fonts/font = ExtResource("9_font")
+theme_override_font_sizes/font_size = 15
+text = "BOSS"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TurnSegment" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(116, 54)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleTurn")
+
+[node name="TurnLabel" type="Label" parent="TurnSegment"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.027, 0.082, 0.133, 1)
+theme_override_constants/outline_size = 2
+theme_override_fonts/font = ExtResource("9_font")
+theme_override_font_sizes/font_size = 20
+text = "YOUR TURN"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RoundSegment" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(58, 42)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleCounter")
+
+[node name="RoundContent" type="HBoxContainer" parent="RoundSegment"]
+layout_mode = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="Caption" type="Label" parent="RoundSegment/RoundContent"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.945, 0.875, 0.741, 1)
+theme_override_fonts/font = ExtResource("9_font")
+theme_override_font_sizes/font_size = 20
+text = "T"
+vertical_alignment = 1
+
+[node name="RoundLabel" type="Label" parent="RoundSegment/RoundContent"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.945, 0.875, 0.741, 1)
+theme_override_fonts/font = ExtResource("9_font")
+theme_override_font_sizes/font_size = 20
+text = "1"
+vertical_alignment = 1
+
+[node name="SettingsButton" type="Button" parent="."]
+custom_minimum_size = Vector2(52, 52)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/normal = SubResource("StyleSettings")
+theme_override_styles/pressed = SubResource("StyleSettings")
+theme_override_styles/hover = SubResource("StyleSettings")
+
+[node name="GearIcon" type="TextureRect" parent="SettingsButton"]
+layout_mode = 0
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -15.0
+offset_top = -15.0
+offset_right = 15.0
+offset_bottom = 15.0
+mouse_filter = 2
+texture = ExtResource("8_gear")
+expand_mode = 1
+stretch_mode = 5
+texture_filter = 1

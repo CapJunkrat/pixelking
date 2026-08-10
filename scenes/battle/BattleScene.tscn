@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/battle/BattleController.gd" id="1_script"]
 [ext_resource type="Theme" path="res://assets/ui/themes/pixel_king_theme.tres" id="2_theme"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://scenes/battle/BattleSettingsPanel.tscn" id="5_settings"]
 [ext_resource type="PackedScene" path="res://scenes/battle/ChallengerTray.tscn" id="6_tray"]
 [ext_resource type="PackedScene" path="res://scenes/battle/BattleBoardView.tscn" id="7_board"]
+[ext_resource type="PackedScene" path="res://scenes/battle/BattleHUD.tscn" id="8_hud"]
 
 [node name="BattleScene" type="Control"]
 layout_mode = 3
@@ -46,6 +47,14 @@ grow_vertical = 2
 [node name="Layout" type="VBoxContainer" parent="Margin"]
 layout_mode = 2
 theme_override_constants/separation = 6
+
+[node name="TopBar" parent="Margin/Layout" instance=ExtResource("8_hud")]
+layout_mode = 2
+
+[node name="BackgroundVista" type="Control" parent="Margin/Layout"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+mouse_filter = 2
 
 [node name="Title" type="Label" parent="Margin/Layout"]
 layout_mode = 2
