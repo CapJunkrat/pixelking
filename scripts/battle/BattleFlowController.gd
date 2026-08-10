@@ -6,6 +6,7 @@ enum Phase { PLAYER_TURN, ENEMY_TURN, FINISHED }
 var phase := Phase.PLAYER_TURN
 var enemy_selector := EnemyMoveSelector.new()
 var enemy_pending := false
+var result_panel: BattleResultPanel
 var result_overlay: ColorRect
 var result_title: Label
 var result_detail: Label
@@ -18,7 +19,7 @@ func _ready() -> void:
 	call_deferred("_finish_ready")
 
 func _finish_ready() -> void:
-	_build_result_overlay()
+	_bind_result_panel()
 	EventBus.move_made.connect(_on_move_made)
 	call_deferred("_advance_flow")
 
@@ -68,56 +69,17 @@ func _play_enemy_turn() -> void:
 	GameState.try_move(move["from"], move["to"])
 	battle.call("clear_board_selection")
 	battle.call("_refresh_board")
-
-func _build_result_overlay() -> void:
-	result_overlay = ColorRect.new()
-	result_overlay.name = "ResultOverlay"
-	result_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	result_overlay.color = Color(0.01, 0.025, 0.06, 0.88)
-	result_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	result_overlay.hide()
-	battle.add_child(result_overlay)
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	result_overlay.add_child(center)
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(292, 236)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#0b1625")
-	style.border_color = Color("#f0d8a2")
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(8)
-	panel.add_theme_stylebox_override("panel", style)
-	center.add_child(panel)
-	var margin := MarginContainer.new()
-	for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
-		margin.add_theme_constant_override(side, 20)
-	panel.add_child(margin)
-	var content := VBoxContainer.new()
-	content.alignment = BoxContainer.ALIGNMENT_CENTER
-	content.add_theme_constant_override("separation", 14)
-	margin.add_child(content)
-	result_title = Label.new()
-	result_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	result_title.add_theme_font_size_override("font_size", 28)
-	result_title.add_theme_color_override("font_color", Color("#f0d8a2"))
-	content.add_child(result_title)
-	result_detail = Label.new()
-	result_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	result_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	content.add_child(result_detail)
-	retry_button = Button.new()
-	retry_button.name = "RetryButton"
+func _bind_result_panel() -> void:
+	result_panel = battle.get_node("ResultOverlay") as BattleResultPanel
+	result_overlay = result_panel
+	result_title = result_panel.title_label
+	result_detail = result_panel.detail_label
+	retry_button = result_panel.retry_button
+	exit_button = result_panel.exit_button
 	retry_button.text = Localization.text("BATTLE_RETRY")
-	retry_button.custom_minimum_size = Vector2(0, 44)
-	retry_button.pressed.connect(_restart)
-	content.add_child(retry_button)
-	exit_button = Button.new()
-	exit_button.name = "ExitButton"
 	exit_button.text = Localization.text("BATTLE_RESULT_MAIN_MENU")
-	exit_button.custom_minimum_size = Vector2(0, 44)
-	exit_button.pressed.connect(_return_after_result)
-	content.add_child(exit_button)
+	result_panel.retry_requested.connect(_restart)
+	result_panel.exit_requested.connect(_return_after_result)
 
 func _show_result(player_won: bool, draw: bool) -> void:
 	phase = Phase.FINISHED
@@ -131,7 +93,7 @@ func _show_result(player_won: bool, draw: bool) -> void:
 		result_title.text = Localization.text("BATTLE_DEFEAT")
 		result_detail.text = Localization.text("BATTLE_DEFEAT_DETAIL")
 	_integrate_run_result(player_won and not draw)
-	result_overlay.show()
+	result_panel.present(result_title.text, result_detail.text)
 
 func _integrate_run_result(player_won: bool) -> void:
 	var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager

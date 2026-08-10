@@ -60,7 +60,7 @@ func _run() -> void:
 	await create_timer(0.7).timeout
 	_expect(game_state.board.move_history.size() == 2, "enemy AI automatically chooses and executes a reply")
 	_expect(game_state.board.turn == GameRules.PieceColor.WHITE, "enemy reply returns control to the player")
-	_expect(battle.get_node("ResultOverlay") != null, "battle flow creates the terminal result overlay")
+	_expect(battle.get_node("ResultOverlay") is BattleResultPanel, "battle result panel is extracted into a static scene component")
 	_finish()
 
 func _expect(condition: bool, message: String) -> void:
