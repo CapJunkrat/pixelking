@@ -1,0 +1,162 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/battle/ChallengerTray.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/ui/battle/modern_v2/treasure_tray.png" id="2_tray"]
+[ext_resource type="Texture2D" path="res://assets/ui/battle/modern_v2/title_plank.png" id="3_title"]
+[ext_resource type="Texture2D" path="res://assets/ui/battle/modern_v2/treasure_slot_normal.png" id="4_slot"]
+[ext_resource type="Texture2D" path="res://assets/ui/battle/modern_v2/treasure_slot_hover.png" id="5_hover"]
+
+[sub_resource type="StyleBoxTexture" id="StyleTray"]
+texture = ExtResource("2_tray")
+texture_margin_left = 14.0
+texture_margin_top = 14.0
+texture_margin_right = 14.0
+texture_margin_bottom = 14.0
+
+[sub_resource type="StyleBoxTexture" id="StyleTitle"]
+texture = ExtResource("3_title")
+texture_margin_left = 12.0
+texture_margin_top = 12.0
+texture_margin_right = 12.0
+texture_margin_bottom = 12.0
+content_margin_left = 12.0
+content_margin_top = 12.0
+content_margin_right = 12.0
+content_margin_bottom = 12.0
+
+[sub_resource type="StyleBoxTexture" id="StyleSlot"]
+texture = ExtResource("4_slot")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+content_margin_left = 5.0
+content_margin_top = 5.0
+content_margin_right = 5.0
+content_margin_bottom = 5.0
+
+[sub_resource type="StyleBoxTexture" id="StyleSlotHover"]
+texture = ExtResource("5_hover")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+content_margin_left = 5.0
+content_margin_top = 5.0
+content_margin_right = 5.0
+content_margin_bottom = 5.0
+
+[node name="ChallengerPanel" type="Control"]
+custom_minimum_size = Vector2(0, 112)
+script = ExtResource("1_script")
+
+[node name="TreasureTray" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleTray")
+
+[node name="Margin" type="MarginContainer" parent="TreasureTray"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Slots" type="Control" parent="TreasureTray/Margin"]
+layout_mode = 2
+
+[node name="SlotRow" type="HBoxContainer" parent="TreasureTray/Margin/Slots"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 5
+alignment = 1
+
+[node name="ChallengerSlot0" type="Button" parent="TreasureTray/Margin/Slots/SlotRow"]
+custom_minimum_size = Vector2(44, 70)
+layout_mode = 2
+focus_mode = 0
+expand_icon = true
+theme_override_styles/normal = SubResource("StyleSlot")
+theme_override_styles/pressed = SubResource("StyleSlotHover")
+theme_override_styles/hover = SubResource("StyleSlotHover")
+theme_override_styles/disabled = SubResource("StyleSlot")
+
+[node name="ChallengerSlot1" type="Button" parent="TreasureTray/Margin/Slots/SlotRow"]
+custom_minimum_size = Vector2(44, 70)
+layout_mode = 2
+focus_mode = 0
+expand_icon = true
+theme_override_styles/normal = SubResource("StyleSlot")
+theme_override_styles/pressed = SubResource("StyleSlotHover")
+theme_override_styles/hover = SubResource("StyleSlotHover")
+theme_override_styles/disabled = SubResource("StyleSlot")
+
+[node name="ChallengerSlot2" type="Button" parent="TreasureTray/Margin/Slots/SlotRow"]
+custom_minimum_size = Vector2(44, 70)
+layout_mode = 2
+focus_mode = 0
+expand_icon = true
+theme_override_styles/normal = SubResource("StyleSlot")
+theme_override_styles/pressed = SubResource("StyleSlotHover")
+theme_override_styles/hover = SubResource("StyleSlotHover")
+theme_override_styles/disabled = SubResource("StyleSlot")
+
+[node name="ChallengerSlot3" type="Button" parent="TreasureTray/Margin/Slots/SlotRow"]
+custom_minimum_size = Vector2(44, 70)
+layout_mode = 2
+focus_mode = 0
+expand_icon = true
+theme_override_styles/normal = SubResource("StyleSlot")
+theme_override_styles/pressed = SubResource("StyleSlotHover")
+theme_override_styles/hover = SubResource("StyleSlotHover")
+theme_override_styles/disabled = SubResource("StyleSlot")
+
+[node name="ChallengerSlot4" type="Button" parent="TreasureTray/Margin/Slots/SlotRow"]
+custom_minimum_size = Vector2(44, 70)
+layout_mode = 2
+focus_mode = 0
+expand_icon = true
+theme_override_styles/normal = SubResource("StyleSlot")
+theme_override_styles/pressed = SubResource("StyleSlotHover")
+theme_override_styles/hover = SubResource("StyleSlotHover")
+theme_override_styles/disabled = SubResource("StyleSlot")
+
+[node name="ChallengerSlot5" type="Button" parent="TreasureTray/Margin/Slots/SlotRow"]
+custom_minimum_size = Vector2(44, 70)
+layout_mode = 2
+focus_mode = 0
+expand_icon = true
+theme_override_styles/normal = SubResource("StyleSlot")
+theme_override_styles/pressed = SubResource("StyleSlotHover")
+theme_override_styles/hover = SubResource("StyleSlotHover")
+theme_override_styles/disabled = SubResource("StyleSlot")
+
+[node name="TitlePlaque" type="PanelContainer" parent="TreasureTray/Margin/Slots"]
+layout_mode = 0
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -88.0
+offset_top = -33.0
+offset_right = 88.0
+offset_bottom = -8.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleTitle")
+
+[node name="Heading" type="Label" parent="TreasureTray/Margin/Slots/TitlePlaque"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.953, 0.875, 0.69, 1)
+theme_override_colors/font_outline_color = Color(0.231, 0.122, 0.067, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 11
+text = "ITEMS"
+horizontal_alignment = 1
+vertical_alignment = 1

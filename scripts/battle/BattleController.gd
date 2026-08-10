@@ -6,12 +6,11 @@ const DARK := Color("#102f45")
 const GOLD := Color("#f0d8a2")
 const TEAL := Color("#2ec8c2")
 const DANGER := Color("#ff6338")
-const SLOT_COUNT := 6
-
 @onready var layout: VBoxContainer = $Margin/Layout
 @onready var board_frame: Control = $Margin/Layout/BoardFrame
 @onready var board_grid: GridContainer = $Margin/Layout/BoardFrame/BoardCenter/BoardGrid
 @onready var settings_overlay: BattleSettingsPanel = $SettingsOverlay as BattleSettingsPanel
+@onready var challenger_tray: ChallengerTray = $Margin/Layout/ChallengerPanel as ChallengerTray
 
 var selected_square := Vector2i(-1, -1)
 var legal_targets: Array[Vector2i] = []
@@ -30,7 +29,7 @@ func _ready() -> void:
 	battle_font = load("res://assets/fonts/battle/PixelMplus10-Bold.ttf") as Font
 	_build_top_bar()
 	_build_background_vista()
-	_build_challenger_bar()
+	challenger_slots = challenger_tray.slots()
 	board_frame.custom_minimum_size = Vector2(351, 351)
 	board_frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	board_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -203,68 +202,6 @@ func _build_background_vista() -> void:
 	layout.add_child(vista)
 	layout.move_child(vista, 1)
 
-func _build_challenger_bar() -> void:
-	var push_down := Control.new()
-	push_down.name = "TreasureSpacer"
-	push_down.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	layout.add_child(push_down)
-	layout.move_child(push_down, board_frame.get_index() + 1)
-
-	var root_panel := Control.new()
-	root_panel.name = "ChallengerPanel"
-	root_panel.custom_minimum_size = Vector2(0, 112)
-	var tray := PanelContainer.new()
-	tray.name = "TreasureTray"
-	tray.anchor_right = 1.0
-	tray.anchor_bottom = 1.0
-	tray.offset_top = 12.0
-	tray.add_theme_stylebox_override("panel", _frame_style("res://assets/ui/battle/modern_v2/treasure_tray.png", 14, 0))
-	root_panel.add_child(tray)
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_bottom", 12)
-	tray.add_child(margin)
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 5)
-	margin.add_child(row)
-	for index in SLOT_COUNT:
-		var slot := Button.new()
-		slot.name = "ChallengerSlot%d" % index
-		slot.custom_minimum_size = Vector2(44, 70)
-		slot.focus_mode = Control.FOCUS_NONE
-		slot.expand_icon = true
-		slot.add_theme_stylebox_override("normal", _frame_style("res://assets/ui/battle/modern_v2/treasure_slot_normal.png", 8, 5))
-		slot.add_theme_stylebox_override("hover", _frame_style("res://assets/ui/battle/modern_v2/treasure_slot_hover.png", 8, 5))
-		slot.add_theme_stylebox_override("pressed", _frame_style("res://assets/ui/battle/modern_v2/treasure_slot_hover.png", 8, 5))
-		slot.add_theme_stylebox_override("disabled", _frame_style("res://assets/ui/battle/modern_v2/treasure_slot_disabled.png", 8, 5))
-		row.add_child(slot)
-		challenger_slots.append(slot)
-	var title_panel := PanelContainer.new()
-	title_panel.name = "TitlePlaque"
-	title_panel.anchor_left = 0.5
-	title_panel.anchor_right = 0.5
-	title_panel.offset_left = -88.0
-	title_panel.offset_top = -15.0
-	title_panel.offset_right = 88.0
-	title_panel.offset_bottom = 10.0
-	title_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	title_panel.add_theme_stylebox_override("panel", _frame_style("res://assets/ui/battle/modern_v2/title_plank.png", 12, 12))
-	root_panel.add_child(title_panel)
-	var heading := Label.new()
-	heading.text = Localization.text("BATTLE_CHALLENGER")
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heading.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	heading.add_theme_color_override("font_color", Color("#f3dfb0"))
-	heading.add_theme_color_override("font_outline_color", Color("#3b1f11"))
-	heading.add_theme_constant_override("outline_size", 2)
-	heading.add_theme_font_override("font", battle_font)
-	heading.add_theme_font_size_override("font_size", 11)
-	title_panel.add_child(heading)
-	layout.add_child(root_panel)
-	layout.move_child(root_panel, push_down.get_index() + 1)
 func _build_board() -> void:
 	board_grid.custom_minimum_size = Vector2(315, 315)
 	board_grid.add_theme_constant_override("h_separation", 0)
@@ -367,19 +304,7 @@ func _apply_square_style(button: Button, pos: Vector2i) -> void:
 	button.add_theme_stylebox_override("pressed", normal)
 
 func _refresh_challenger_slots() -> void:
-	for index in challenger_slots.size():
-		var slot := challenger_slots[index]
-		if index >= GameState.challenger_items.size():
-			slot.icon = null
-			slot.text = ""
-			slot.tooltip_text = Localization.text("BATTLE_EMPTY_SLOT")
-			slot.disabled = true
-		else:
-			var item := GameState.challenger_items[index]
-			slot.icon = item.icon
-			slot.text = "" if item.icon != null else String(item.id).left(2).to_upper()
-			slot.tooltip_text = Localization.text(String(item.display_name_key))
-			slot.disabled = not item.is_consumable()
+	challenger_tray.refresh(GameState.challenger_items)
 
 func _style(fill: Color, border: Color, width: int, radius: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
