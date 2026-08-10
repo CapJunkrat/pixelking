@@ -26,6 +26,7 @@ func _run() -> void:
 	root.add_child(path_map)
 	await process_frame
 	_expect(run_manager.current_run.map_state != null, "path map scene generates and persists missing map data")
+	_expect(path_map.get_node("SafeArea/Layout/Footer/RosterButton") != null, "route map provides non-battle roster management access")
 	var view: PathMapView = path_map.get_node("SafeArea/Layout/MapPanel/MapScroll/MapView") as PathMapView
 	var cards: Array[Button] = view.node_buttons()
 	_expect(cards.size() == run_manager.current_run.map_state.nodes.size(), "map view renders every public route node")

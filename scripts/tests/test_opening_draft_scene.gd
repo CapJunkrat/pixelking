@@ -36,6 +36,7 @@ func _run() -> void:
 		await process_frame
 	var completion: ColorRect = draft.get_node("CompletionOverlay") as ColorRect
 	_expect(completion.visible, "completion overlay appears after three picks")
+	_expect(draft.get_node("CompletionOverlay/Center/Panel/Content/RosterButton") != null, "completed draft provides roster management access")
 	var current_run: RunState = run_manager.get("current_run") as RunState
 	_expect(current_run != null and current_run.reserve_piece_ids.size() == 3, "scene selections persist three reserve pieces")
 	draft.queue_free()
