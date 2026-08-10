@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/battle/BattleController.gd" id="1_script"]
 [ext_resource type="Theme" path="res://assets/ui/themes/pixel_king_theme.tres" id="2_theme"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/battle/BattleFlowController.gd" id="4_flow"]
 [ext_resource type="PackedScene" path="res://scenes/battle/BattleSettingsPanel.tscn" id="5_settings"]
 [ext_resource type="PackedScene" path="res://scenes/battle/ChallengerTray.tscn" id="6_tray"]
+[ext_resource type="PackedScene" path="res://scenes/battle/BattleBoardView.tscn" id="7_board"]
 
 [node name="BattleScene" type="Control"]
 layout_mode = 3
@@ -54,23 +55,8 @@ text = "Legacy title"
 layout_mode = 2
 text = "Legacy turn"
 
-[node name="BoardFrame" type="Control" parent="Margin/Layout"]
-custom_minimum_size = Vector2(351, 351)
+[node name="BoardFrame" parent="Margin/Layout" instance=ExtResource("7_board")]
 layout_mode = 2
-size_flags_vertical = 3
-
-[node name="BoardCenter" type="CenterContainer" parent="Margin/Layout/BoardFrame"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="BoardGrid" type="GridContainer" parent="Margin/Layout/BoardFrame/BoardCenter"]
-custom_minimum_size = Vector2(315, 315)
-layout_mode = 2
-columns = 5
 
 [node name="TreasureSpacer" type="Control" parent="Margin/Layout"]
 layout_mode = 2

@@ -56,7 +56,7 @@ func _play_enemy_turn() -> void:
 	if phase != Phase.ENEMY_TURN or GameState.board == null:
 		enemy_pending = false
 		return
-	if battle.settings_overlay != null and battle.settings_overlay.visible:
+	if bool(battle.call("is_settings_open")):
 		enemy_pending = false
 		_advance_flow.call_deferred()
 		return
@@ -66,8 +66,7 @@ func _play_enemy_turn() -> void:
 		_advance_flow()
 		return
 	GameState.try_move(move["from"], move["to"])
-	battle.selected_square = Vector2i(-1, -1)
-	battle.legal_targets.clear()
+	battle.call("clear_board_selection")
 	battle.call("_refresh_board")
 
 func _build_result_overlay() -> void:

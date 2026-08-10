@@ -17,6 +17,7 @@ func _run() -> void:
 	root.add_child(battle)
 	await process_frame
 
+	_expect(battle.get_node("Margin/Layout/BoardFrame") is BattleBoardView, "battle board is extracted into a static scene component")
 	var grid := battle.get_node("Margin/Layout/BoardFrame/BoardCenter/BoardGrid") as GridContainer
 	_expect(grid.columns == 5, "battle grid follows the 5x5 board size")
 	_expect(grid.get_child_count() == 25, "battle grid creates one control per square")

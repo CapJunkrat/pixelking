@@ -1,20 +1,28 @@
 extends Control
 
-const BOARD_PIXELS := 315.0
-const LIGHT := Color("#285064")
-const DARK := Color("#102f45")
 const GOLD := Color("#f0d8a2")
 const TEAL := Color("#2ec8c2")
 const DANGER := Color("#ff6338")
 @onready var layout: VBoxContainer = $Margin/Layout
+@onready var board_view: BattleBoardView = $Margin/Layout/BoardFrame as BattleBoardView
 @onready var board_frame: Control = $Margin/Layout/BoardFrame
 @onready var board_grid: GridContainer = $Margin/Layout/BoardFrame/BoardCenter/BoardGrid
 @onready var settings_overlay: BattleSettingsPanel = $SettingsOverlay as BattleSettingsPanel
 @onready var challenger_tray: ChallengerTray = $Margin/Layout/ChallengerPanel as ChallengerTray
 
-var selected_square := Vector2i(-1, -1)
-var legal_targets: Array[Vector2i] = []
-var square_buttons: Dictionary = {}
+var selected_square: Vector2i:
+	get:
+		return board_view.selected_square
+	set(value):
+		board_view.selected_square = value
+var legal_targets: Array[Vector2i]:
+	get:
+		return board_view.legal_targets
+	set(value):
+		board_view.legal_targets = value
+var square_buttons: Dictionary:
+	get:
+		return board_view.square_buttons
 var challenger_slots: Array[Button] = []
 var turn_label: Label
 var round_label: Label
@@ -30,12 +38,8 @@ func _ready() -> void:
 	_build_top_bar()
 	_build_background_vista()
 	challenger_slots = challenger_tray.slots()
-	board_frame.custom_minimum_size = Vector2(351, 351)
-	board_frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	board_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_install_board_frame_layers()
-	PieceSkinManager.skin_changed.connect(_on_skin_changed)
-	_build_board()
+	board_view.move_requested.connect(_on_board_move_requested)
+	board_view.setup(GameState.board, GameState.player_color)
 	_refresh_board()
 	_refresh_challenger_slots()
 
@@ -44,31 +48,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		settings_overlay.close()
 		get_viewport().set_input_as_handled()
 
-func _exit_tree() -> void:
-	if PieceSkinManager.skin_changed.is_connected(_on_skin_changed):
-		PieceSkinManager.skin_changed.disconnect(_on_skin_changed)
-
-func _install_board_frame_layers() -> void:
-	var background := TextureRect.new()
-	background.name = "FrameBackground"
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	background.texture = load("res://assets/ui/battle/modern_v2/board_frame_v2_351.png") as Texture2D
-	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	background.stretch_mode = TextureRect.STRETCH_SCALE
-	background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	board_frame.add_child(background)
-	board_frame.move_child(background, 0)
-
-	var overlay := TextureRect.new()
-	overlay.name = "FrameOverlay"
-	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	overlay.texture = load("res://assets/ui/battle/modern_v2/board_frame_overlay_v2.png") as Texture2D
-	overlay.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	overlay.stretch_mode = TextureRect.STRETCH_SCALE
-	overlay.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	board_frame.add_child(overlay)
 func _build_top_bar() -> void:
 	layout.add_theme_constant_override("separation", 6)
 	var bar := HBoxContainer.new()
@@ -202,106 +181,25 @@ func _build_background_vista() -> void:
 	layout.add_child(vista)
 	layout.move_child(vista, 1)
 
-func _build_board() -> void:
-	board_grid.custom_minimum_size = Vector2(315, 315)
-	board_grid.add_theme_constant_override("h_separation", 0)
-	board_grid.add_theme_constant_override("v_separation", 0)
-	for child in board_grid.get_children():
-		child.queue_free()
-	square_buttons.clear()
-	var board := GameState.board
-	if board == null:
-		return
-	board_grid.columns = board.board_size
-	var cell_size := floorf(BOARD_PIXELS / board.board_size)
-	for display_y in range(board.board_size):
-		var y := board.board_size - 1 - display_y
-		for x in range(board.board_size):
-			var pos := Vector2i(x, y)
-			var button := Button.new()
-			button.name = "Square_%d_%d" % [x, y]
-			button.custom_minimum_size = Vector2(cell_size, cell_size)
-			button.focus_mode = Control.FOCUS_NONE
-			button.clip_contents = true
-			button.pressed.connect(_on_square_pressed.bind(pos))
-			var image := TextureRect.new()
-			image.name = "Piece"
-			image.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 4)
-			image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			image.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-			image.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			button.add_child(image)
-			var marker := TextureRect.new()
-			marker.name = "MoveMarker"
-			marker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 3)
-			marker.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			marker.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			marker.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-			marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			marker.hide()
-			button.add_child(marker)
-			board_grid.add_child(button)
-			square_buttons[pos] = button
-
-func _on_square_pressed(pos: Vector2i) -> void:
-	var board := GameState.board
-	if board == null:
-		return
-	if pos in legal_targets and GameState.try_move(selected_square, pos):
-		selected_square = Vector2i(-1, -1)
-		legal_targets.clear()
-		_refresh_board()
-		return
-	var piece := board.get_piece(pos)
-	if piece != null and piece.color == board.turn and piece.color == GameState.player_color:
-		selected_square = pos
-		legal_targets = board.get_legal_moves(pos)
-	else:
-		selected_square = Vector2i(-1, -1)
-		legal_targets.clear()
+func _on_board_move_requested(from: Vector2i, to: Vector2i) -> void:
+	if GameState.try_move(from, to):
+		board_view.clear_selection()
 	_refresh_board()
 
+func is_settings_open() -> bool:
+	return settings_overlay.is_open()
+
+func clear_board_selection() -> void:
+	board_view.clear_selection()
+
 func _refresh_board() -> void:
-	var board := GameState.board
+	var board: BoardState = GameState.board
 	if board == null:
 		return
-	for pos in square_buttons:
-		var button := square_buttons[pos] as Button
-		var piece := board.get_piece(pos)
-		(button.get_node("Piece") as TextureRect).texture = _piece_texture(piece)
-		var marker := button.get_node("MoveMarker") as TextureRect
-		marker.texture = null
-		marker.hide()
-		if pos == selected_square:
-			marker.texture = load("res://assets/ui/battle/modern/selection_brackets.png") as Texture2D
-			marker.show()
-		elif pos in legal_targets:
-			marker.texture = load("res://assets/ui/battle/modern/attack_ring.png" if piece != null else "res://assets/ui/battle/modern/legal_dot.png") as Texture2D
-			marker.show()
-		_apply_square_style(button, pos)
+	board_view.refresh(board)
 	turn_label.text = Localization.text("BATTLE_YOUR_TURN") if board.turn == GameState.player_color else Localization.text("BATTLE_ENEMY_TURN")
 	turn_label.add_theme_color_override("font_color", Color("#33c8c2") if board.turn == GameState.player_color else Color("#f1dfbd"))
 	round_label.text = str(floori(board.move_history.size() / 2.0) + 1)
-
-func _piece_texture(piece: ChessPiece) -> Texture2D:
-	if piece == null:
-		return null
-	var color: StringName = &"white" if piece.color == GameRules.PieceColor.WHITE else &"black"
-	return PieceSkinManager.piece_texture(color, StringName(piece.def.id))
-
-func _apply_square_style(button: Button, pos: Vector2i) -> void:
-	var fill := LIGHT if (pos.x + pos.y) % 2 == 0 else DARK
-	if not GameState.board.move_history.is_empty():
-		var move: Dictionary = GameState.board.move_history[-1]
-		if pos == move.get("from") or pos == move.get("to"):
-			fill = fill.lightened(0.08)
-	var normal := _style(fill, fill, 0, 0)
-	var hover := normal.duplicate() as StyleBoxFlat
-	hover.bg_color = fill.lightened(0.06)
-	button.add_theme_stylebox_override("normal", normal)
-	button.add_theme_stylebox_override("hover", hover)
-	button.add_theme_stylebox_override("pressed", normal)
 
 func _refresh_challenger_slots() -> void:
 	challenger_tray.refresh(GameState.challenger_items)
@@ -427,5 +325,4 @@ func _frame_style(path: String, texture_margin: float, content_margin: float) ->
 	style.content_margin_bottom = content_margin
 	style.draw_center = true
 	return style
-func _on_skin_changed(_skin_id: StringName) -> void:
-	_refresh_board()
+
