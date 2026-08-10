@@ -27,6 +27,7 @@ func _ready() -> void:
 	for index: int in range(candidate_buttons.size()):
 		candidate_buttons[index].pressed.connect(_on_candidate_pressed.bind(index))
 	$SafeArea/Layout/Footer/BackButton.pressed.connect(_return_to_menu)
+	$CompletionOverlay/Center/Panel/Content/RosterButton.pressed.connect(_open_roster)
 	$CompletionOverlay/Center/Panel/Content/PrototypeBattleButton.pressed.connect(_enter_prototype_battle)
 	$CompletionOverlay/Center/Panel/Content/MainMenuButton.pressed.connect(_return_to_menu)
 	PieceSkinManager.skin_changed.connect(_on_skin_changed)
@@ -137,6 +138,7 @@ func _apply_locale() -> void:
 	$SafeArea/Layout/Footer/BackButton.text = Localization.text("COMMON_BACK")
 	$CompletionOverlay/Center/Panel/Content/CompletionTitle.text = Localization.text("DRAFT_COMPLETE")
 	$CompletionOverlay/Center/Panel/Content/CompletionDetail.text = Localization.text("DRAFT_COMPLETE_DETAIL")
+	$CompletionOverlay/Center/Panel/Content/RosterButton.text = Localization.text("ROSTER_MANAGE")
 	$CompletionOverlay/Center/Panel/Content/PrototypeBattleButton.text = Localization.text("DRAFT_PROTOTYPE_BATTLE")
 	$CompletionOverlay/Center/Panel/Content/MainMenuButton.text = Localization.text("DRAFT_RETURN_MENU")
 
@@ -183,6 +185,9 @@ func _to_string_array(value: Variant) -> Array[String]:
 
 func _on_skin_changed(_skin_id: StringName) -> void:
 	_render()
+
+func _open_roster() -> void:
+	get_tree().change_scene_to_file("res://scenes/run/RosterScene.tscn")
 
 func _enter_prototype_battle() -> void:
 	var error: Error = run_manager.ensure_run_map()

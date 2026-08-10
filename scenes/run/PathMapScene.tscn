@@ -173,6 +173,14 @@ theme_override_font_sizes/font_size = 11
 text = "Seed"
 vertical_alignment = 1
 
+[node name="RosterButton" type="Button" parent="SafeArea/Layout/Footer" unique_id=1858536254]
+custom_minimum_size = Vector2(112, 40)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleButton")
+theme_override_styles/hover = SubResource("StyleButtonHover")
+theme_override_styles/focus = SubResource("StyleButtonHover")
+text = "Roster"
+
 [node name="BackButton" type="Button" parent="SafeArea/Layout/Footer" unique_id=929584871]
 custom_minimum_size = Vector2(104, 40)
 layout_mode = 2

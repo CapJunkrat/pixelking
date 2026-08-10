@@ -339,6 +339,14 @@ text = "Your opening roster is ready."
 horizontal_alignment = 1
 autowrap_mode = 2
 
+[node name="RosterButton" type="Button" parent="CompletionOverlay/Center/Panel/Content"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleButton")
+theme_override_styles/hover = SubResource("StyleButtonHover")
+theme_override_styles/focus = SubResource("StyleButtonHover")
+text = "Manage Roster"
+
 [node name="PrototypeBattleButton" type="Button" parent="CompletionOverlay/Center/Panel/Content" unique_id=300375254]
 custom_minimum_size = Vector2(0, 46)
 layout_mode = 2

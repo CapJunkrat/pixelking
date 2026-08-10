@@ -1,0 +1,189 @@
+[gd_scene format=3 uid="uid://c2phlts8twojj"]
+
+[ext_resource type="Script" uid="uid://dkihqnyoraao5" path="res://scripts/run/RosterScene.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://cb57ojybrfvwt" path="res://assets/ui/main_menu_background_clean.png" id="2_bg"]
+
+[sub_resource type="StyleBoxFlat" id="StylePanel"]
+content_margin_left = 6.0
+content_margin_top = 7.0
+content_margin_right = 6.0
+content_margin_bottom = 7.0
+bg_color = Color(0.03, 0.065, 0.1, 0.94)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.42, 0.52, 0.56, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleButton"]
+bg_color = Color(0.07, 0.14, 0.2, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.7, 0.6, 0.4, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleButtonHover"]
+bg_color = Color(0.1, 0.25, 0.34, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.96, 0.81, 0.4, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[node name="RosterScene" type="Control" unique_id=1539582688]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="TextureRect" parent="." unique_id=1084368087]
+modulate = Color(0.42, 0.54, 0.67, 1)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2_bg")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Shade" type="ColorRect" parent="." unique_id=178372691]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.005, 0.018, 0.035, 0.8)
+
+[node name="SafeArea" type="MarginContainer" parent="." unique_id=1305757608]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Layout" type="VBoxContainer" parent="SafeArea" unique_id=1172354019]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="VBoxContainer" parent="SafeArea/Layout" unique_id=792950958]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="Title" type="Label" parent="SafeArea/Layout/Header" unique_id=984786443]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.83, 0.5, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 25
+text = "Royal Roster"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="SafeArea/Layout/Header" unique_id=1064975492]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.8, 0.84, 1)
+theme_override_font_sizes/font_size = 12
+text = "Prepare your active formation"
+horizontal_alignment = 1
+
+[node name="CapacityLabel" type="Label" parent="SafeArea/Layout" unique_id=1199412626]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.82, 0.78, 1)
+theme_override_font_sizes/font_size = 12
+text = "Active 0/5 · Reserve 0/5"
+horizontal_alignment = 1
+
+[node name="Columns" type="HBoxContainer" parent="SafeArea/Layout" unique_id=978288099]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="ActivePanel" type="PanelContainer" parent="SafeArea/Layout/Columns" unique_id=583765696]
+custom_minimum_size = Vector2(157, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StylePanel")
+
+[node name="Content" type="VBoxContainer" parent="SafeArea/Layout/Columns/ActivePanel" unique_id=1636233676]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="SafeArea/Layout/Columns/ActivePanel/Content" unique_id=117543351]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.53, 0.84, 0.62, 1)
+theme_override_font_sizes/font_size = 14
+text = "ACTIVE"
+horizontal_alignment = 1
+
+[node name="ActiveList" type="VBoxContainer" parent="SafeArea/Layout/Columns/ActivePanel/Content" unique_id=1970920003]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 3
+
+[node name="ReservePanel" type="PanelContainer" parent="SafeArea/Layout/Columns" unique_id=1603385112]
+custom_minimum_size = Vector2(157, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StylePanel")
+
+[node name="Content" type="VBoxContainer" parent="SafeArea/Layout/Columns/ReservePanel" unique_id=14925537]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="SafeArea/Layout/Columns/ReservePanel/Content" unique_id=2014587931]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.49, 0.73, 0.91, 1)
+theme_override_font_sizes/font_size = 14
+text = "RESERVE"
+horizontal_alignment = 1
+
+[node name="ReserveList" type="VBoxContainer" parent="SafeArea/Layout/Columns/ReservePanel/Content" unique_id=877399697]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 3
+
+[node name="StatusLabel" type="Label" parent="SafeArea/Layout" unique_id=1387560704]
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.76, 0.77, 1)
+theme_override_font_sizes/font_size = 11
+text = "Tap a piece to move it."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Footer" type="HBoxContainer" parent="SafeArea/Layout" unique_id=1267168944]
+layout_mode = 2
+alignment = 1
+
+[node name="BackButton" type="Button" parent="SafeArea/Layout/Footer" unique_id=1446019037]
+custom_minimum_size = Vector2(180, 42)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleButton")
+theme_override_styles/hover = SubResource("StyleButtonHover")
+theme_override_styles/focus = SubResource("StyleButtonHover")
+text = "Return"

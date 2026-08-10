@@ -15,6 +15,7 @@ var presented_node_id: StringName = &""
 
 func _ready() -> void:
 	map_view.node_selected.connect(_on_node_selected)
+	$SafeArea/Layout/Footer/RosterButton.pressed.connect(_open_roster)
 	$SafeArea/Layout/Footer/BackButton.pressed.connect(_return_to_menu)
 	$NodeOverlay/Center/Panel/Content/CancelButton.pressed.connect(_hide_node_overlay)
 	action_button.pressed.connect(_on_action_pressed)
@@ -114,12 +115,16 @@ func _show_error(message: String) -> void:
 func _apply_locale() -> void:
 	$SafeArea/Layout/Header/Title.text = _text("MAP_TITLE")
 	$SafeArea/Layout/Legend.text = _text("MAP_LEGEND")
+	$SafeArea/Layout/Footer/RosterButton.text = _text("ROSTER_MANAGE")
 	$SafeArea/Layout/Footer/BackButton.text = _text("COMMON_BACK")
 	$NodeOverlay/Center/Panel/Content/CancelButton.text = _text("COMMON_CANCEL")
 
 func _text(key: String) -> String:
 	var localization: Node = get_node_or_null("/root/Localization")
 	return str(localization.call("text", key)) if localization != null else key
+
+func _open_roster() -> void:
+	get_tree().change_scene_to_file("res://scenes/run/RosterScene.tscn")
 
 func _return_to_menu() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/MainMenu.tscn")

@@ -36,7 +36,7 @@ func synchronize_with_roster(run_state: RunState) -> Error:
 		if deployment.player_positions.has(str(instance_id)):
 			continue
 		var piece: PieceInstanceState = run_state.get_piece_state(instance_id)
-		var preferred: Vector2i = Vector2i(deployment.board_size / 2, 0) if piece != null and piece.is_king else Vector2i(-1, -1)
+		var preferred: Vector2i = Vector2i(floori(float(deployment.board_size) / 2.0), 0) if piece != null and piece.is_king else Vector2i(-1, -1)
 		var position: Vector2i = preferred if preferred != Vector2i(-1, -1) and not occupied.has(preferred) else _first_open_player_square(deployment.board_size, occupied)
 		if position == Vector2i(-1, -1):
 			return ERR_OUT_OF_MEMORY
