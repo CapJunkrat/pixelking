@@ -146,6 +146,7 @@ func _execute_move(action: MoveAction, action_id: int) -> BattleCommandResult:
 			"color": action.actor_color,
 		}))
 	_settle_effects(result.events, action_id, action.actor_color)
+	_refresh_legacy_terminal_flags(result.legacy_result)
 	result.events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
 	_append_terminal_events(result.events, action_id)
 	return result
@@ -183,6 +184,11 @@ func _apply_effect(effect: BattleEffect) -> Array[BattleEffect]:
 				if target != null and not target.def.is_king:
 					board.set_piece(position, null)
 	return generated
+
+func _refresh_legacy_terminal_flags(move_result: Dictionary) -> void:
+	move_result["check"] = board.is_in_check(board.turn)
+	move_result["checkmate"] = board.is_checkmate(board.turn) if bool(move_result["check"]) else false
+	move_result["stalemate"] = board.is_stalemate(board.turn) if not bool(move_result["check"]) else false
 
 func _append_terminal_events(events: Array[BattleEvent], action_id: int) -> void:
 	if board.is_checkmate(board.turn):

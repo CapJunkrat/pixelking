@@ -7,7 +7,14 @@ const PIECE_VALUES := {
 }
 
 ## Intentionally uses a shallow greedy policy so the opponent stays approachable.
-## Chooses a legal move without owning UI or timing state.
+## Chooses a legal action intent without owning UI, timing, or execution state.
+func choose_action(board: BoardState, color: int) -> MoveAction:
+	var move: Dictionary = choose_move(board, color)
+	if move.is_empty():
+		return null
+	return MoveAction.new(move["from"], move["to"], color)
+
+## Compatibility dictionary used by existing tests and score inspection.
 func choose_move(board: BoardState, color: int) -> Dictionary:
 	if board == null or board.turn != color:
 		return {}

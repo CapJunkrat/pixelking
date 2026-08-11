@@ -59,7 +59,6 @@ func _advance_flow() -> void:
 	if phase == Phase.ENEMY_TURN and not enemy_pending:
 		enemy_pending = true
 		_play_enemy_turn.call_deferred()
-
 func _play_enemy_turn() -> void:
 	await get_tree().create_timer(0.45).timeout
 	if phase != Phase.ENEMY_TURN or GameState.board == null:
@@ -69,12 +68,12 @@ func _play_enemy_turn() -> void:
 		enemy_pending = false
 		_advance_flow.call_deferred()
 		return
-	var move := enemy_selector.choose_move(GameState.board, GameState.board.turn)
+	var action: MoveAction = enemy_selector.choose_action(GameState.board, GameState.board.turn)
 	enemy_pending = false
-	if move.is_empty():
+	if action == null:
 		_advance_flow()
 		return
-	GameState.try_move(move["from"], move["to"])
+	GameState.try_move(action.from, action.to, action.promotion_id)
 	battle.call("clear_board_selection")
 	battle.call("_refresh_board")
 func _bind_result_panel() -> void:
