@@ -3,6 +3,8 @@ extends Node
 ## 全局游戏状态单例。
 ## 当前持有对局棋盘和挑战者物品；后续 Roguelike 阶段将在此扩展金币、遗物、招募棋子与波次等状态。
 var board: BoardState = null
+var command_processor: BattleCommandProcessor = null
+var last_command_result: BattleCommandResult = null
 
 ## Persistent and consumable objects share the same challenger inventory.
 var challenger_items: Array[ChallengerItemDef] = []
@@ -17,6 +19,8 @@ func start_new_game() -> void:
 	board = BoardState.new()
 	board.remove_all_pawns()
 	challenger_items.clear()
+	command_processor = BattleCommandProcessor.new(board)
+	last_command_result = null
 
 func start_run_battle(run_state: RunState) -> bool:
 	if run_state == null or run_state.deployment_state == null:
@@ -43,25 +47,40 @@ func start_run_battle(run_state: RunState) -> bool:
 		return false
 	board = run_board
 	challenger_items.clear()
+	command_processor = BattleCommandProcessor.new(board)
+	last_command_result = null
 	return true
 
 ## 尝试走一步棋，返回 true 表示成功。
 ## UI 与 AI 都通过此入口执行合法性校验、更新状态并广播事件。
+func execute_battle_action(action: BattleAction) -> BattleCommandResult:
+	if board == null:
+		last_command_result = BattleCommandResult.rejected(&"missing_board")
+		return last_command_result
+	if command_processor == null or command_processor.board != board:
+		command_processor = BattleCommandProcessor.new(board)
+	last_command_result = command_processor.execute(action)
+	return last_command_result
+
 func try_move(from: Vector2i, to: Vector2i, promotion_id: String = "queen") -> bool:
 	if board == null:
 		return false
-	var result := board.make_move(from, to, promotion_id)
-	if not result.get("success", false):
+	var moving_piece: ChessPiece = board.get_piece(from)
+	var actor_color: int = moving_piece.color if moving_piece != null else board.turn
+	var action: MoveAction = MoveAction.new(from, to, actor_color, promotion_id)
+	var command_result: BattleCommandResult = execute_battle_action(action)
+	if not command_result.success:
 		return false
+	var result: Dictionary = command_result.legacy_result
 
+	# Compatibility bridge for presentation code while battle-local domain events
+	# become the authoritative Phase F stream.
 	EventBus.move_made.emit(from, to, result)
 	EventBus.turn_changed.emit(board.turn)
-
-	if result.get("checkmate", false):
+	if bool(result.get("checkmate", false)):
 		EventBus.checkmate.emit(board.turn)
-	elif result.get("stalemate", false):
+	elif bool(result.get("stalemate", false)):
 		EventBus.stalemate.emit(board.turn)
-	elif result.get("check", false):
+	elif bool(result.get("check", false)):
 		EventBus.check_declared.emit(board.turn)
-
 	return true
