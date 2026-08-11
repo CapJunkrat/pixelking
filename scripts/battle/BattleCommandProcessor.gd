@@ -7,17 +7,23 @@ const EVENT_PIECE_MOVED: StringName = &"piece_moved"
 const EVENT_PIECE_CAPTURED: StringName = &"piece_captured"
 const EVENT_CASTLED: StringName = &"castled"
 const EVENT_PROMOTED: StringName = &"promoted"
+const EVENT_EFFECT_APPLIED: StringName = &"effect_applied"
+const EVENT_EFFECT_SETTLEMENT_ABORTED: StringName = &"effect_settlement_aborted"
 const EVENT_TURN_CHANGED: StringName = &"turn_changed"
 const EVENT_CHECK_DECLARED: StringName = &"check_declared"
 const EVENT_BATTLE_ENDED: StringName = &"battle_ended"
 
 var board: BoardState
 var event_history: Array[BattleEvent] = []
+var effect_queue: BattleEffectQueue = BattleEffectQueue.new()
 var _next_action_id: int = 1
 var _next_sequence: int = 1
 
 func _init(p_board: BoardState = null) -> void:
 	board = p_board
+
+func queue_effect(effect: BattleEffect) -> bool:
+	return effect_queue.enqueue(effect)
 
 func execute(action: BattleAction) -> BattleCommandResult:
 	var action_id: int = _next_action_id
@@ -80,9 +86,44 @@ func _execute_move(action: MoveAction, action_id: int) -> BattleCommandResult:
 			"piece_def_id": action.promotion_id,
 			"color": action.actor_color,
 		}))
+	_settle_effects(result.events, action_id, action.actor_color)
 	result.events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
 	_append_terminal_events(result.events, action_id)
 	return result
+
+func _settle_effects(events: Array[BattleEvent], action_id: int, acting_color: int) -> void:
+	var settlement: Dictionary = effect_queue.settle(acting_color, _apply_effect)
+	var applied: Array = settlement.get("applied", []) as Array
+	for effect_value: Variant in applied:
+		var effect: BattleEffect = effect_value as BattleEffect
+		if effect == null:
+			continue
+		events.append(_event(EVENT_EFFECT_APPLIED, action_id, {
+			"effect_id": String(effect.effect_id),
+			"effect_type": String(effect.effect_type),
+			"owner_color": effect.owner_color,
+			"position": effect.board_position,
+			"source_instance_id": effect.source_instance_id,
+		}))
+	if not bool(settlement.get("success", false)):
+		events.append(_event(EVENT_EFFECT_SETTLEMENT_ABORTED, action_id, {
+			"error": str(settlement.get("error", "unknown")),
+		}))
+
+func _apply_effect(effect: BattleEffect) -> Array[BattleEffect]:
+	var generated: Array[BattleEffect] = []
+	match effect.effect_type:
+		&"noop":
+			pass
+		&"remove_piece":
+			var data: Dictionary = effect.payload
+			var position_value: Variant = data.get("position", effect.board_position)
+			if position_value is Vector2i:
+				var position: Vector2i = position_value
+				var target: ChessPiece = board.get_piece(position)
+				if target != null and not target.def.is_king:
+					board.set_piece(position, null)
+	return generated
 
 func _append_terminal_events(events: Array[BattleEvent], action_id: int) -> void:
 	if board.is_checkmate(board.turn):
