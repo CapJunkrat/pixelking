@@ -4,7 +4,7 @@
 >
 > **优先级说明：** 本文档是后续 PK-02（路线选择流程）与 PK-03（战斗架构拆分）的主要依据。项目根目录的 `README.md` 属于早期历史文档，已经过时，不应再作为当前功能与规划的事实来源。
 >
-> **当前状态：** 阶段 A–E 已完成：Run 数据与存档、三轮选秀、确定性路线地图、阵容管理、战前自由部署和战斗界面模块化均已接通。现有 5×5 原型战斗会读取 Run 部署；下一步是阶段 F 的战斗动作、事件与效果队列。
+> **当前状态：** 阶段 A–F 已完成：Run 数据与存档、三轮选秀、确定性路线地图、阵容管理、战前自由部署、战斗界面模块化，以及战斗命令/事件/效果管线均已接通。现有 5×5 原型战斗会读取 Run 部署；下一步是阶段 G 的奖励、融合与容量处理。
 
 ---
 
@@ -815,6 +815,8 @@ scenes/run/RunSummaryScene.tscn
 
 ### 阶段 F：战斗动作、事件与效果队列
 
+**实施状态：已完成。** 已引入 `MoveAction`/`UseItemAction`、统一 `BattleCommandProcessor`、只读 `BattleEvent`、确定性 `BattleEffectQueue`、事件驱动的动画层与战斗日志，以及走棋前每回合一次的消耗品窗口。旧 `GameState.try_move()` 和全局 EventBus 信号作为兼容桥保留。
+
 1. BattleAction 与 CommandProcessor。
 2. 统一 BattleEvent。
 3. BattleEffectQueue 和稳定排序。
@@ -930,14 +932,14 @@ scenes/run/RunSummaryScene.tscn
 下次继续时，应先阅读本文档，然后按以下顺序恢复上下文：
 
 1. 检查当前工程与本文档是否发生偏差。
-2. 阶段 A、B、C、D、E 已完成，从 **阶段 F：战斗动作、事件与效果队列** 开始。
-3. 保持现有 RunState、阵容、部署快照和已拆分战斗组件接口稳定；运行时棋盘不能反向污染持久化的战前部署。
-4. PK-03 继续采用小步迁移，先以特征测试固定现有命令执行、事件顺序和终局时机。
+2. 阶段 A、B、C、D、E、F 已完成，从 **阶段 G：奖励、融合与容量** 开始。
+3. 保持现有 RunState、阵容、部署快照、战斗组件及命令/事件/效果接口稳定；运行时棋盘不能反向污染持久化的战前部署。
+4. 奖励与融合继续使用稳定 ID、独立 `reward_rng`、资格过滤和事务式保存；王融合必须保持唯一 King 跟踪。
 5. 每完成一个阶段立即运行现有测试，并补充该阶段的新测试。
 
 建议下一条执行指令：
 
-> 根据 `docs/PIXELKING_PRODUCT_AND_ARCHITECTURE_PLAN.md`，开始阶段 F：战斗动作、事件与效果队列。先为现有移动命令和终局时机补特征测试，再小步引入 BattleAction、CommandProcessor、不可变 BattleEvent 与确定性 BattleEffectQueue，并保持现有战斗持续可玩。
+> 根据 `docs/PIXELKING_PRODUCT_AND_ARCHITECTURE_PLAN.md`，开始阶段 G：奖励、融合与容量。先调查现有 PieceDef、阵容容量和节点结算接口，再实现确定性三选一奖励、图纸资格过滤、融合预览/确认、多级与王融合，以及仓库满时的替换事务。
 
 ---
 
@@ -983,8 +985,14 @@ scenes/run/RunSummaryScene.tscn
 - 已将 `BattleSettingsPanel`、`ChallengerTray`、`BattleBoardView`、`BattleHUD` 和 `BattleResultPanel` 抽成独立静态场景组件。
 - `BattleController` 已降级为约 60 行协调器；棋盘格仍按尺寸动态创建，但主要布局、设置、HUD、共享六槽和结果界面均可在编辑器中预览。
 - 阶段 E 每次抽离后均通过战斗场景、音频设置和 Run 战斗集成测试；最终全量自动化回归及核心棋规 60/60 通过。
+- 已新增 `BattleAction`、`MoveAction`、`UseItemAction` 与 `BattleCommandProcessor`；玩家和贪心 AI 的移动意图均通过同一权威命令入口执行。
+- 已新增只读 `BattleEvent` 序列；相同棋盘与输入产生相同事件，移动、吃子、易位、升变、效果、回合和终局均有稳定序号。
+- 已新增 `BattleEffectQueue`，按当前行动方、优先级、棋盘位置、实例 ID 和入队顺序稳定结算，并提供单来源重复与最大事件数保护；终局检查在效果结算后执行。
+- 已新增事件驱动 `BattleAnimationPlayer` 与 `BattleLogPanel`；播放速度不会修改权威状态。
+- 已接通走棋前消耗品行动：每个玩家回合最多一次、不消耗正常走棋、使用后释放共享槽位，并通过统一效果管线结算。
+- 已新增阶段 F 的命令、事件、效果队列、表现层和道具窗口测试；全量自动化回归及核心棋规 60/60 通过。
 
 仍未实现的两项主要工作：
 
 - **PK-02：奖励/融合、失败牺牲重试和完整 Run 结算。**
-- **PK-03：可扩展战斗动作、事件、效果队列、动画与日志架构。**
+- **PK-03 后续扩展：具体棋子被动、遗物触发器、Boss 目标与更丰富动画表现。**
