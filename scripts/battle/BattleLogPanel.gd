@@ -39,6 +39,6 @@ func _format_event(event: BattleEvent) -> String:
 
 func _square(value: Variant) -> String:
 	if value is Vector2i:
-		var position: Vector2i = value
-		return "%s%d" % [String.chr(65 + position.x), position.y + 1]
+		var square_position: Vector2i = value
+		return "%s%d" % [String.chr(65 + square_position.x), square_position.y + 1]
 	return "?"
