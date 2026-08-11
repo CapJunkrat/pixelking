@@ -22,6 +22,8 @@ func consume(events: Array[BattleEvent]) -> void:
 func _format_event(event: BattleEvent) -> String:
 	var data: Dictionary = event.payload
 	match event.event_type:
+		BattleCommandProcessor.EVENT_ITEM_USED:
+			return "Used %s" % str(data.get("item_id", "item"))
 		BattleCommandProcessor.EVENT_PIECE_MOVED:
 			return "%s  %s → %s" % [str(data.get("piece_def_id", "piece")), _square(data.get("from", Vector2i.ZERO)), _square(data.get("to", Vector2i.ZERO))]
 		BattleCommandProcessor.EVENT_PIECE_CAPTURED:

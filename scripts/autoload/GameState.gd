@@ -21,7 +21,7 @@ func start_new_game() -> void:
 	board = BoardState.new()
 	board.remove_all_pawns()
 	challenger_items.clear()
-	command_processor = BattleCommandProcessor.new(board)
+	command_processor = BattleCommandProcessor.new(board, challenger_items, player_color)
 	last_command_result = null
 
 func start_run_battle(run_state: RunState) -> bool:
@@ -49,7 +49,7 @@ func start_run_battle(run_state: RunState) -> bool:
 		return false
 	board = run_board
 	challenger_items.clear()
-	command_processor = BattleCommandProcessor.new(board)
+	command_processor = BattleCommandProcessor.new(board, challenger_items, player_color)
 	last_command_result = null
 	return true
 
@@ -60,10 +60,17 @@ func execute_battle_action(action: BattleAction) -> BattleCommandResult:
 		last_command_result = BattleCommandResult.rejected(&"missing_board")
 		return last_command_result
 	if command_processor == null or command_processor.board != board:
-		command_processor = BattleCommandProcessor.new(board)
+		command_processor = BattleCommandProcessor.new(board, challenger_items, player_color)
 	last_command_result = command_processor.execute(action)
 	battle_events_emitted.emit(last_command_result.events)
 	return last_command_result
+
+func can_use_challenger_item(slot_index: int) -> bool:
+	return command_processor != null and command_processor.can_use_item(slot_index, player_color)
+
+func try_use_item(slot_index: int, target_position: Vector2i = Vector2i(-1, -1)) -> bool:
+	var result: BattleCommandResult = execute_battle_action(UseItemAction.new(slot_index, player_color, target_position))
+	return result.success
 
 func try_move(from: Vector2i, to: Vector2i, promotion_id: String = "queen") -> bool:
 	if board == null:

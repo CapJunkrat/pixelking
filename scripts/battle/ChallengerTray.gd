@@ -1,6 +1,8 @@
 class_name ChallengerTray
 extends Control
 
+signal item_requested(slot_index: int)
+
 const SLOT_COUNT := 6
 
 @onready var heading: Label = $TreasureTray/Margin/Slots/TitlePlaque/Heading
@@ -10,13 +12,15 @@ var challenger_slots: Array[Button] = []
 
 func _ready() -> void:
 	for index: int in range(SLOT_COUNT):
-		challenger_slots.append(slot_row.get_node("ChallengerSlot%d" % index) as Button)
+		var slot: Button = slot_row.get_node("ChallengerSlot%d" % index) as Button
+		challenger_slots.append(slot)
+		slot.pressed.connect(_on_slot_pressed.bind(index))
 	heading.text = _text("BATTLE_CHALLENGER")
 
 func slots() -> Array[Button]:
 	return challenger_slots
 
-func refresh(items: Array[ChallengerItemDef]) -> void:
+func refresh(items: Array[ChallengerItemDef], usable_slots: Array[bool] = []) -> void:
 	if challenger_slots.is_empty():
 		return
 	for index: int in range(challenger_slots.size()):
@@ -31,7 +35,11 @@ func refresh(items: Array[ChallengerItemDef]) -> void:
 			slot.icon = item.icon
 			slot.text = "" if item.icon != null else String(item.id).left(2).to_upper()
 			slot.tooltip_text = _text(String(item.display_name_key))
-			slot.disabled = not item.is_consumable()
+			var can_use: bool = usable_slots[index] if index < usable_slots.size() else item.is_consumable()
+			slot.disabled = not can_use
+
+func _on_slot_pressed(index: int) -> void:
+	item_requested.emit(index)
 
 func _text(key: String) -> String:
 	var localization: Node = get_node_or_null("/root/Localization")

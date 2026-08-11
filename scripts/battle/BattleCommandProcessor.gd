@@ -3,6 +3,7 @@ extends RefCounted
 
 const EVENT_ACTION_STARTED: StringName = &"action_started"
 const EVENT_ACTION_REJECTED: StringName = &"action_rejected"
+const EVENT_ITEM_USED: StringName = &"item_used"
 const EVENT_PIECE_MOVED: StringName = &"piece_moved"
 const EVENT_PIECE_CAPTURED: StringName = &"piece_captured"
 const EVENT_CASTLED: StringName = &"castled"
@@ -14,13 +15,22 @@ const EVENT_CHECK_DECLARED: StringName = &"check_declared"
 const EVENT_BATTLE_ENDED: StringName = &"battle_ended"
 
 var board: BoardState
+var challenger_items: Array[ChallengerItemDef]
+var player_color: int = GameRules.PieceColor.WHITE
 var event_history: Array[BattleEvent] = []
 var effect_queue: BattleEffectQueue = BattleEffectQueue.new()
 var _next_action_id: int = 1
 var _next_sequence: int = 1
+var _item_used_turn_key: int = -1
 
-func _init(p_board: BoardState = null) -> void:
+func _init(
+	p_board: BoardState = null,
+	p_challenger_items: Array[ChallengerItemDef] = [],
+	p_player_color: int = GameRules.PieceColor.WHITE
+) -> void:
 	board = p_board
+	challenger_items = p_challenger_items
+	player_color = p_player_color
 
 func queue_effect(effect: BattleEffect) -> bool:
 	return effect_queue.enqueue(effect)
@@ -37,8 +47,57 @@ func execute(action: BattleAction) -> BattleCommandResult:
 	match action.action_type:
 		BattleAction.ActionType.MOVE:
 			return _execute_move(action as MoveAction, action_id)
+		BattleAction.ActionType.USE_ITEM:
+			return _execute_use_item(action as UseItemAction, action_id)
 		_:
 			return _rejected(action_id, &"unsupported_action")
+
+func can_use_item(slot_index: int, actor_color: int) -> bool:
+	if board == null or actor_color != player_color or board.turn != player_color:
+		return false
+	if _item_used_turn_key == board.move_history.size():
+		return false
+	if slot_index < 0 or slot_index >= challenger_items.size():
+		return false
+	var item: ChallengerItemDef = challenger_items[slot_index]
+	return item != null and item.is_consumable()
+
+func _execute_use_item(action: UseItemAction, action_id: int) -> BattleCommandResult:
+	if action == null:
+		return _rejected(action_id, &"invalid_item_action")
+	if not can_use_item(action.slot_index, action.actor_color):
+		return _rejected(action_id, &"item_unavailable")
+	var item: ChallengerItemDef = challenger_items[action.slot_index]
+	if item.effect_type == &"remove_piece" and not board.in_bounds(action.target_position):
+		return _rejected(action_id, &"item_target_required")
+	var effect_payload: Dictionary = item.effect_payload.duplicate(true)
+	if board.in_bounds(action.target_position):
+		effect_payload["position"] = action.target_position
+	queue_effect(BattleEffect.new(
+		item.id,
+		item.effect_type,
+		action.actor_color,
+		item.effect_priority,
+		action.target_position,
+		0,
+		effect_payload
+	))
+	_item_used_turn_key = board.move_history.size()
+	challenger_items.remove_at(action.slot_index)
+	var result: BattleCommandResult = BattleCommandResult.new()
+	result.success = true
+	result.legacy_result = {"success": true, "item_used": true}
+	result.events.append(_event(EVENT_ACTION_STARTED, action_id, {
+		"action_type": "use_item",
+		"actor_color": action.actor_color,
+	}))
+	result.events.append(_event(EVENT_ITEM_USED, action_id, {
+		"item_id": String(item.id),
+		"slot_index": action.slot_index,
+	}))
+	_settle_effects(result.events, action_id, action.actor_color)
+	_append_terminal_events(result.events, action_id)
+	return result
 
 func _execute_move(action: MoveAction, action_id: int) -> BattleCommandResult:
 	if action == null:

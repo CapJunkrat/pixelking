@@ -25,6 +25,7 @@ var challenger_slots: Array[Button] = []
 
 func _ready() -> void:
 	battle_hud.settings_requested.connect(settings_overlay.open)
+	challenger_tray.item_requested.connect(_on_item_requested)
 	challenger_slots = challenger_tray.slots()
 	board_view.move_requested.connect(_on_board_move_requested)
 	GameState.battle_events_emitted.connect(_on_battle_events_emitted)
@@ -47,6 +48,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		settings_overlay.close()
 		get_viewport().set_input_as_handled()
 
+func _on_item_requested(slot_index: int) -> void:
+	GameState.try_use_item(slot_index)
+	_refresh_board()
+	_refresh_challenger_slots()
+
 func _on_board_move_requested(from: Vector2i, to: Vector2i) -> void:
 	if GameState.try_move(from, to):
 		board_view.clear_selection()
@@ -66,4 +72,7 @@ func _refresh_board() -> void:
 	battle_hud.refresh(board, GameState.player_color)
 
 func _refresh_challenger_slots() -> void:
-	challenger_tray.refresh(GameState.challenger_items)
+	var usable_slots: Array[bool] = []
+	for index: int in range(GameState.challenger_items.size()):
+		usable_slots.append(GameState.can_use_challenger_item(index))
+	challenger_tray.refresh(GameState.challenger_items, usable_slots)
