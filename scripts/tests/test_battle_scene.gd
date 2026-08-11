@@ -61,6 +61,8 @@ func _run() -> void:
 	_expect(game_state.board.move_history.size() == 2, "enemy AI automatically chooses and executes a reply")
 	_expect(game_state.board.turn == GameRules.PieceColor.WHITE, "enemy reply returns control to the player")
 	_expect(battle.get_node("ResultOverlay") is BattleResultPanel, "battle result panel is extracted into a static scene component")
+	_expect(battle.get_node("Margin/Layout/BattleLogPanel") is BattleLogPanel, "battle log consumes the domain event stream")
+	_expect(battle.get_node("BattleAnimationLayer") is BattleAnimationPlayer, "battle animation layer is isolated from authoritative state")
 	_finish()
 
 func _expect(condition: bool, message: String) -> void:

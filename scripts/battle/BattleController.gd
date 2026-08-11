@@ -5,6 +5,8 @@ extends Control
 @onready var settings_overlay: BattleSettingsPanel = $SettingsOverlay as BattleSettingsPanel
 @onready var challenger_tray: ChallengerTray = $Margin/Layout/ChallengerPanel as ChallengerTray
 @onready var battle_hud: BattleHUD = $Margin/Layout/TopBar as BattleHUD
+@onready var battle_log: BattleLogPanel = $Margin/Layout/BattleLogPanel as BattleLogPanel
+@onready var animation_player: BattleAnimationPlayer = $BattleAnimationLayer as BattleAnimationPlayer
 
 var selected_square: Vector2i:
 	get:
@@ -25,7 +27,18 @@ func _ready() -> void:
 	battle_hud.settings_requested.connect(settings_overlay.open)
 	challenger_slots = challenger_tray.slots()
 	board_view.move_requested.connect(_on_board_move_requested)
+	GameState.battle_events_emitted.connect(_on_battle_events_emitted)
 	board_view.setup(GameState.board, GameState.player_color)
+	_refresh_board()
+	_refresh_challenger_slots()
+
+func _exit_tree() -> void:
+	if GameState.battle_events_emitted.is_connected(_on_battle_events_emitted):
+		GameState.battle_events_emitted.disconnect(_on_battle_events_emitted)
+
+func _on_battle_events_emitted(events: Array[BattleEvent]) -> void:
+	animation_player.enqueue_events(events)
+	battle_log.consume(events)
 	_refresh_board()
 	_refresh_challenger_slots()
 
@@ -54,5 +67,3 @@ func _refresh_board() -> void:
 
 func _refresh_challenger_slots() -> void:
 	challenger_tray.refresh(GameState.challenger_items)
-
-

@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/battle/BattleController.gd" id="1_script"]
 [ext_resource type="Theme" path="res://assets/ui/themes/pixel_king_theme.tres" id="2_theme"]
@@ -9,6 +9,8 @@
 [ext_resource type="PackedScene" path="res://scenes/battle/BattleBoardView.tscn" id="7_board"]
 [ext_resource type="PackedScene" path="res://scenes/battle/BattleHUD.tscn" id="8_hud"]
 [ext_resource type="PackedScene" path="res://scenes/battle/BattleResultPanel.tscn" id="9_result"]
+[ext_resource type="PackedScene" path="res://scenes/battle/BattleLogPanel.tscn" id="10_log"]
+[ext_resource type="Script" path="res://scripts/battle/BattleAnimationPlayer.gd" id="11_animation"]
 
 [node name="BattleScene" type="Control"]
 layout_mode = 3
@@ -60,9 +62,8 @@ mouse_filter = 2
 [node name="BoardFrame" parent="Margin/Layout" instance=ExtResource("7_board")]
 layout_mode = 2
 
-[node name="TreasureSpacer" type="Control" parent="Margin/Layout"]
+[node name="BattleLogPanel" parent="Margin/Layout" instance=ExtResource("10_log")]
 layout_mode = 2
-size_flags_vertical = 3
 
 [node name="ChallengerPanel" parent="Margin/Layout" instance=ExtResource("6_tray")]
 layout_mode = 2
@@ -71,6 +72,9 @@ layout_mode = 2
 
 [node name="BattleFlow" type="Node" parent="."]
 script = ExtResource("4_flow")
+
+[node name="BattleAnimationLayer" type="Node" parent="."]
+script = ExtResource("11_animation")
 
 [node name="ResultOverlay" parent="." instance=ExtResource("9_result")]
 
