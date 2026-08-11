@@ -1,5 +1,7 @@
 extends Node
 
+signal battle_events_emitted(events: Array[BattleEvent])
+
 ## 全局游戏状态单例。
 ## 当前持有对局棋盘和挑战者物品；后续 Roguelike 阶段将在此扩展金币、遗物、招募棋子与波次等状态。
 var board: BoardState = null
@@ -60,6 +62,7 @@ func execute_battle_action(action: BattleAction) -> BattleCommandResult:
 	if command_processor == null or command_processor.board != board:
 		command_processor = BattleCommandProcessor.new(board)
 	last_command_result = command_processor.execute(action)
+	battle_events_emitted.emit(last_command_result.events)
 	return last_command_result
 
 func try_move(from: Vector2i, to: Vector2i, promotion_id: String = "queen") -> bool:

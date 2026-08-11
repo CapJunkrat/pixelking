@@ -20,14 +20,22 @@ func _ready() -> void:
 
 func _finish_ready() -> void:
 	_bind_result_panel()
-	EventBus.move_made.connect(_on_move_made)
+	GameState.battle_events_emitted.connect(_on_battle_events_emitted)
 	call_deferred("_advance_flow")
 
 func _exit_tree() -> void:
-	if EventBus.move_made.is_connected(_on_move_made):
-		EventBus.move_made.disconnect(_on_move_made)
+	if GameState.battle_events_emitted.is_connected(_on_battle_events_emitted):
+		GameState.battle_events_emitted.disconnect(_on_battle_events_emitted)
 
-func _on_move_made(_from: Vector2i, _to: Vector2i, _result: Dictionary) -> void:
+func _on_battle_events_emitted(events: Array[BattleEvent]) -> void:
+	for event: BattleEvent in events:
+		if event.event_type != BattleCommandProcessor.EVENT_BATTLE_ENDED:
+			continue
+		var data: Dictionary = event.payload
+		var draw: bool = bool(data.get("draw", false))
+		var winner: int = int(data.get("winner", -1))
+		_show_result.call_deferred(winner == GameState.player_color, draw)
+		return
 	call_deferred("_advance_flow")
 
 func _advance_flow() -> void:
