@@ -19,6 +19,8 @@ var challenger_items: Array[ChallengerItemDef]
 var player_color: int = GameRules.PieceColor.WHITE
 var event_history: Array[BattleEvent] = []
 var effect_queue: BattleEffectQueue = BattleEffectQueue.new()
+## Optional generic objective: the player must win before this many plies.
+var turn_limit: int = 0
 var _next_action_id: int = 1
 var _next_sequence: int = 1
 var _item_used_turn_key: int = -1
@@ -26,11 +28,13 @@ var _item_used_turn_key: int = -1
 func _init(
 	p_board: BoardState = null,
 	p_challenger_items: Array[ChallengerItemDef] = [],
-	p_player_color: int = GameRules.PieceColor.WHITE
+	p_player_color: int = GameRules.PieceColor.WHITE,
+	p_turn_limit: int = 0
 ) -> void:
 	board = p_board
 	challenger_items = p_challenger_items
 	player_color = p_player_color
+	turn_limit = p_turn_limit
 
 func queue_effect(effect: BattleEffect) -> bool:
 	return effect_queue.enqueue(effect)
@@ -68,8 +72,12 @@ func _execute_use_item(action: UseItemAction, action_id: int) -> BattleCommandRe
 	if not can_use_item(action.slot_index, action.actor_color):
 		return _rejected(action_id, &"item_unavailable")
 	var item: ChallengerItemDef = challenger_items[action.slot_index]
-	if item.effect_type == &"remove_piece" and not board.in_bounds(action.target_position):
-		return _rejected(action_id, &"item_target_required")
+	if item.effect_type == &"remove_piece":
+		if not board.in_bounds(action.target_position):
+			return _rejected(action_id, &"item_target_required")
+		var target_piece: ChessPiece = board.get_piece(action.target_position)
+		if target_piece == null or target_piece.color == action.actor_color or target_piece.def.is_king:
+			return _rejected(action_id, &"invalid_item_target")
 	var effect_payload: Dictionary = item.effect_payload.duplicate(true)
 	if board.in_bounds(action.target_position):
 		effect_payload["position"] = action.target_position
@@ -136,6 +144,7 @@ func _execute_move(action: MoveAction, action_id: int) -> BattleCommandResult:
 			"piece_def_id": captured_piece.get_id(),
 			"instance_id": captured_piece.instance_id,
 			"color": captured_piece.color,
+			"was_king": captured_piece.def.is_king,
 		}))
 	if bool(move_result.get("castled", false)):
 		result.events.append(_event(EVENT_CASTLED, action_id, {"from": action.from, "to": action.to}))
@@ -191,6 +200,15 @@ func _refresh_legacy_terminal_flags(move_result: Dictionary) -> void:
 	move_result["stalemate"] = board.is_stalemate(board.turn) if not bool(move_result["check"]) else false
 
 func _append_terminal_events(events: Array[BattleEvent], action_id: int) -> void:
+	if not board.has_king(GameRules.PieceColor.WHITE):
+		events.append(_battle_ended(action_id, GameRules.PieceColor.BLACK, false, &"king_captured"))
+		return
+	if not board.has_king(GameRules.PieceColor.BLACK):
+		events.append(_battle_ended(action_id, GameRules.PieceColor.WHITE, false, &"king_captured"))
+		return
+	if turn_limit > 0 and board.move_history.size() >= turn_limit:
+		events.append(_battle_ended(action_id, GameRules.opposite(player_color), false, &"objective_turn_limit"))
+		return
 	if board.is_checkmate(board.turn):
 		events.append(_event(EVENT_CHECK_DECLARED, action_id, {"color": board.turn, "checkmate": true}))
 		events.append(_battle_ended(action_id, GameRules.opposite(board.turn), false, &"checkmate"))

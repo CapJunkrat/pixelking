@@ -22,12 +22,14 @@ var square_buttons: Dictionary:
 	get:
 		return board_view.square_buttons
 var challenger_slots: Array[Button] = []
+var pending_item_slot: int = -1
 
 func _ready() -> void:
 	battle_hud.settings_requested.connect(settings_overlay.open)
 	challenger_tray.item_requested.connect(_on_item_requested)
 	challenger_slots = challenger_tray.slots()
 	board_view.move_requested.connect(_on_board_move_requested)
+	board_view.item_target_requested.connect(_on_item_target_requested)
 	GameState.battle_events_emitted.connect(_on_battle_events_emitted)
 	board_view.setup(GameState.board, GameState.player_color)
 	_refresh_board()
@@ -39,6 +41,7 @@ func _exit_tree() -> void:
 
 func _on_battle_events_emitted(events: Array[BattleEvent]) -> void:
 	animation_player.enqueue_events(events)
+	board_view.present_events(events, animation_player.playback_speed)
 	battle_log.consume(events)
 	_refresh_board()
 	_refresh_challenger_slots()
@@ -49,7 +52,28 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func _on_item_requested(slot_index: int) -> void:
+	if slot_index < 0 or slot_index >= GameState.challenger_items.size():
+		return
+	var item: ChallengerItemDef = GameState.challenger_items[slot_index]
+	if not item.is_consumable():
+		battle_log.append_system_message("%s is a passive relic." % Localization.text(String(item.display_name_key)))
+		return
+	if item.effect_type == &"remove_piece":
+		pending_item_slot = slot_index
+		board_view.begin_item_targeting()
+		battle_log.append_system_message("Select an enemy non-King piece for %s." % Localization.text(String(item.display_name_key)))
+		return
 	GameState.try_use_item(slot_index)
+	_refresh_board()
+	_refresh_challenger_slots()
+
+func _on_item_target_requested(target_position: Vector2i) -> void:
+	if pending_item_slot < 0:
+		return
+	var slot_index: int = pending_item_slot
+	pending_item_slot = -1
+	if not GameState.try_use_item(slot_index, target_position):
+		battle_log.append_system_message("Invalid item target.")
 	_refresh_board()
 	_refresh_challenger_slots()
 

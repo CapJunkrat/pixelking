@@ -412,13 +412,6 @@ theme_override_font_sizes/font_size = 24
 text = "MENU_QUIT"
 vertical_alignment = 1
 
-[node name="Version" type="Label" parent="SafeArea/Layout" unique_id=2146758185]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.64, 0.62, 0.67, 1)
-theme_override_font_sizes/font_size = 12
-text = "PRE-ALPHA  v0.1.0"
-horizontal_alignment = 1
-
 [node name="SettingsOverlay" type="ColorRect" parent="." unique_id=1329766734]
 visible = false
 layout_mode = 1
@@ -578,3 +571,102 @@ theme_override_styles/normal = SubResource("StyleButton")
 theme_override_styles/hover = SubResource("StyleButtonHover")
 theme_override_styles/focus = SubResource("StyleButtonHover")
 text = "JOURNEY_BACK"
+
+[node name="OverwriteConfirmation" type="ColorRect" parent="." unique_id=636741115]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.004, 0.006, 0.018, 0.9)
+
+[node name="Center" type="CenterContainer" parent="OverwriteConfirmation" unique_id=1776801976]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="OverwriteConfirmation/Center" unique_id=2110813476]
+custom_minimum_size = Vector2(320, 292)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StylePopup")
+
+[node name="Content" type="VBoxContainer" parent="OverwriteConfirmation/Center/Panel" unique_id=1361450449]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="Icon" type="TextureRect" parent="OverwriteConfirmation/Center/Panel/Content" unique_id=1930230452]
+texture_filter = 1
+custom_minimum_size = Vector2(58, 58)
+layout_mode = 2
+texture = ExtResource("9_icon_new")
+expand_mode = 3
+stretch_mode = 5
+
+[node name="Title" type="Label" parent="OverwriteConfirmation/Center/Panel/Content" unique_id=1000532314]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.82, 0.34, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0.025, 0.02, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 24
+text = "Start a New Journey?"
+horizontal_alignment = 1
+
+[node name="Divider" type="ColorRect" parent="OverwriteConfirmation/Center/Panel/Content" unique_id=21250259]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.65, 0.48, 0.22, 0.65)
+
+[node name="Message" type="Label" parent="OverwriteConfirmation/Center/Panel/Content" unique_id=1730742167]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.84, 0.82, 0.75, 1)
+theme_override_font_sizes/font_size = 13
+text = "Your current journey will be replaced only after the new Run is safely saved."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Warning" type="Label" parent="OverwriteConfirmation/Center/Panel/Content" unique_id=1147340080]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.5, 0.37, 1)
+theme_override_font_sizes/font_size = 12
+text = "The previous journey cannot be recovered."
+horizontal_alignment = 1
+
+[node name="Actions" type="HBoxContainer" parent="OverwriteConfirmation/Center/Panel/Content" unique_id=499341313]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="CancelButton" type="Button" parent="OverwriteConfirmation/Center/Panel/Content/Actions" unique_id=188085489]
+custom_minimum_size = Vector2(132, 46)
+layout_mode = 2
+focus_neighbor_right = NodePath("../ConfirmButton")
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("StyleButton")
+theme_override_styles/hover = SubResource("StyleButtonHover")
+theme_override_styles/focus = SubResource("StyleButtonHover")
+text = "Cancel"
+
+[node name="ConfirmButton" type="Button" parent="OverwriteConfirmation/Center/Panel/Content/Actions" unique_id=1381493369]
+custom_minimum_size = Vector2(132, 46)
+layout_mode = 2
+focus_neighbor_left = NodePath("../CancelButton")
+theme_override_colors/font_color = Color(1, 0.78, 0.56, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("StyleButtonHover")
+theme_override_styles/pressed = SubResource("StyleButton")
+theme_override_styles/hover = SubResource("StyleChessHover")
+theme_override_styles/focus = SubResource("StyleChessHover")
+text = "Start New"

@@ -2,17 +2,21 @@ class_name DeploymentService
 extends RefCounted
 
 const BATTLE_NODE_TYPES: Array[StringName] = [&"normal_battle", &"elite_battle", &"boss"]
-const DEFAULT_ENEMY_BACK_RANK: Array[String] = ["rook", "knight", "king", "bishop", "rook"]
+const DEFAULT_ENEMY_BACK_RANK: Array[String] = ["rook", "knight", "bishop", "queen", "king", "bishop", "knight", "rook"]
 
 func ensure_deployment(run_state: RunState) -> Error:
 	if not _can_deploy(run_state):
 		return ERR_UNAVAILABLE
 	if run_state.deployment_state != null:
-		return OK if run_state.deployment_state.is_valid(run_state) else ERR_INVALID_DATA
+		if run_state.deployment_state.board_size == BoardState.DEFAULT_SIZE:
+			return OK if run_state.deployment_state.is_valid(run_state) else ERR_INVALID_DATA
+		# Development saves from the former 5x5 prototype are safely rebuilt.
+		run_state.deployment_state = null
 	var deployment: DeploymentState = DeploymentState.new()
 	deployment.encounter_id = run_state.current_encounter_id
 	deployment.board_size = BoardState.DEFAULT_SIZE
-	deployment.enemy_placements = _default_enemy_placements(deployment.board_size)
+	var current: MapNodeState = run_state.map_state.get_node(run_state.current_node_id)
+	deployment.enemy_placements = _boss_enemy_placements(deployment.board_size) if current != null and current.node_type_id == &"boss" else _default_enemy_placements(deployment.board_size)
 	run_state.deployment_state = deployment
 	var sync_error: Error = synchronize_with_roster(run_state)
 	if sync_error != OK:
@@ -86,6 +90,23 @@ func _default_enemy_placements(board_size: int) -> Array[Dictionary]:
 			"placement_id": "enemy_%d" % x_position,
 			"piece_def_id": DEFAULT_ENEMY_BACK_RANK[x_position],
 			"position": DeploymentState.position_value(Vector2i(x_position, board_size - 1)),
+		})
+	return result
+
+func _boss_enemy_placements(board_size: int) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var back_rank: Array[String] = ["rook", "lancer", "bishop", "archmage", "king", "bishop", "lancer", "rook"]
+	for x_position: int in range(mini(board_size, back_rank.size())):
+		result.append({
+			"placement_id": "boss_back_%d" % x_position,
+			"piece_def_id": back_rank[x_position],
+			"position": DeploymentState.position_value(Vector2i(x_position, board_size - 1)),
+		})
+	for x_position: int in [0, 2, 5, 7]:
+		result.append({
+			"placement_id": "boss_guard_%d" % x_position,
+			"piece_def_id": "pawn",
+			"position": DeploymentState.position_value(Vector2i(x_position, board_size - 2)),
 		})
 	return result
 

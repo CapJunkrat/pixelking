@@ -61,8 +61,19 @@ func _run() -> void:
 		var action_button: Button = path_map.get_node("NodeOverlay/Center/Panel/Content/ActionButton") as Button
 		action_button.pressed.emit()
 		await process_frame
-		_expect(run_manager.map_progress_service.is_current_node_resolved(run_manager.current_run), "placeholder node action resolves and saves the current node")
-		_expect(run_manager.available_map_node_ids() == selected_node.outgoing_node_ids, "placeholder resolution unlocks connected next-layer choices")
+		_expect(not run_manager.current_run.pending_choice.is_empty(), "non-battle node stages a persisted interaction")
+		var options: Array = run_manager.current_run.pending_choice.get("options", []) as Array
+		var submitted: bool = false
+		for value: Variant in options:
+			if value is Dictionary and bool((value as Dictionary).get("enabled", true)):
+				submitted = run_manager.submit_run_interaction(str((value as Dictionary).get("id", ""))) == OK
+				if submitted:
+					break
+		if not submitted and bool(run_manager.current_run.pending_choice.get("allow_leave", false)):
+			submitted = run_manager.leave_run_interaction() == OK
+		_expect(submitted, "interaction choice resolves transactionally")
+		_expect(run_manager.map_progress_service.is_current_node_resolved(run_manager.current_run), "interaction resolves and saves the current node")
+		_expect(run_manager.available_map_node_ids() == selected_node.outgoing_node_ids, "interaction resolution unlocks connected next-layer choices")
 	path_map.queue_free()
 	run_manager.abandon_run()
 	_cleanup()

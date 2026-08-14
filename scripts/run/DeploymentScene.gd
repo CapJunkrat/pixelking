@@ -1,7 +1,7 @@
 class_name DeploymentScene
 extends Control
 
-const CELL_SIZE := 58.0
+const BOARD_PIXELS := 312.0
 const PLAYER_LIGHT := Color("#d9c58f")
 const PLAYER_DARK := Color("#a99062")
 const BOARD_LIGHT := Color("#8ba0a5")
@@ -51,13 +51,14 @@ func _render_board() -> void:
 		child.queue_free()
 	var deployment: DeploymentState = run_manager.current_run.deployment_state
 	board_grid.columns = deployment.board_size
+	var cell_size: float = floorf(BOARD_PIXELS / float(deployment.board_size))
 	for display_y: int in range(deployment.board_size):
 		var board_y: int = deployment.board_size - 1 - display_y
 		for x_position: int in range(deployment.board_size):
 			var board_position: Vector2i = Vector2i(x_position, board_y)
 			var button: Button = Button.new()
 			button.name = "Square_%d_%d" % [x_position, board_y]
-			button.custom_minimum_size = Vector2(CELL_SIZE, CELL_SIZE)
+			button.custom_minimum_size = Vector2(cell_size, cell_size)
 			button.set_meta("board_position", board_position)
 			button.add_theme_stylebox_override("normal", _square_style(board_position, false))
 			button.add_theme_stylebox_override("hover", _square_style(board_position, true))
@@ -96,7 +97,15 @@ func _on_square_pressed(board_position: Vector2i) -> void:
 	var deployment: DeploymentState = run_manager.current_run.deployment_state
 	var player_id: int = deployment.player_at(board_position)
 	if player_id > 0:
-		_select_piece(player_id)
+		if selected_instance_id <= 0 or selected_instance_id == player_id:
+			_select_piece(player_id)
+			return
+		var swap_error: Error = run_manager.move_deployed_piece(selected_instance_id, board_position)
+		if swap_error != OK:
+			status_label.text = _text("DEPLOY_PLAYER_ROWS_ONLY")
+			return
+		selected_instance_id = 0
+		_render()
 		return
 	if selected_instance_id <= 0:
 		status_label.text = _text("DEPLOY_SELECT_FIRST")
@@ -105,6 +114,7 @@ func _on_square_pressed(board_position: Vector2i) -> void:
 	if error != OK:
 		status_label.text = _text("DEPLOY_PLAYER_ROWS_ONLY")
 		return
+	selected_instance_id = 0
 	_render()
 
 func _select_piece(instance_id: int) -> void:

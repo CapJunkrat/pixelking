@@ -19,6 +19,14 @@ func consume(events: Array[BattleEvent]) -> void:
 		lines.pop_front()
 	log_label.text = "\n".join(lines)
 
+func append_system_message(message: String) -> void:
+	if message.is_empty():
+		return
+	lines.append(message)
+	while lines.size() > MAX_LINES:
+		lines.pop_front()
+	log_label.text = "\n".join(lines)
+
 func _format_event(event: BattleEvent) -> String:
 	var data: Dictionary = event.payload
 	match event.event_type:

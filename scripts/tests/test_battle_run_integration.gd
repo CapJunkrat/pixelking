@@ -43,18 +43,18 @@ func _run() -> void:
 	var flow: Node = battle.get_node("BattleFlow")
 	flow.call("_show_result", false, false)
 	await process_frame
-	var localization: Node = root.get_node("Localization")
 	var defeat_exit: Button = flow.get("exit_button") as Button
-	_expect(manager.current_run.deployment_state != null, "prototype defeat preserves pre-deployment snapshot")
-	_expect(manager.resume_scene_path().ends_with("DeploymentScene.tscn"), "defeated Run resumes at deployment")
-	_expect(defeat_exit.text == str(localization.call("text", "BATTLE_RESULT_DEPLOYMENT")), "defeat result offers return to deployment")
-	flow.call("_show_result", true, false)
-	await process_frame
-	_expect(manager.map_progress_service.is_current_node_resolved(manager.current_run), "prototype victory resolves the selected Run node")
-	var retry: Button = flow.get("retry_button") as Button
-	var exit: Button = flow.get("exit_button") as Button
-	_expect(not retry.visible, "victory prevents replaying an already resolved Run node")
-	_expect(exit.text == str(localization.call("text", "BATTLE_RESULT_MAP")), "Run battle result returns to the route map")
+	_expect(manager.current_run.failed_battles == 1, "defeat increments the Run failure counter")
+	_expect(str(manager.current_run.pending_choice.get("type", "")) == "sacrifice", "retryable defeat stages a persisted sacrifice")
+	_expect(manager.resume_scene_path() == RunContentService.INTERACTION_SCENE, "defeated Run resumes at sacrifice")
+	_expect(defeat_exit.text == "Choose Sacrifice", "defeat result routes to sacrifice")
+	var sacrifice_options: Array = manager.current_run.pending_choice.get("options", []) as Array
+	var sacrifice_id: String = str((sacrifice_options[0] as Dictionary).get("id", ""))
+	_expect(manager.submit_run_interaction(sacrifice_id) == OK, "sacrifice commits and recreates deployment")
+	manager.confirm_deployment()
+	_expect(manager.apply_battle_outcome(true) == OK, "subsequent victory resolves the encounter")
+	_expect(manager.map_progress_service.is_current_node_resolved(manager.current_run), "victory resolves the selected Run node")
+	_expect(str(manager.current_run.pending_choice.get("type", "")) == "battle_reward", "victory stages a persisted reward")
 	battle.queue_free()
 	manager.abandon_run()
 	_cleanup()

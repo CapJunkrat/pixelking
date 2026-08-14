@@ -17,7 +17,7 @@ func _run() -> void:
 	var game_state: Node = root.get_node("GameState")
 	_expect(bool(game_state.call("start_run_battle", manager.current_run)), "confirmed deployment builds Run battle board")
 	var board: BoardState = game_state.get("board") as BoardState
-	_expect(board != null and board.board_size == 5, "Run battle uses deployment board size")
+	_expect(board != null and board.board_size == 8, "Run battle uses the standard 8 x 8 deployment board")
 	var white_count: int = 0
 	var black_count: int = 0
 	var persistent_positions_match: bool = true

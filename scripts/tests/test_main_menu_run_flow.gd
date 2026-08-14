@@ -25,16 +25,24 @@ func _run() -> void:
 	var original_run: RunState = run_manager.get("current_run") as RunState
 	new_button.pressed.emit()
 	await process_frame
-	var overwrite: ConfirmationDialog = menu.get_node("OverwriteConfirmation") as ConfirmationDialog
-	_expect(overwrite.visible, "New Journey asks before replacing an active Run")
-	overwrite.canceled.emit()
+	var overwrite: ColorRect = menu.get_node("OverwriteConfirmation") as ColorRect
+	var cancel_button: Button = overwrite.get_node("Center/Panel/Content/Actions/CancelButton") as Button
+	var confirm_button: Button = overwrite.get_node("Center/Panel/Content/Actions/ConfirmButton") as Button
+	_expect(overwrite.visible, "New Journey opens the themed overwrite confirmation")
+	_expect(cancel_button.has_focus(), "overwrite confirmation gives safe cancel the initial focus")
+	var localization: Node = root.get_node("Localization")
+	_expect(confirm_button.text == str(localization.call("text", "MENU_OVERWRITE_CONFIRM")), "overwrite confirmation uses localized themed actions")
+	cancel_button.pressed.emit()
+	_expect(not overwrite.visible, "cancel closes the themed overwrite confirmation")
 	_expect(run_manager.get("current_run") == original_run, "canceling overwrite preserves the active Run")
 	run_manager.call("abandon_run")
 	await process_frame
 	new_button.pressed.emit()
 	await process_frame
-	var setup: ColorRect = menu.get_node("RunSetupOverlay") as ColorRect
-	_expect(setup.visible, "New Journey opens seed setup when no Run exists")
+	var random_run: RunState = run_manager.get("current_run") as RunState
+	_expect(random_run != null and random_run.run_seed != 0, "New Journey immediately creates a random-seed Run")
+	_expect(menu.get_node_or_null("RunSetupOverlay") == null, "player-facing seed setup is removed")
+	_expect(menu.get_node_or_null("SafeArea/Layout/Version") == null, "pre-alpha version label is removed")
 	menu.queue_free()
 	run_manager.call("abandon_run")
 	_cleanup()

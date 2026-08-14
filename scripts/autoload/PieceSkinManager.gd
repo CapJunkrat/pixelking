@@ -35,8 +35,22 @@ func set_skin(skin_id: StringName) -> bool:
 	return true
 
 func piece_texture(color: StringName, piece_type: StringName) -> Texture2D:
-	var skin := current_skin()
-	return skin.texture(color, piece_type) if skin != null else null
+	var skin: PieceSkin = current_skin()
+	if skin == null:
+		return null
+	if skin.has_texture(color, piece_type):
+		return skin.texture(color, piece_type)
+	var fallback_type: StringName = _fallback_piece_type(piece_type)
+	return skin.texture(color, fallback_type) if skin.has_texture(color, fallback_type) else null
+
+func _fallback_piece_type(piece_type: StringName) -> StringName:
+	match piece_type:
+		&"lancer":
+			return &"knight"
+		&"archmage":
+			return &"queen"
+		_:
+			return piece_type
 
 func _discover_skins() -> void:
 	_skins.clear()

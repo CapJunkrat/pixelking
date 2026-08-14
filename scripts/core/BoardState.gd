@@ -2,8 +2,7 @@ extends RefCounted
 class_name BoardState
 
 ## Rule-engine implementation note.
-## Rule-engine implementation note.
-const DEFAULT_SIZE := 5
+const DEFAULT_SIZE := 8
 const MIN_SIZE := 5
 const VALID_PROMOTIONS := ["queen", "rook", "bishop", "knight"]
 
@@ -111,7 +110,7 @@ func has_non_king_piece(color: int) -> bool:
 	return false
 
 func has_only_king(color: int) -> bool:
-	var has_king := false
+	var found_king: bool = false
 	for x in range(board_size):
 		for y in range(board_size):
 			var piece := get_piece(Vector2i(x, y))
@@ -119,8 +118,8 @@ func has_only_king(color: int) -> bool:
 				continue
 			if not piece.def.is_king:
 				return false
-			has_king = true
-	return has_king
+			found_king = true
+	return found_king
 
 ## Returns the losing color when the side waiting for its turn has only its
 ## king while the active side still owns a non-king piece.
@@ -145,39 +144,65 @@ func set_piece(pos: Vector2i, piece: ChessPiece) -> void:
 		grid[pos.x][pos.y] = piece
 
 func is_square_attacked(pos: Vector2i, by_color: int) -> bool:
-	for x in range(board_size):
-		for y in range(board_size):
+	for x: int in range(board_size):
+		for y: int in range(board_size):
 			var piece: ChessPiece = grid[x][y]
 			if piece != null and piece.color == by_color:
 				if pos in MoveGenerator.get_attack_squares(self, Vector2i(x, y)):
 					return true
 	return false
 
-func is_in_check(color: int) -> bool:
+func has_king(color: int) -> bool:
 	if not king_pos.has(color):
+		return false
+	var king: ChessPiece = get_piece(king_pos[color])
+	return king != null and king.def.is_king and king.color == color
+
+func is_in_check(color: int) -> bool:
+	if not has_king(color):
 		return false
 	return is_square_attacked(king_pos[color], GameRules.opposite(color))
 
+## PixelKing executable moves preserve movement geometry and occupancy rules but
+## deliberately allow risky moves that leave the king or moved piece attacked.
+func get_executable_moves(pos: Vector2i) -> Array[Vector2i]:
+	return get_executable_moves_for_color(pos, turn)
+
+func get_executable_moves_for_color(pos: Vector2i, color: int) -> Array[Vector2i]:
+	var piece: ChessPiece = get_piece(pos)
+	if piece == null or piece.color != color:
+		return []
+	return MoveGenerator.generate_pseudo_legal(self, pos)
+
+func is_move_dangerous(from: Vector2i, to: Vector2i) -> bool:
+	var piece: ChessPiece = get_piece(from)
+	if piece == null or to not in get_executable_moves_for_color(from, piece.color):
+		return false
+	var simulation: BoardState = clone()
+	var result: Dictionary = simulation._apply_move(from, to, "queen", true)
+	if not bool(result.get("success", false)):
+		return false
+	return simulation.is_in_check(piece.color) or simulation.is_square_attacked(to, GameRules.opposite(piece.color))
+
+## Strict chess-legal moves remain available for check/checkmate analysis.
 func get_legal_moves(pos: Vector2i) -> Array[Vector2i]:
 	return get_legal_moves_for_color(pos, turn)
 
-## Rule-engine implementation note.
 func get_legal_moves_for_color(pos: Vector2i, color: int) -> Array[Vector2i]:
-	var piece := get_piece(pos)
+	var piece: ChessPiece = get_piece(pos)
 	if piece == null or piece.color != color:
 		return []
-
 	var legal: Array[Vector2i] = []
-	for target in MoveGenerator.generate_pseudo_legal(self, pos):
-		var sim := clone()
-		sim._apply_move(pos, target, "queen", true)
-		if not sim.is_in_check(piece.color):
+	for target: Vector2i in MoveGenerator.generate_pseudo_legal(self, pos):
+		var simulation: BoardState = clone()
+		simulation._apply_move(pos, target, "queen", true)
+		if not simulation.is_in_check(piece.color):
 			legal.append(target)
 	return legal
 
 func has_any_legal_move(color: int) -> bool:
-	for x in range(board_size):
-		for y in range(board_size):
+	for x: int in range(board_size):
+		for y: int in range(board_size):
 			var piece: ChessPiece = grid[x][y]
 			if piece != null and piece.color == color:
 				if not get_legal_moves_for_color(Vector2i(x, y), color).is_empty():
@@ -185,23 +210,21 @@ func has_any_legal_move(color: int) -> bool:
 	return false
 
 func is_checkmate(color: int) -> bool:
-	return is_in_check(color) and not has_any_legal_move(color)
+	return has_king(color) and is_in_check(color) and not has_any_legal_move(color)
 
 func is_stalemate(color: int) -> bool:
-	return not is_in_check(color) and not has_any_legal_move(color)
+	return has_king(color) and not is_in_check(color) and not has_any_legal_move(color)
 
-## Rule-engine implementation note.
-## Rule-engine implementation note.
 func make_move(from: Vector2i, to: Vector2i, promotion_id: String = "queen") -> Dictionary:
-	var result := _empty_move_result()
-	var piece := get_piece(from)
+	var result: Dictionary = _empty_move_result()
+	var piece: ChessPiece = get_piece(from)
 	if piece == null:
 		result["error"] = "no_piece"
 		return result
 	if piece.color != turn:
 		result["error"] = "wrong_turn"
 		return result
-	if to not in get_legal_moves(from):
+	if to not in get_executable_moves(from):
 		result["error"] = "illegal_move"
 		return result
 	if piece.def.is_pawn and to.y == _promotion_rank(piece.color):
@@ -215,6 +238,8 @@ func _empty_move_result() -> Dictionary:
 		"success": false,
 		"error": "",
 		"captured": false,
+		"king_captured": false,
+		"captured_color": -1,
 		"en_passant_capture": false,
 		"castled": false,
 		"promoted": false,
@@ -223,20 +248,17 @@ func _empty_move_result() -> Dictionary:
 		"stalemate": false,
 	}
 
-## Rule-engine implementation note.
 func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: bool) -> Dictionary:
-	var piece := get_piece(from)
-	var result := _empty_move_result()
+	var piece: ChessPiece = get_piece(from)
+	var result: Dictionary = _empty_move_result()
 	if piece == null:
 		result["error"] = "no_piece"
 		return result
-
-	var moving_color := piece.color
-	var is_pawn_move := piece.def.is_pawn
-	var target_piece := get_piece(to)
-	var castling := _is_castling_move(from, to, piece)
+	var moving_color: int = piece.color
+	var is_pawn_move: bool = piece.def.is_pawn
+	var target_piece: ChessPiece = get_piece(to)
+	var castling: bool = _is_castling_move(from, to, piece)
 	if castling:
-		# Custom PixelKing rule: swap the king and its unmoved rook partner.
 		set_piece(from, target_piece)
 		set_piece(to, piece)
 		piece.has_moved = true
@@ -250,39 +272,38 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 			result["captured"] = true
 		elif target_piece != null:
 			result["captured"] = true
-
+			if target_piece.def.is_king:
+				result["king_captured"] = true
+				result["captured_color"] = target_piece.color
+				king_pos.erase(target_piece.color)
 		set_piece(from, null)
 		piece.has_moved = true
 		set_piece(to, piece)
-
 		if is_pawn_move and to.y == _promotion_rank(moving_color):
-			var promoted := ChessPiece.new(PieceDefDatabase.get_def(promotion_id), moving_color)
+			var promoted: ChessPiece = ChessPiece.new(PieceDefDatabase.get_def(promotion_id), moving_color)
 			promoted.has_moved = true
 			set_piece(to, promoted)
 			result["promoted"] = true
-
 		if piece.def.is_king:
 			king_pos[moving_color] = to
-
 	if is_pawn_move and abs(to.y - from.y) == 2:
 		en_passant_target = Vector2i(from.x, floori((from.y + to.y) / 2.0))
 	else:
 		en_passant_target = Vector2i(-1, -1)
-
 	result["success"] = true
 	if not simulate:
-		last_move_was_capture = result["captured"]
+		last_move_was_capture = bool(result["captured"])
 		move_history.append({"from": from, "to": to, "piece_id": piece.get_id(), "color": moving_color})
 		turn = GameRules.opposite(turn)
-		result["check"] = is_in_check(turn)
-		if result["check"]:
-			result["checkmate"] = is_checkmate(turn)
-		else:
-			result["stalemate"] = is_stalemate(turn)
+		if has_king(turn):
+			result["check"] = is_in_check(turn)
+			if bool(result["check"]):
+				result["checkmate"] = is_checkmate(turn)
+			else:
+				result["stalemate"] = is_stalemate(turn)
 	return result
-
 func _promotion_rank(color: int) -> int:
-	return board_size - 1 if color == GameRules.PieceColor.WHITE else 0
+	return board_size - 1 if color == GameRules.PieceColor.WHITE else 00
 
 ## Rule-engine implementation note.
 func _is_castling_move(from: Vector2i, to: Vector2i, piece: ChessPiece = null) -> bool:

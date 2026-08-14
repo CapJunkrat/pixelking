@@ -19,7 +19,7 @@ func _run() -> void:
 	root.add_child(deployment_scene)
 	await process_frame
 	var grid: GridContainer = deployment_scene.get_node("SafeArea/Layout/BoardFrame/BoardCenter/BoardGrid") as GridContainer
-	_expect(grid.columns == 5 and grid.get_child_count() == 25, "deployment scene renders the complete 5 x 5 board")
+	_expect(grid.columns == 8 and grid.get_child_count() == 64, "deployment scene renders the complete standard 8 x 8 board")
 	var visible_player_count: int = 0
 	var visible_enemy_count: int = 0
 	for child: Node in grid.get_children():
@@ -44,6 +44,23 @@ func _run() -> void:
 	target_button.pressed.emit()
 	await process_frame
 	_expect(manager.current_run.deployment_state.player_position(king_id) == target, "board interaction freely repositions the King")
+	var swap_a: int = manager.current_run.active_piece_ids[0]
+	var swap_b: int = manager.current_run.active_piece_ids[1]
+	var swap_a_before: Vector2i = manager.current_run.deployment_state.player_position(swap_a)
+	var swap_b_before: Vector2i = manager.current_run.deployment_state.player_position(swap_b)
+	grid = deployment_scene.get_node("SafeArea/Layout/BoardFrame/BoardCenter/BoardGrid") as GridContainer
+	(grid.get_node("Square_%d_%d" % [swap_a_before.x, swap_a_before.y]) as Button).pressed.emit()
+	await process_frame
+	grid = deployment_scene.get_node("SafeArea/Layout/BoardFrame/BoardCenter/BoardGrid") as GridContainer
+	(grid.get_node("Square_%d_%d" % [swap_b_before.x, swap_b_before.y]) as Button).pressed.emit()
+	await process_frame
+	_expect(manager.current_run.deployment_state.player_position(swap_a) == swap_b_before, "clicking a second deployed piece moves the selected piece to its square")
+	_expect(manager.current_run.deployment_state.player_position(swap_b) == swap_a_before, "clicking a second deployed piece swaps both positions")
+	_expect(deployment_scene.selected_instance_id == 0, "successful swap clears the selected piece")
+	grid = deployment_scene.get_node("SafeArea/Layout/BoardFrame/BoardCenter/BoardGrid") as GridContainer
+	var swapped_button: Button = grid.get_node("Square_%d_%d" % [swap_b_before.x, swap_b_before.y]) as Button
+	var swapped_style: StyleBoxFlat = swapped_button.get_theme_stylebox("normal") as StyleBoxFlat
+	_expect(swapped_style.border_color != Color("#f1d56f"), "successful swap clears the board highlight")
 	_expect(deployment_scene.get_node("SafeArea/Layout/Actions/RosterButton") != null, "deployment provides roster management access")
 	_expect(not (deployment_scene.get_node("SafeArea/Layout/Actions/ConfirmButton") as Button).disabled, "valid deployment enables battle confirmation")
 	deployment_scene.queue_free()

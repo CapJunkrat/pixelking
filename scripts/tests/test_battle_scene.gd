@@ -19,15 +19,15 @@ func _run() -> void:
 
 	_expect(battle.get_node("Margin/Layout/BoardFrame") is BattleBoardView, "battle board is extracted into a static scene component")
 	var grid := battle.get_node("Margin/Layout/BoardFrame/BoardCenter/BoardGrid") as GridContainer
-	_expect(grid.columns == 5, "battle grid follows the 5x5 board size")
-	_expect(grid.get_child_count() == 25, "battle grid creates one control per square")
+	_expect(grid.columns == 8, "battle grid follows the standard 8 x 8 board size")
+	_expect(grid.get_child_count() == 64, "battle grid creates one control per square")
 	var pawn_count := 0
 	for x in range(game_state.board.board_size):
 		for y in range(game_state.board.board_size):
 			var piece: ChessPiece = game_state.board.get_piece(Vector2i(x, y))
 			if piece != null and piece.def.is_pawn:
 				pawn_count += 1
-	_expect(pawn_count == 0, "the temporary battle setup contains no pawns")
+	_expect(pawn_count == 16, "the standard battle setup contains both complete pawn ranks")
 	_expect(battle.get_node("Margin/Layout/TopBar") is BattleHUD, "battle HUD is extracted into a static scene component")
 	_expect(battle.get_node("Margin/Layout/TopBar/SettingsButton") != null, "top bar owns the settings button")
 	_expect(battle.get_node("SettingsOverlay") is BattleSettingsPanel, "battle settings are extracted into a static scene component")

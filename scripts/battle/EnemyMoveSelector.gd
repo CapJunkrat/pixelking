@@ -26,7 +26,7 @@ func choose_move(board: BoardState, color: int) -> Dictionary:
 			var piece := board.get_piece(from)
 			if piece == null or piece.color != color:
 				continue
-			for to in board.get_legal_moves_for_color(from, color):
+			for to in board.get_executable_moves_for_color(from, color):
 				var score := _score_move(board, from, to, color)
 				if score > best_score:
 					best_score = score

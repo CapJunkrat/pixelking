@@ -1,0 +1,378 @@
+[gd_scene format=3 uid="uid://b2oeqjp7rluy4"]
+
+[ext_resource type="Script" uid="uid://cukmxneibgotf" path="res://scripts/visual_review/KnightCapturePresentationReviewV2.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://cogpuugw8a2h2" path="res://assets/chess/piece_skins/royal_forge/white_knight.png" id="2_knight"]
+[ext_resource type="Texture2D" uid="uid://3fd10pb45ld3" path="res://assets/generated/review_obsidian_rook_structural_destroy.png" id="3_eymu4"]
+[ext_resource type="Texture2D" uid="uid://cykj1oxy7lop1" path="res://assets/ui/battle/modern/selection_brackets.png" id="3_ring"]
+[ext_resource type="Texture2D" uid="uid://cymtoy4nlgpu3" path="res://assets/generated/review_lancer_knight_dive_attack.png" id="4_j2whx"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_iey3a"]
+atlas = ExtResource("3_eymu4")
+region = Rect2(0, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_crgst"]
+atlas = ExtResource("3_eymu4")
+region = Rect2(96, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ejcuy"]
+atlas = ExtResource("3_eymu4")
+region = Rect2(192, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_i4qs2"]
+atlas = ExtResource("3_eymu4")
+region = Rect2(288, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3y21n"]
+atlas = ExtResource("3_eymu4")
+region = Rect2(0, 96, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8tnm1"]
+atlas = ExtResource("3_eymu4")
+region = Rect2(96, 96, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tum72"]
+atlas = ExtResource("3_eymu4")
+region = Rect2(192, 96, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bvd2h"]
+atlas = ExtResource("3_eymu4")
+region = Rect2(288, 96, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pp54r"]
+atlas = ExtResource("3_eymu4")
+region = Rect2(0, 192, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_63ghv"]
+atlas = ExtResource("3_eymu4")
+region = Rect2(96, 192, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ns58w"]
+atlas = ExtResource("3_eymu4")
+region = Rect2(192, 192, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1y7kq"]
+atlas = ExtResource("3_eymu4")
+region = Rect2(288, 192, 96, 96)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_rmq7t"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_iey3a")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_crgst")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ejcuy")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_i4qs2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3y21n")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8tnm1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tum72")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bvd2h")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pp54r")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_63ghv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ns58w")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1y7kq")
+}],
+"loop": 0,
+"name": &"destroy",
+"speed": 5.0
+}]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_eymu4"]
+atlas = ExtResource("4_j2whx")
+region = Rect2(0, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3i1we"]
+atlas = ExtResource("4_j2whx")
+region = Rect2(96, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_obswh"]
+atlas = ExtResource("4_j2whx")
+region = Rect2(192, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_55s8a"]
+atlas = ExtResource("4_j2whx")
+region = Rect2(288, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_h6pgs"]
+atlas = ExtResource("4_j2whx")
+region = Rect2(0, 96, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_apiia"]
+atlas = ExtResource("4_j2whx")
+region = Rect2(96, 96, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_k63ri"]
+atlas = ExtResource("4_j2whx")
+region = Rect2(192, 96, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fvvcq"]
+atlas = ExtResource("4_j2whx")
+region = Rect2(288, 96, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2ntow"]
+atlas = ExtResource("4_j2whx")
+region = Rect2(0, 192, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pb1k3"]
+atlas = ExtResource("4_j2whx")
+region = Rect2(96, 192, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jlx5y"]
+atlas = ExtResource("4_j2whx")
+region = Rect2(192, 192, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_v6syk"]
+atlas = ExtResource("4_j2whx")
+region = Rect2(288, 192, 96, 96)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_iey3a"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_eymu4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3i1we")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_obswh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_55s8a")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_h6pgs")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_apiia")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_k63ri")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fvvcq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2ntow")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pb1k3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jlx5y")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_v6syk")
+}],
+"loop": 0,
+"name": &"dive_attack",
+"speed": 5.0
+}]
+
+[sub_resource type="Gradient" id="GradientGlow"]
+colors = PackedColorArray(1, 1, 1, 1, 0.15, 0.95, 0.86, 0)
+
+[sub_resource type="GradientTexture2D" id="GlowTexture"]
+gradient = SubResource("GradientGlow")
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[node name="KnightCapturePresentationReviewV2" type="Control" unique_id=913522903]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1980309086]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.012, 0.035, 0.058, 1)
+
+[node name="Title" type="Label" parent="." unique_id=3810517]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 20.0
+offset_right = 342.0
+offset_bottom = 48.0
+theme_override_colors/font_color = Color(0.92, 0.79, 0.5, 1)
+theme_override_font_sizes/font_size = 17
+text = "F.5 REVIEW — LANCER VS ROOK"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="." unique_id=296134548]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 51.0
+offset_right = 336.0
+offset_bottom = 82.0
+theme_override_colors/font_color = Color(0.58, 0.72, 0.75, 1)
+theme_override_font_sizes/font_size = 10
+text = "Approved static directions · concept animation only"
+horizontal_alignment = 1
+
+[node name="ModeRow" type="HBoxContainer" parent="." unique_id=2023401693]
+layout_mode = 0
+offset_left = 28.0
+offset_top = 92.0
+offset_right = 332.0
+offset_bottom = 128.0
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="Compact" type="Button" parent="ModeRow" unique_id=1576081651]
+custom_minimum_size = Vector2(92, 34)
+layout_mode = 2
+toggle_mode = true
+text = "COMPACT"
+
+[node name="Standard" type="Button" parent="ModeRow" unique_id=1823335531]
+custom_minimum_size = Vector2(92, 34)
+layout_mode = 2
+toggle_mode = true
+text = "STANDARD"
+
+[node name="Cinematic" type="Button" parent="ModeRow" unique_id=935343249]
+custom_minimum_size = Vector2(92, 34)
+layout_mode = 2
+toggle_mode = true
+text = "CINEMATIC"
+
+[node name="BoardStage" type="Control" parent="." unique_id=2068706222]
+anchors_preset = 0
+offset_left = 30.0
+offset_top = 146.0
+offset_right = 330.0
+offset_bottom = 446.0
+
+[node name="Grid" type="GridContainer" parent="BoardStage" unique_id=1667173196]
+layout_mode = 0
+offset_right = 300.0
+offset_bottom = 300.0
+theme_override_constants/h_separation = 0
+theme_override_constants/v_separation = 0
+columns = 5
+
+[node name="Dimmer" type="ColorRect" parent="BoardStage" unique_id=438282651]
+modulate = Color(1, 1, 1, 0)
+layout_mode = 0
+offset_right = 300.0
+offset_bottom = 300.0
+mouse_filter = 2
+color = Color(0, 0.02, 0.04, 0.8)
+
+[node name="TargetGlow" type="ColorRect" parent="BoardStage" unique_id=1726734738]
+modulate = Color(1, 1, 1, 0)
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 0
+offset_right = 60.0
+offset_bottom = 60.0
+mouse_filter = 2
+color = Color(0.15, 0.95, 0.86, 0.62)
+
+[node name="SelectionRing" type="TextureRect" parent="BoardStage" unique_id=1335690003]
+modulate = Color(1, 1, 1, 0)
+texture_filter = 1
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 0
+offset_right = 60.0
+offset_bottom = 60.0
+mouse_filter = 2
+texture = ExtResource("3_ring")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="EnemyRook" type="AnimatedSprite2D" parent="BoardStage" unique_id=23639520]
+texture_filter = 1
+sprite_frames = SubResource("SpriteFrames_rmq7t")
+animation = &"destroy"
+autoplay = "destroy"
+
+[node name="ChessKnight" type="Sprite2D" parent="BoardStage" unique_id=1644258300]
+texture_filter = 1
+texture = ExtResource("2_knight")
+
+[node name="Lancer" type="AnimatedSprite2D" parent="BoardStage" unique_id=1607740654]
+visible = false
+texture_filter = 1
+sprite_frames = SubResource("SpriteFrames_iey3a")
+animation = &"dive_attack"
+autoplay = "dive_attack"
+
+[node name="LanceGlow" type="PointLight2D" parent="BoardStage/Lancer" unique_id=263353752]
+position = Vector2(36, -22)
+color = Color(0.25, 1, 0.9, 1)
+energy = 0.0
+texture = SubResource("GlowTexture")
+texture_scale = 0.8
+
+[node name="ImpactFlash" type="ColorRect" parent="BoardStage" unique_id=2037224184]
+visible = false
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 0
+offset_right = 60.0
+offset_bottom = 60.0
+pivot_offset = Vector2(30, 30)
+mouse_filter = 2
+color = Color(0.35, 1, 0.92, 0.9)
+
+[node name="PhaseLabel" type="Label" parent="." unique_id=535758748]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 460.0
+offset_right = 344.0
+offset_bottom = 496.0
+theme_override_colors/font_color = Color(0.74, 0.9, 0.86, 1)
+theme_override_font_sizes/font_size = 11
+text = "Preparing review..."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Notes" type="Label" parent="." unique_id=402717625]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 502.0
+offset_right = 336.0
+offset_bottom = 558.0
+theme_override_colors/font_color = Color(0.55, 0.63, 0.68, 1)
+theme_override_font_sizes/font_size = 9
+text = "Compact keeps the chess piece. Standard and cinematic unfold the approved heroic lancer, then reform on the target square."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="ReplayButton" type="Button" parent="." unique_id=709650144]
+layout_mode = 0
+offset_left = 88.0
+offset_top = 574.0
+offset_right = 272.0
+offset_bottom = 620.0
+theme_override_font_sizes/font_size = 13
+text = "REPLAY SELECTED MODE"

@@ -32,9 +32,9 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="BoardGrid" type="GridContainer" parent="BoardCenter"]
-custom_minimum_size = Vector2(315, 315)
+custom_minimum_size = Vector2(312, 312)
 layout_mode = 2
-columns = 5
+columns = 8
 
 [node name="FrameOverlay" type="TextureRect" parent="."]
 layout_mode = 1

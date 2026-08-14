@@ -66,10 +66,10 @@ func _castle_board() -> BoardState:
 func test_default_and_dynamic_board_sizes() -> void:
 	_log("\n-- test_default_and_dynamic_board_sizes --")
 	var default_board := BoardState.new()
-	_assert(default_board.board_size == 5, "test_default_and_dynamic_board_sizes assertion 1")
-	_assert(default_board.grid.size() == 5 and default_board.grid[0].size() == 5, "test_default_and_dynamic_board_sizes assertion 2")
-	_assert(default_board.get_piece(Vector2i(2, 0)).def.id == "king", "test_default_and_dynamic_board_sizes assertion 3")
-	_assert(default_board.get_piece(Vector2i(4, 0)).def.id == "rook", "test_default_and_dynamic_board_sizes assertion 4")
+	_assert(default_board.board_size == 8, "the default board uses the standard eight files")
+	_assert(default_board.grid.size() == 8 and default_board.grid[0].size() == 8, "the default board uses the standard eight ranks")
+	_assert(default_board.get_piece(Vector2i(4, 0)).def.id == "king", "the standard King begins on the e-file")
+	_assert(default_board.get_piece(Vector2i(7, 0)).def.id == "rook", "the standard back rank ends with a rook")
 	var board6 := BoardState.new(6)
 	var board7 := BoardState.new(7)
 	_assert(board6.board_size == 6 and board6.in_bounds(Vector2i(5, 5)), "test_default_and_dynamic_board_sizes assertion 5")
@@ -153,7 +153,7 @@ func test_black_pawn_double_step_uses_dynamic_board_size() -> void:
 	var board := _empty_board()
 	board.set_piece(Vector2i(2, 3), _piece("pawn", GameRules.PieceColor.BLACK))
 	var moves := MoveGenerator.generate_pseudo_legal(board, Vector2i(2, 3))
-	_assert(Vector2i(2, 2) in moves, "black pawn can move one square on 5x5 board")
+	_assert(Vector2i(2, 2) in moves, "black pawn can move one square on a compact test board")
 	_assert(Vector2i(2, 1) in moves, "black pawn double step derives its start rank from board size")
 
 func test_basic_standard_moves() -> void:

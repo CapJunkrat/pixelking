@@ -37,6 +37,8 @@ static func _build_all() -> void:
 	_cache["rook"] = _rook()
 	_cache["queen"] = _queen()
 	_cache["king"] = _king()
+	_cache["lancer"] = _lancer()
+	_cache["archmage"] = _archmage()
 
 static func _pawn() -> PieceDef:
 	var definition := _base_def("pawn", &"PIECE_PAWN", 1, PieceDef.Rarity.COMMON, 4)
@@ -85,6 +87,24 @@ static func _king() -> PieceDef:
 	definition.special_move_rules.append(CastlingMovementRule.new())
 	return definition
 
+static func _lancer() -> PieceDef:
+	var definition: PieceDef = _base_def("lancer", &"PIECE_LANCER", 6, PieceDef.Rarity.EPIC)
+	definition.movement_profile = _profile([
+		_jump([Vector2i(1, 2), Vector2i(2, 1), Vector2i(2, -1), Vector2i(1, -2), Vector2i(-1, -2), Vector2i(-2, -1), Vector2i(-2, 1), Vector2i(-1, 2)]),
+		_slide([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)], 2),
+	])
+	definition.motion_profile = PieceMotionProfileDatabase.get_profile(&"knight")
+	return definition
+
+static func _archmage() -> PieceDef:
+	var definition: PieceDef = _base_def("archmage", &"PIECE_ARCHMAGE", 10, PieceDef.Rarity.LEGENDARY)
+	definition.movement_profile = _profile([_slide([
+		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+		Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1),
+	], 8)])
+	definition.motion_profile = PieceMotionProfileDatabase.get_profile(&"queen")
+	return definition
+
 static func _base_def(
 	id: String,
 	display_name_key: StringName,
@@ -99,6 +119,7 @@ static func _base_def(
 	definition.rarity = rarity
 	definition.available_in_opening_draft = opening_draft_weight > 0
 	definition.opening_draft_weight = opening_draft_weight
+	definition.motion_profile = PieceMotionProfileDatabase.get_profile(StringName(id))
 	return definition
 
 static func _profile(rules: Array[MovementRule], parent: MovementProfile = null) -> MovementProfile:

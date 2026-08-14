@@ -3,6 +3,9 @@ extends Control
 @onready var title_logo: TextureRect = $SafeArea/Layout/Header/TitleLogo
 @onready var settings_overlay: ColorRect = $SettingsOverlay
 @onready var battle_placeholder: ColorRect = $BattlePlaceholder
+@onready var overwrite_confirmation: ColorRect = $OverwriteConfirmation
+@onready var overwrite_cancel_button: Button = $OverwriteConfirmation/Center/Panel/Content/Actions/CancelButton
+@onready var overwrite_confirm_button: Button = $OverwriteConfirmation/Center/Panel/Content/Actions/ConfirmButton
 @onready var new_game_button: Button = $SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton
 @onready var continue_button: Button = $SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton
 @onready var language_option: OptionButton = $SettingsOverlay/SettingsPanel/SettingsContent/LanguageOption
@@ -17,14 +20,10 @@ extends Control
 @onready var run_manager: AppRunManager = get_node("/root/RunManager") as AppRunManager
 
 const PIECE_TYPES: Array[StringName] = [&"king", &"queen", &"rook", &"bishop", &"knight", &"pawn"]
-const RUN_SETUP_SCENE: PackedScene = preload("res://scenes/run/RunSetupOverlay.tscn")
 const INTRO_BUTTON_DELAY := 0.15
 
 var _intro_tween: Tween
 var _intro_playing: bool = false
-var _run_setup_overlay: RunSetupOverlay
-var _overwrite_confirmation: ConfirmationDialog
-var _allow_overwrite_for_setup: bool = false
 
 func _ready() -> void:
 	$SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton.pressed.connect(_on_new_game_pressed)
@@ -54,7 +53,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event.is_action_pressed("ui_cancel"):
-		if settings_overlay.visible:
+		if overwrite_confirmation.visible:
+			_close_overwrite_confirmation()
+		elif settings_overlay.visible:
 			_close_settings()
 		elif battle_placeholder.visible:
 			_close_battle_placeholder()
@@ -89,6 +90,11 @@ func _apply_locale(_locale: String) -> void:
 	$BattlePlaceholder/BattleContent/Title.text = Localization.text("JOURNEY_TITLE")
 	$BattlePlaceholder/BattleContent/Description.text = Localization.text("JOURNEY_DESCRIPTION")
 	$BattlePlaceholder/BattleContent/BackButton.text = Localization.text("JOURNEY_BACK")
+	$OverwriteConfirmation/Center/Panel/Content/Title.text = Localization.text("MENU_OVERWRITE_TITLE")
+	$OverwriteConfirmation/Center/Panel/Content/Message.text = Localization.text("MENU_OVERWRITE_MESSAGE")
+	$OverwriteConfirmation/Center/Panel/Content/Warning.text = Localization.text("MENU_OVERWRITE_WARNING")
+	overwrite_cancel_button.text = Localization.text("COMMON_CANCEL")
+	overwrite_confirm_button.text = Localization.text("MENU_OVERWRITE_CONFIRM")
 
 func _setup_menu_button_visuals() -> void:
 	for child in $SafeArea/Layout/MenuPanel/MenuButtons.get_children():
@@ -146,22 +152,25 @@ func _sync_sfx_slider(value: float) -> void:
 	sound_slider.set_value_no_signal(value)
 
 func _setup_run_controls() -> void:
-	_run_setup_overlay = RUN_SETUP_SCENE.instantiate() as RunSetupOverlay
-	add_child(_run_setup_overlay)
-	_run_setup_overlay.seed_confirmed.connect(_on_seed_confirmed)
-	_run_setup_overlay.cancelled.connect(_focus_new_game_button)
-	_overwrite_confirmation = ConfirmationDialog.new()
-	_overwrite_confirmation.name = "OverwriteConfirmation"
-	_overwrite_confirmation.title = Localization.text("MENU_OVERWRITE_TITLE")
-	_overwrite_confirmation.dialog_text = Localization.text("MENU_OVERWRITE_MESSAGE")
-	_overwrite_confirmation.confirmed.connect(_show_run_setup.bind(true))
-	_overwrite_confirmation.canceled.connect(_focus_new_game_button)
-	add_child(_overwrite_confirmation)
+	overwrite_cancel_button.pressed.connect(_close_overwrite_confirmation)
+	overwrite_confirm_button.pressed.connect(_confirm_overwrite)
 	run_manager.active_run_changed.connect(_on_active_run_changed)
 
 func _focus_new_game_button() -> void:
 	if new_game_button.focus_mode != Control.FOCUS_NONE:
 		new_game_button.grab_focus()
+
+func _show_overwrite_confirmation() -> void:
+	overwrite_confirmation.show()
+	overwrite_cancel_button.grab_focus()
+
+func _close_overwrite_confirmation() -> void:
+	overwrite_confirmation.hide()
+	_focus_new_game_button()
+
+func _confirm_overwrite() -> void:
+	overwrite_confirmation.hide()
+	_start_random_journey(true)
 
 func _refresh_run_buttons() -> void:
 	continue_button.disabled = not run_manager.can_continue()
@@ -170,24 +179,34 @@ func _refresh_run_buttons() -> void:
 func _on_active_run_changed(_run_state: RunState) -> void:
 	_refresh_run_buttons()
 
-func _show_run_setup(allow_overwrite: bool = false) -> void:
-	_allow_overwrite_for_setup = allow_overwrite
-	_run_setup_overlay.show_setup()
-
-func _on_seed_confirmed(run_seed: int) -> void:
-	var created: bool = run_manager.create_run(run_seed, RunState.MODE_STANDARD, _allow_overwrite_for_setup)
-	if not created:
-		_run_setup_overlay.show_error(Localization.text("SAVE_ERROR"))
+func _start_random_journey(allow_overwrite: bool = false) -> void:
+	var run_seed: int = _debug_seed_override()
+	if run_seed == 0:
+		run_seed = _generate_random_seed()
+	if not run_manager.create_run(run_seed, RunState.MODE_STANDARD, allow_overwrite):
+		push_error(Localization.text("SAVE_ERROR"))
 		return
 	get_tree().change_scene_to_file(run_manager.resume_scene_path())
+
+func _generate_random_seed() -> int:
+	var generated: int = int(Time.get_unix_time_from_system()) ^ Time.get_ticks_usec()
+	return absi(generated) if generated != 0 else 1
+
+## Developer-only deterministic entry: launch with `-- --seed=12345`.
+## It is intentionally absent from the player-facing menu.
+func _debug_seed_override() -> int:
+	for argument: String in OS.get_cmdline_user_args():
+		if not argument.begins_with("--seed="):
+			continue
+		var value: String = argument.trim_prefix("--seed=")
+		if value.is_valid_int() and value.to_int() != 0:
+			return value.to_int()
+	return 0
 
 func _play_intro() -> void:
 	modulate.a = 1.0
 	_intro_playing = true
 	title_logo.modulate.a = 0.0
-
-	var version_label := $SafeArea/Layout/Version as Label
-	version_label.modulate.a = 0.0
 
 	var buttons: Array[Button] = []
 	for child in $SafeArea/Layout/MenuPanel/MenuButtons.get_children():
@@ -208,7 +227,6 @@ func _play_intro() -> void:
 		var delay := 0.55 + index * INTRO_BUTTON_DELAY
 		_intro_tween.tween_property(button, "modulate:a", 1.0, 0.60).set_delay(delay)
 
-	_intro_tween.tween_property(version_label, "modulate:a", 1.0, 0.40).set_delay(1.35)
 	_intro_tween.chain().tween_callback(_finish_intro)
 
 func _finish_intro(skip_tween: bool = false) -> void:
@@ -220,8 +238,6 @@ func _finish_intro(skip_tween: bool = false) -> void:
 	_intro_tween = null
 
 	title_logo.modulate.a = 1.0
-	var version_label := $SafeArea/Layout/Version as Label
-	version_label.modulate.a = 1.0
 
 	for child in $SafeArea/Layout/MenuPanel/MenuButtons.get_children():
 		var button := child as Button
@@ -278,14 +294,14 @@ func _play_title_float() -> void:
 
 func _on_new_game_pressed() -> void:
 	if run_manager.can_continue():
-		_overwrite_confirmation.popup_centered()
+		_show_overwrite_confirmation()
 		return
-	_show_run_setup(false)
+	_start_random_journey(false)
 
 func _on_continue_pressed() -> void:
 	var error: Error = run_manager.ensure_opening_draft_pending()
 	if error != OK:
-		_run_setup_overlay.show_error(Localization.text("SAVE_ERROR"))
+		push_error(Localization.text("SAVE_ERROR"))
 		return
 	get_tree().change_scene_to_file(run_manager.resume_scene_path())
 

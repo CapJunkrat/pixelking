@@ -27,65 +27,34 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
-[sub_resource type="StyleBoxFlat" id="StylePanel"]
-content_margin_left = 12.0
-content_margin_top = 10.0
-content_margin_right = 12.0
-content_margin_bottom = 10.0
-bg_color = Color(0.035, 0.075, 0.12, 0.96)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.82, 0.68, 0.38, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-
-[node name="OpeningDraftScene" type="Control" unique_id=643686832]
-layout_mode = 3
+[node name="OpeningDraftScene" type="PanelContainer" unique_id=643686832]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleButton")
 script = ExtResource("1_script")
 
+[node name="ErrorDialog" type="AcceptDialog" parent="." unique_id=1530869860]
+
 [node name="Background" type="TextureRect" parent="." unique_id=370810642]
+visible = false
 modulate = Color(0.48, 0.58, 0.72, 1)
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+layout_mode = 2
 mouse_filter = 2
 texture = ExtResource("2_bg")
 expand_mode = 1
 stretch_mode = 6
 
 [node name="Shade" type="ColorRect" parent="." unique_id=370470664]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+visible = false
+layout_mode = 2
 mouse_filter = 2
 color = Color(0.01, 0.025, 0.05, 0.72)
 
 [node name="SafeArea" type="MarginContainer" parent="." unique_id=1741476770]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 12.0
-offset_top = 12.0
-offset_right = -12.0
-offset_bottom = -12.0
-grow_horizontal = 2
-grow_vertical = 2
+layout_mode = 2
 
 [node name="Layout" type="VBoxContainer" parent="SafeArea" unique_id=1938650320]
 layout_mode = 2
@@ -118,19 +87,26 @@ theme_override_font_sizes/font_size = 13
 text = "Choose one piece"
 horizontal_alignment = 1
 
-[node name="CandidateCards" type="VBoxContainer" parent="SafeArea/Layout" unique_id=1881211843]
+[node name="CandidateCards" type="HBoxContainer" parent="SafeArea/Layout" unique_id=1881211843]
+custom_minimum_size = Vector2(0, 350)
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 7
+theme_override_constants/separation = 0
 
-[node name="Candidate0" type="Button" parent="SafeArea/Layout/CandidateCards" unique_id=698611405]
-custom_minimum_size = Vector2(0, 112)
+[node name="Slot0" type="VBoxContainer" parent="SafeArea/Layout/CandidateCards" unique_id=2092324794]
+custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Candidate0" type="Button" parent="SafeArea/Layout/CandidateCards/Slot0" unique_id=698611405]
+custom_minimum_size = Vector2(64, 200)
+layout_mode = 2
+focus_neighbor_right = NodePath("../../Slot1/Candidate1")
 theme_override_styles/normal = SubResource("StyleButton")
 theme_override_styles/hover = SubResource("StyleButtonHover")
 theme_override_styles/focus = SubResource("StyleButtonHover")
 
-[node name="Content" type="HBoxContainer" parent="SafeArea/Layout/CandidateCards/Candidate0" unique_id=890215906]
+[node name="Content" type="VBoxContainer" parent="SafeArea/Layout/CandidateCards/Slot0/Candidate0" unique_id=890215906]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -144,45 +120,52 @@ grow_vertical = 2
 mouse_filter = 2
 theme_override_constants/separation = 12
 
-[node name="Portrait" type="TextureRect" parent="SafeArea/Layout/CandidateCards/Candidate0/Content" unique_id=1285500489]
+[node name="Portrait" type="TextureRect" parent="SafeArea/Layout/CandidateCards/Slot0/Candidate0/Content" unique_id=1285500489]
 texture_filter = 1
-custom_minimum_size = Vector2(82, 82)
+custom_minimum_size = Vector2(112, 150)
 layout_mode = 2
 mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Text" type="VBoxContainer" parent="SafeArea/Layout/CandidateCards/Candidate0/Content" unique_id=1833546605]
+[node name="Text" type="VBoxContainer" parent="SafeArea/Layout/CandidateCards/Slot0/Candidate0/Content" unique_id=1833546605]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 alignment = 1
 
-[node name="NameLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Candidate0/Content/Text" unique_id=248007286]
+[node name="NameLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Slot0/Candidate0/Content/Text" unique_id=248007286]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.96, 0.9, 0.74, 1)
 theme_override_font_sizes/font_size = 22
 text = "Piece"
 
-[node name="RarityLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Candidate0/Content/Text" unique_id=1001506408]
+[node name="RarityLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Slot0/Candidate0/Content/Text" unique_id=1001506408]
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
 text = "Common"
 
-[node name="DescriptionLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Candidate0/Content/Text" unique_id=1274313486]
+[node name="DescriptionLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Slot0/Candidate0/Content/Text" unique_id=1274313486]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.72, 0.76, 0.78, 1)
 theme_override_font_sizes/font_size = 13
 text = "Power 1"
 
-[node name="Candidate1" type="Button" parent="SafeArea/Layout/CandidateCards" unique_id=1753117288]
-custom_minimum_size = Vector2(0, 112)
+[node name="Slot1" type="VBoxContainer" parent="SafeArea/Layout/CandidateCards" unique_id=1693488770]
+custom_minimum_size = Vector2(176, 0)
 layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Candidate1" type="Button" parent="SafeArea/Layout/CandidateCards/Slot1" unique_id=1753117288]
+custom_minimum_size = Vector2(64, 200)
+layout_mode = 2
+focus_neighbor_left = NodePath("../../Slot0/Candidate0")
+focus_neighbor_right = NodePath("../../Slot2/Candidate2")
 theme_override_styles/normal = SubResource("StyleButton")
 theme_override_styles/hover = SubResource("StyleButtonHover")
 theme_override_styles/focus = SubResource("StyleButtonHover")
 
-[node name="Content" type="HBoxContainer" parent="SafeArea/Layout/CandidateCards/Candidate1" unique_id=1125242145]
+[node name="Content" type="VBoxContainer" parent="SafeArea/Layout/CandidateCards/Slot1/Candidate1" unique_id=1125242145]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -196,41 +179,47 @@ grow_vertical = 2
 mouse_filter = 2
 theme_override_constants/separation = 12
 
-[node name="Portrait" type="TextureRect" parent="SafeArea/Layout/CandidateCards/Candidate1/Content" unique_id=540630157]
+[node name="Portrait" type="TextureRect" parent="SafeArea/Layout/CandidateCards/Slot1/Candidate1/Content" unique_id=540630157]
 texture_filter = 1
-custom_minimum_size = Vector2(82, 82)
+custom_minimum_size = Vector2(112, 150)
 layout_mode = 2
 mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Text" type="VBoxContainer" parent="SafeArea/Layout/CandidateCards/Candidate1/Content" unique_id=673088532]
+[node name="Text" type="VBoxContainer" parent="SafeArea/Layout/CandidateCards/Slot1/Candidate1/Content" unique_id=673088532]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 alignment = 1
 
-[node name="NameLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Candidate1/Content/Text" unique_id=460624960]
+[node name="NameLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Slot1/Candidate1/Content/Text" unique_id=460624960]
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
 text = "Piece"
 
-[node name="RarityLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Candidate1/Content/Text" unique_id=1528643880]
+[node name="RarityLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Slot1/Candidate1/Content/Text" unique_id=1528643880]
 layout_mode = 2
 text = "Common"
 
-[node name="DescriptionLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Candidate1/Content/Text" unique_id=1346283230]
+[node name="DescriptionLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Slot1/Candidate1/Content/Text" unique_id=1346283230]
 layout_mode = 2
 text = "Power 1"
 
-[node name="Candidate2" type="Button" parent="SafeArea/Layout/CandidateCards" unique_id=954733044]
-custom_minimum_size = Vector2(0, 112)
+[node name="Slot2" type="VBoxContainer" parent="SafeArea/Layout/CandidateCards" unique_id=1581566985]
+custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Candidate2" type="Button" parent="SafeArea/Layout/CandidateCards/Slot2" unique_id=954733044]
+custom_minimum_size = Vector2(64, 200)
+layout_mode = 2
+focus_neighbor_left = NodePath("../../Slot1/Candidate1")
 theme_override_styles/normal = SubResource("StyleButton")
 theme_override_styles/hover = SubResource("StyleButtonHover")
 theme_override_styles/focus = SubResource("StyleButtonHover")
 
-[node name="Content" type="HBoxContainer" parent="SafeArea/Layout/CandidateCards/Candidate2" unique_id=1775765920]
+[node name="Content" type="VBoxContainer" parent="SafeArea/Layout/CandidateCards/Slot2/Candidate2" unique_id=1775765920]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -244,30 +233,30 @@ grow_vertical = 2
 mouse_filter = 2
 theme_override_constants/separation = 12
 
-[node name="Portrait" type="TextureRect" parent="SafeArea/Layout/CandidateCards/Candidate2/Content" unique_id=1837216148]
+[node name="Portrait" type="TextureRect" parent="SafeArea/Layout/CandidateCards/Slot2/Candidate2/Content" unique_id=1837216148]
 texture_filter = 1
-custom_minimum_size = Vector2(82, 82)
+custom_minimum_size = Vector2(112, 150)
 layout_mode = 2
 mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Text" type="VBoxContainer" parent="SafeArea/Layout/CandidateCards/Candidate2/Content" unique_id=406571120]
+[node name="Text" type="VBoxContainer" parent="SafeArea/Layout/CandidateCards/Slot2/Candidate2/Content" unique_id=406571120]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 alignment = 1
 
-[node name="NameLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Candidate2/Content/Text" unique_id=1260410804]
+[node name="NameLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Slot2/Candidate2/Content/Text" unique_id=1260410804]
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
 text = "Piece"
 
-[node name="RarityLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Candidate2/Content/Text" unique_id=1060863431]
+[node name="RarityLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Slot2/Candidate2/Content/Text" unique_id=1060863431]
 layout_mode = 2
 text = "Common"
 
-[node name="DescriptionLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Candidate2/Content/Text" unique_id=1653490379]
+[node name="DescriptionLabel" type="Label" parent="SafeArea/Layout/CandidateCards/Slot2/Candidate2/Content/Text" unique_id=1653490379]
 layout_mode = 2
 text = "Power 1"
 
@@ -295,72 +284,3 @@ theme_override_styles/normal = SubResource("StyleButton")
 theme_override_styles/hover = SubResource("StyleButtonHover")
 theme_override_styles/focus = SubResource("StyleButtonHover")
 text = "Back"
-
-[node name="CompletionOverlay" type="ColorRect" parent="." unique_id=12953131]
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0.01, 0.025, 0.05, 0.92)
-
-[node name="Center" type="CenterContainer" parent="CompletionOverlay" unique_id=801895764]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="Panel" type="PanelContainer" parent="CompletionOverlay/Center" unique_id=1991304173]
-custom_minimum_size = Vector2(310, 280)
-layout_mode = 2
-theme_override_styles/panel = SubResource("StylePanel")
-
-[node name="Content" type="VBoxContainer" parent="CompletionOverlay/Center/Panel" unique_id=611334583]
-layout_mode = 2
-theme_override_constants/separation = 14
-alignment = 1
-
-[node name="CompletionTitle" type="Label" parent="CompletionOverlay/Center/Panel/Content" unique_id=1805577804]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.96, 0.83, 0.5, 1)
-theme_override_font_sizes/font_size = 26
-text = "Draft Complete"
-horizontal_alignment = 1
-
-[node name="CompletionDetail" type="Label" parent="CompletionOverlay/Center/Panel/Content" unique_id=765426128]
-custom_minimum_size = Vector2(280, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8, 0.83, 0.84, 1)
-text = "Your opening roster is ready."
-horizontal_alignment = 1
-autowrap_mode = 2
-
-[node name="RosterButton" type="Button" parent="CompletionOverlay/Center/Panel/Content"]
-custom_minimum_size = Vector2(0, 42)
-layout_mode = 2
-theme_override_styles/normal = SubResource("StyleButton")
-theme_override_styles/hover = SubResource("StyleButtonHover")
-theme_override_styles/focus = SubResource("StyleButtonHover")
-text = "Manage Roster"
-
-[node name="PrototypeBattleButton" type="Button" parent="CompletionOverlay/Center/Panel/Content" unique_id=300375254]
-custom_minimum_size = Vector2(0, 46)
-layout_mode = 2
-theme_override_styles/normal = SubResource("StyleButton")
-theme_override_styles/hover = SubResource("StyleButtonHover")
-theme_override_styles/focus = SubResource("StyleButtonHover")
-text = "Enter Prototype Battle"
-
-[node name="MainMenuButton" type="Button" parent="CompletionOverlay/Center/Panel/Content" unique_id=320266874]
-custom_minimum_size = Vector2(0, 46)
-layout_mode = 2
-theme_override_styles/normal = SubResource("StyleButton")
-theme_override_styles/hover = SubResource("StyleButtonHover")
-theme_override_styles/focus = SubResource("StyleButtonHover")
-text = "Return to Main Menu"
-
-[node name="ErrorDialog" type="AcceptDialog" parent="." unique_id=1530869860]

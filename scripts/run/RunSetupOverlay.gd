@@ -12,7 +12,19 @@ signal cancelled
 @onready var start_button: Button = $Center/Panel/Content/Buttons/StartButton
 @onready var cancel_button: Button = $Center/Panel/Content/Buttons/CancelButton
 
+var mode_option: OptionButton
+
 func _ready() -> void:
+	mode_option = OptionButton.new()
+	mode_option.name = "ModeOption"
+	mode_option.add_item("Standard Journey")
+	mode_option.set_item_metadata(0, RunState.MODE_STANDARD)
+	mode_option.add_item("Endless Journey")
+	mode_option.set_item_metadata(1, RunState.MODE_ENDLESS)
+	var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
+	mode_option.set_item_disabled(1, manager == null or not manager.endless_unlocked())
+	$Center/Panel/Content.add_child(mode_option)
+	$Center/Panel/Content.move_child(mode_option, 2)
 	random_button.pressed.connect(_fill_random_seed)
 	start_button.pressed.connect(_submit)
 	cancel_button.pressed.connect(_cancel)
@@ -25,6 +37,11 @@ func show_setup() -> void:
 	seed_input.text = ""
 	show()
 	seed_input.grab_focus()
+
+func selected_mode() -> String:
+	if mode_option == null:
+		return RunState.MODE_STANDARD
+	return str(mode_option.get_item_metadata(mode_option.selected))
 
 func show_error(message: String) -> void:
 	error_label.text = message

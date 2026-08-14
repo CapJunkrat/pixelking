@@ -1,0 +1,213 @@
+[gd_scene format=3 uid="uid://b0q4m47e37hgu"]
+
+[ext_resource type="Script" path="res://scripts/visual_review/KnightCapturePresentationReview.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://cpduvin2uohrk" path="res://assets/chess/piece_skins/royal_forge/black_rook.png" id="2_rook"]
+[ext_resource type="Texture2D" uid="uid://cykj1oxy7lop1" path="res://assets/ui/battle/modern/selection_brackets.png" id="3_ring"]
+[ext_resource type="Texture2D" uid="uid://y74il0yt1mk6" path="res://assets/generated/review_knight_capture_attack.png" id="4_m5td0"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vwfad"]
+atlas = ExtResource("4_m5td0")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rjira"]
+atlas = ExtResource("4_m5td0")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qwglv"]
+atlas = ExtResource("4_m5td0")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sltyq"]
+atlas = ExtResource("4_m5td0")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_n2guy"]
+atlas = ExtResource("4_m5td0")
+region = Rect2(0, 64, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_a48d1"]
+atlas = ExtResource("4_m5td0")
+region = Rect2(64, 64, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pjmgm"]
+atlas = ExtResource("4_m5td0")
+region = Rect2(128, 64, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_t26d0"]
+atlas = ExtResource("4_m5td0")
+region = Rect2(192, 64, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_15q70"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vwfad")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rjira")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qwglv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sltyq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_n2guy")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_a48d1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pjmgm")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_t26d0")
+}],
+"loop": 0,
+"name": &"attack",
+"speed": 12.0
+}]
+
+[sub_resource type="StyleBoxFlat" id="StyleReplay"]
+bg_color = Color(0.08, 0.23, 0.29, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.77, 0.63, 0.31, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="KnightCapturePresentationReview" type="Control" unique_id=1219556503]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1481795221]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.015, 0.047, 0.075, 1)
+
+[node name="Title" type="Label" parent="." unique_id=1974522963]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 28.0
+offset_right = 336.0
+offset_bottom = 58.0
+theme_override_colors/font_color = Color(0.92, 0.79, 0.5, 1)
+theme_override_font_sizes/font_size = 18
+text = "F.5 REVIEW — KNIGHT CAPTURE"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="." unique_id=366137410]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 64.0
+offset_right = 336.0
+offset_bottom = 102.0
+theme_override_colors/font_color = Color(0.58, 0.72, 0.75, 1)
+theme_override_font_sizes/font_size = 11
+text = "Hybrid example: tween movement + short sprite action + board impact"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="BoardStage" type="Control" parent="." unique_id=1940569776]
+anchors_preset = 0
+offset_left = 30.0
+offset_top = 130.0
+offset_right = 330.0
+offset_bottom = 430.0
+
+[node name="Grid" type="GridContainer" parent="BoardStage" unique_id=328634922]
+layout_mode = 0
+offset_right = 300.0
+offset_bottom = 300.0
+theme_override_constants/h_separation = 0
+theme_override_constants/v_separation = 0
+columns = 5
+
+[node name="TargetGlow" type="ColorRect" parent="BoardStage" unique_id=41531064]
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 0
+offset_right = 60.0
+offset_bottom = 60.0
+mouse_filter = 2
+color = Color(0.15, 0.95, 0.86, 0.62)
+
+[node name="SelectionRing" type="TextureRect" parent="BoardStage" unique_id=445335363]
+texture_filter = 1
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 0
+offset_right = 60.0
+offset_bottom = 60.0
+mouse_filter = 2
+texture = ExtResource("3_ring")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="EnemyRook" type="Sprite2D" parent="BoardStage" unique_id=1973478219]
+texture_filter = 1
+texture = ExtResource("2_rook")
+
+[node name="Knight" type="AnimatedSprite2D" parent="BoardStage" unique_id=892798168]
+texture_filter = 1
+sprite_frames = SubResource("SpriteFrames_15q70")
+animation = &"attack"
+autoplay = "attack"
+
+[node name="ImpactFlash" type="ColorRect" parent="BoardStage" unique_id=1684555741]
+visible = false
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 0
+offset_right = 60.0
+offset_bottom = 60.0
+pivot_offset = Vector2(30, 30)
+mouse_filter = 2
+color = Color(0.3, 1, 0.95, 0.9)
+
+[node name="PhaseLabel" type="Label" parent="." unique_id=1850207050]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 458.0
+offset_right = 340.0
+offset_bottom = 492.0
+theme_override_colors/font_color = Color(0.74, 0.9, 0.86, 1)
+theme_override_font_sizes/font_size = 12
+text = "Preparing review..."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Notes" type="Label" parent="." unique_id=1576075820]
+layout_mode = 0
+offset_left = 28.0
+offset_top = 504.0
+offset_right = 332.0
+offset_bottom = 558.0
+theme_override_colors/font_color = Color(0.58, 0.65, 0.69, 1)
+theme_override_font_sizes/font_size = 10
+text = "Concept only. The knight art, timing, particles and framing are all subject to approval."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="ReplayButton" type="Button" parent="." unique_id=1972307307]
+layout_mode = 0
+offset_left = 90.0
+offset_top = 574.0
+offset_right = 270.0
+offset_bottom = 620.0
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleReplay")
+theme_override_styles/pressed = SubResource("StyleReplay")
+theme_override_styles/hover = SubResource("StyleReplay")
+text = "REPLAY EXAMPLE"

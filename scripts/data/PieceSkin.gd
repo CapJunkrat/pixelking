@@ -5,6 +5,9 @@ extends Resource
 @export var display_name: String
 @export_dir var texture_root: String
 
+func has_texture(color: StringName, piece_type: StringName) -> bool:
+	return ResourceLoader.exists("%s/%s_%s.png" % [texture_root, color, piece_type])
+
 func texture(color: StringName, piece_type: StringName) -> Texture2D:
 	var path := "%s/%s_%s.png" % [texture_root, color, piece_type]
 	if not ResourceLoader.exists(path):

@@ -232,8 +232,30 @@ func load_from_dictionary(data: Dictionary) -> bool:
 func _pending_choice_is_valid() -> bool:
 	if pending_choice.is_empty():
 		return true
-	if str(pending_choice.get("type", "")) != "opening_draft" or int(pending_choice.get("choice_version", -1)) != 1:
+	if int(pending_choice.get("choice_version", -1)) != 1:
 		return false
+	var type: String = str(pending_choice.get("type", ""))
+	if type == "opening_draft":
+		return _opening_choice_is_valid()
+	if type not in ["battle_reward", "roster_overflow", "shop", "event", "rest", "sacrifice", "run_summary"]:
+		return false
+	var options_value: Variant = pending_choice.get("options", [])
+	if not options_value is Array:
+		return false
+	var seen: Dictionary = {}
+	for value: Variant in options_value as Array:
+		if not value is Dictionary:
+			return false
+		var option: Dictionary = value as Dictionary
+		var option_id: String = str(option.get("id", ""))
+		if option_id.is_empty() or seen.has(option_id) or not option.get("payload", {}) is Dictionary:
+			return false
+		seen[option_id] = true
+	if type == "run_summary":
+		return (options_value as Array).is_empty()
+	return not (options_value as Array).is_empty()
+
+func _opening_choice_is_valid() -> bool:
 	var round_index: int = int(pending_choice.get("round_index", -1))
 	var candidates: Array[String] = _to_string_array(pending_choice.get("candidate_piece_def_ids", []))
 	var selected_ids: Array[String] = _to_string_array(pending_choice.get("selected_piece_def_ids", []))

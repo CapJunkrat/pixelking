@@ -19,7 +19,6 @@ func _ready() -> void:
 
 func start_new_game() -> void:
 	board = BoardState.new()
-	board.remove_all_pawns()
 	challenger_items.clear()
 	command_processor = BattleCommandProcessor.new(board, challenger_items, player_color)
 	last_command_result = null
@@ -49,7 +48,15 @@ func start_run_battle(run_state: RunState) -> bool:
 		return false
 	board = run_board
 	challenger_items.clear()
-	command_processor = BattleCommandProcessor.new(board, challenger_items, player_color)
+	for item_id: StringName in run_state.challenger_slots:
+		var item_definition: ChallengerItemDef = ChallengerItemDatabase.get_def(item_id)
+		if item_definition != null:
+			challenger_items.append(item_definition)
+	var turn_limit: int = 0
+	var current_node: MapNodeState = run_state.map_state.get_node(run_state.current_node_id) if run_state.map_state != null else null
+	if current_node != null and current_node.node_type_id == &"boss":
+		turn_limit = 30
+	command_processor = BattleCommandProcessor.new(board, challenger_items, player_color, turn_limit)
 	last_command_result = null
 	return true
 
@@ -69,7 +76,12 @@ func can_use_challenger_item(slot_index: int) -> bool:
 	return command_processor != null and command_processor.can_use_item(slot_index, player_color)
 
 func try_use_item(slot_index: int, target_position: Vector2i = Vector2i(-1, -1)) -> bool:
+	var item_id: StringName = challenger_items[slot_index].id if slot_index >= 0 and slot_index < challenger_items.size() else &""
 	var result: BattleCommandResult = execute_battle_action(UseItemAction.new(slot_index, player_color, target_position))
+	if result.success and not item_id.is_empty():
+		var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
+		if manager != null and manager.current_run != null:
+			manager.consume_challenger_item(slot_index, item_id)
 	return result.success
 
 func try_move(from: Vector2i, to: Vector2i, promotion_id: String = "queen") -> bool:

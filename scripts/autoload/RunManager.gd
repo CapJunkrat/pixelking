@@ -20,6 +20,8 @@ var opening_draft_service: OpeningDraftService = null
 var map_progress_service: MapProgressService = null
 var roster_service: RosterService = null
 var deployment_service: DeploymentService = null
+var content_service: RunContentService = null
+var meta_progress_service: MetaProgressService = null
 var save_path: String = DEFAULT_SAVE_PATH
 var _initialized: bool = false
 
@@ -247,7 +249,93 @@ func resolve_current_battle_node(payload: Dictionary = {}) -> Error:
 		deployment_changed.emit(current_run)
 	return commit_error
 
+func begin_current_run_interaction() -> Error:
+	_ensure_services()
+	if current_run == null:
+		return ERR_DOES_NOT_EXIST
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var interaction_run: RunState = transaction["run"] as RunState
+	var interaction_rng: RunRngService = transaction["rng"] as RunRngService
+	var error: Error = content_service.begin_current_node(interaction_run, interaction_rng)
+	if error != OK:
+		return error
+	return _commit_transaction(interaction_run, interaction_rng)
+
+func submit_run_interaction(choice_id: String) -> Error:
+	_ensure_services()
+	if current_run == null:
+		return ERR_DOES_NOT_EXIST
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var interaction_run: RunState = transaction["run"] as RunState
+	var interaction_rng: RunRngService = transaction["rng"] as RunRngService
+	var error: Error = content_service.submit(interaction_run, interaction_rng, map_progress_service, deployment_service, choice_id)
+	if error != OK:
+		return error
+	return _commit_transaction(interaction_run, interaction_rng)
+
+func leave_run_interaction() -> Error:
+	_ensure_services()
+	if current_run == null:
+		return ERR_DOES_NOT_EXIST
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var interaction_run: RunState = transaction["run"] as RunState
+	var interaction_rng: RunRngService = transaction["rng"] as RunRngService
+	var error: Error = content_service.leave(interaction_run, map_progress_service)
+	if error != OK:
+		return error
+	return _commit_transaction(interaction_run, interaction_rng)
+
+func consume_challenger_item(slot_index: int, expected_item_id: StringName) -> Error:
+	_ensure_services()
+	if current_run == null or slot_index < 0 or slot_index >= current_run.challenger_slots.size():
+		return ERR_DOES_NOT_EXIST
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var item_run: RunState = transaction["run"] as RunState
+	var item_rng: RunRngService = transaction["rng"] as RunRngService
+	if item_run.challenger_slots[slot_index] != expected_item_id:
+		return ERR_INVALID_DATA
+	item_run.challenger_slots.remove_at(slot_index)
+	return _commit_transaction(item_run, item_rng)
+
+func apply_battle_outcome(player_won: bool) -> Error:
+	_ensure_services()
+	if current_run == null:
+		return ERR_DOES_NOT_EXIST
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var battle_run: RunState = transaction["run"] as RunState
+	var battle_rng: RunRngService = transaction["rng"] as RunRngService
+	var error: Error = content_service.apply_battle_victory(battle_run, battle_rng, map_progress_service, deployment_service) if player_won else content_service.apply_battle_defeat(battle_run, battle_rng, deployment_service)
+	if error != OK:
+		return error
+	return _commit_transaction(battle_run, battle_rng)
+
+func endless_unlocked() -> bool:
+	_ensure_services()
+	return meta_progress_service.endless_unlocked()
+
+func finish_run_summary() -> Error:
+	_ensure_services()
+	if current_run == null or str(current_run.pending_choice.get("type", "")) != "run_summary":
+		return ERR_UNAVAILABLE
+	if bool(current_run.run_statistics.get("run_won", false)):
+		var unlock_error: Error = meta_progress_service.unlock_endless()
+		if unlock_error != OK:
+			return unlock_error
+	return abandon_run()
+
 func resume_scene_path() -> String:
+	if current_run != null and not current_run.pending_choice.is_empty() and str(current_run.pending_choice.get("type", "")) != "opening_draft":
+		return RunContentService.INTERACTION_SCENE
 	if current_run != null and current_run.deployment_state != null:
 		return "res://scenes/run/DeploymentScene.tscn"
 	if opening_draft_complete():
@@ -336,6 +424,8 @@ func _initialize_services() -> void:
 	map_progress_service = MapProgressService.new()
 	roster_service = RosterService.new()
 	deployment_service = DeploymentService.new()
+	content_service = RunContentService.new()
+	meta_progress_service = MetaProgressService.new()
 	_initialized = true
 
 func _ensure_services() -> void:

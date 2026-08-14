@@ -34,9 +34,14 @@ func refresh(items: Array[ChallengerItemDef], usable_slots: Array[bool] = []) ->
 			var item: ChallengerItemDef = items[index]
 			slot.icon = item.icon
 			slot.text = "" if item.icon != null else String(item.id).left(2).to_upper()
-			slot.tooltip_text = _text(String(item.display_name_key))
+			var item_name: String = _text(String(item.display_name_key))
+			var description: String = _text(String(item.description_key))
+			var usage: String = _text("ITEM_USAGE_CONSUMABLE") if item.is_consumable() else _text("ITEM_USAGE_PERSISTENT")
+			slot.tooltip_text = "%s\n%s\n%s" % [item_name, description, usage]
 			var can_use: bool = usable_slots[index] if index < usable_slots.size() else item.is_consumable()
-			slot.disabled = not can_use
+			# Persistent relics stay hoverable because they are informative, not usable.
+			slot.disabled = item.is_consumable() and not can_use
+			slot.add_theme_color_override("icon_disabled_color", Color(0.65, 0.65, 0.65, 1.0))
 
 func _on_slot_pressed(index: int) -> void:
 	item_requested.emit(index)

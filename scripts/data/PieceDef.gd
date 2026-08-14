@@ -15,6 +15,8 @@ enum Rarity {
 ## Ordinary movement may inherit from another profile. Special move rules stay
 ## directly on the piece definition so inheriting king movement does not grant castling.
 @export var movement_profile: MovementProfile
+## Presentation-only motion. It never participates in legal move generation.
+@export var motion_profile: PieceMotionProfile
 @export var special_move_rules: Array[MovementRule] = []
 
 ## Royal is a content/category tag. Only is_king participates in check,

@@ -99,12 +99,11 @@ func _on_action_pressed() -> void:
 			return
 		get_tree().change_scene_to_file("res://scenes/run/DeploymentScene.tscn")
 		return
-	var error: Error = run_manager.resolve_current_map_node({"outcome": "phase_c_placeholder"})
+	var error: Error = run_manager.begin_current_run_interaction()
 	if error != OK:
 		_show_error(_text("SAVE_ERROR"))
 		return
-	_hide_node_overlay()
-	_render()
+	get_tree().change_scene_to_file(RunContentService.INTERACTION_SCENE)
 
 func _hide_node_overlay() -> void:
 	node_overlay.hide()
@@ -116,7 +115,6 @@ func _show_error(message: String) -> void:
 
 func _apply_locale() -> void:
 	$SafeArea/Layout/Header/Title.text = _text("MAP_TITLE")
-	$SafeArea/Layout/Legend.text = _text("MAP_LEGEND")
 	$SafeArea/Layout/Footer/RosterButton.text = _text("ROSTER_MANAGE")
 	$SafeArea/Layout/Footer/BackButton.text = _text("COMMON_BACK")
 	$NodeOverlay/Center/Panel/Content/CancelButton.text = _text("COMMON_CANCEL")

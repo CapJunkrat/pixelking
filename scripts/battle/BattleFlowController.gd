@@ -42,6 +42,12 @@ func _advance_flow() -> void:
 	var board := GameState.board
 	if board == null or phase == Phase.FINISHED:
 		return
+	if not board.has_king(GameRules.PieceColor.WHITE):
+		_show_result(GameState.player_color == GameRules.PieceColor.BLACK, false)
+		return
+	if not board.has_king(GameRules.PieceColor.BLACK):
+		_show_result(GameState.player_color == GameRules.PieceColor.WHITE, false)
+		return
 	if board.is_checkmate(board.turn):
 		_show_result(board.turn != GameState.player_color, false)
 		return
@@ -101,7 +107,6 @@ func _show_result(player_won: bool, draw: bool) -> void:
 		result_detail.text = Localization.text("BATTLE_DEFEAT_DETAIL")
 	_integrate_run_result(player_won and not draw)
 	result_panel.present(result_title.text, result_detail.text)
-
 func _integrate_run_result(player_won: bool) -> void:
 	var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
 	if manager == null or manager.current_run == null:
@@ -114,13 +119,20 @@ func _integrate_run_result(player_won: bool) -> void:
 		retry_button.show()
 		exit_button.text = Localization.text("BATTLE_RESULT_MAIN_MENU")
 		return
-	if player_won:
-		var error: Error = manager.resolve_current_battle_node({"outcome": "prototype_victory"})
-		if error == OK:
-			retry_button.hide()
-			exit_button.text = Localization.text("BATTLE_RESULT_MAP")
+	var error: Error = manager.apply_battle_outcome(player_won)
+	if error != OK:
+		result_detail.text = "%s\nRun save error: %s" % [result_detail.text, error_string(error)]
+		return
+	retry_button.hide()
+	var pending_type: String = str(manager.current_run.pending_choice.get("type", ""))
+	if pending_type == "battle_reward":
+		exit_button.text = "Choose Reward"
+	elif pending_type == "sacrifice":
+		exit_button.text = "Choose Sacrifice"
+	elif pending_type == "run_summary":
+		exit_button.text = "Run Summary"
 	else:
-		exit_button.text = Localization.text("BATTLE_RESULT_DEPLOYMENT")
+		exit_button.text = Localization.text("BATTLE_RESULT_MAP")
 
 func _return_after_result() -> void:
 	GameState.start_new_game()

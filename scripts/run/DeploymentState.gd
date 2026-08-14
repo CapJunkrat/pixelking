@@ -21,7 +21,7 @@ func player_at(position: Vector2i) -> int:
 	return 0
 
 func is_valid(run_state: RunState) -> bool:
-	if deployment_version != CURRENT_VERSION or encounter_id.is_empty() or board_size < BoardState.MIN_SIZE:
+	if deployment_version != CURRENT_VERSION or encounter_id.is_empty() or board_size != BoardState.DEFAULT_SIZE:
 		return false
 	if run_state == null or encounter_id != run_state.current_encounter_id:
 		return false
