@@ -45,10 +45,14 @@ func _run() -> void:
 	_expect((fan.get_node("CardPivot1") as Node2D).scale.x < left_pivot.scale.x, "other candidates move aside and shrink")
 	draft.call("_start_candidate_info", 0)
 	await create_timer(0.55).timeout
-	var info_popup: PanelContainer = draft.get_node("CandidateInfoPopup") as PanelContainer
+	var info_layer: CanvasLayer = draft.get_node("InfoLayer") as CanvasLayer
+	var info_popup: PanelContainer = info_layer.get_node("CandidateInfoPopup") as PanelContainer
+	var diagram: GridContainer = info_popup.get_node("Content/DiagramCenter/Diagram") as GridContainer
 	_expect(info_popup.visible, "holding a card opens the floating piece information")
-	_expect(not (info_popup.get_node("Content/MovementLabel") as Label).text.is_empty(), "floating information describes movement")
-	_expect(not (info_popup.get_node("Content/AttackLabel") as Label).text.is_empty(), "floating information describes attacks")
+	_expect(info_layer.layer > 10, "floating information renders above every draft card")
+	_expect(diagram.get_child_count() == 25, "floating information prioritizes a 5 x 5 movement diagram")
+	_expect(not (info_popup.get_node("Content/MovementLabel") as Label).text.is_empty(), "floating information gives a concise movement summary")
+	_expect(not (info_popup.get_node("Content/AttackLabel") as Label).text.is_empty(), "floating information gives a concise attack summary")
 	draft.call("_stop_candidate_info")
 
 	for round_index: int in range(3):

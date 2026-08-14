@@ -9,6 +9,13 @@ const FAN_SIDE_DROP := 20.0
 const SIDE_CARD_SCALE := 0.78
 const FAN_TRANSITION_DURATION := 0.22
 const INFO_HOLD_SECONDS := 0.5
+const INFO_GRID_SIZE := 5
+const INFO_CELL_SIZE := 19.0
+const INFO_EMPTY_COLOR := Color("#101b29")
+const INFO_MOVE_COLOR := Color("#287a91")
+const INFO_ATTACK_COLOR := Color("#a34f3c")
+const INFO_BOTH_COLOR := Color("#7160a9")
+const INFO_PIECE_COLOR := Color("#d9ad4f")
 const COMMON_COLOR := Color("#b9b0a0")
 const RARE_COLOR := Color("#39bde8")
 const EPIC_COLOR := Color("#ad70ef")
@@ -19,7 +26,8 @@ const LEGENDARY_COLOR := Color("#f2bd4d")
 @onready var seed_label: Label = $SafeArea/Layout/Footer/SeedLabel
 @onready var candidate_cards: Control = $SafeArea/Layout/CandidateCards
 @onready var select_button: Button = $SafeArea/Layout/CandidateCards/SelectButton
-@onready var info_popup: PanelContainer = $CandidateInfoPopup
+@onready var info_popup: PanelContainer = $InfoLayer/CandidateInfoPopup
+@onready var info_diagram: GridContainer = $InfoLayer/CandidateInfoPopup/Content/DiagramCenter/Diagram
 @onready var selected_roster: HBoxContainer = $SafeArea/Layout/SelectedRoster
 @onready var error_dialog: AcceptDialog = $ErrorDialog
 @onready var run_manager: AppRunManager = get_node("/root/RunManager") as AppRunManager
@@ -219,7 +227,82 @@ func _on_info_timer_timeout() -> void:
 	(info_popup.get_node("Content/NameLabel") as Label).text = Localization.text(String(definition.display_name_key))
 	(info_popup.get_node("Content/MovementLabel") as Label).text = Localization.text("DRAFT_MOVE_%s" % definition.id.to_upper())
 	(info_popup.get_node("Content/AttackLabel") as Label).text = Localization.text("DRAFT_ATTACK_%s" % definition.id.to_upper())
+	(info_popup.get_node("Content/LegendLabel") as Label).text = Localization.text("DRAFT_INFO_LEGEND")
+	_render_move_diagram(String(definition.id))
 	info_popup.show()
+
+func _render_move_diagram(piece_def_id: String) -> void:
+	for child: Node in info_diagram.get_children():
+		child.queue_free()
+	var pattern: Dictionary = _movement_pattern(piece_def_id)
+	var center_value: int = floori(float(INFO_GRID_SIZE) * 0.5)
+	var center: Vector2i = Vector2i(center_value, center_value)
+	for y_position: int in range(INFO_GRID_SIZE):
+		for x_position: int in range(INFO_GRID_SIZE):
+			var offset: Vector2i = Vector2i(x_position, y_position) - center
+			var role: String = str(pattern.get(offset, "empty"))
+			if offset == Vector2i.ZERO:
+				role = "piece"
+			info_diagram.add_child(_diagram_cell(role))
+
+func _diagram_cell(role: String) -> PanelContainer:
+	var cell: PanelContainer = PanelContainer.new()
+	cell.custom_minimum_size = Vector2(INFO_CELL_SIZE, INFO_CELL_SIZE)
+	cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = _diagram_color(role)
+	style.border_color = Color("#26384a")
+	style.set_border_width_all(1)
+	cell.add_theme_stylebox_override("panel", style)
+	if role == "piece":
+		var marker: Label = Label.new()
+		marker.text = "P"
+		marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		marker.add_theme_color_override("font_color", Color("#16100a"))
+		marker.add_theme_font_size_override("font_size", 11)
+		marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(marker)
+	return cell
+
+func _diagram_color(role: String) -> Color:
+	match role:
+		"move":
+			return INFO_MOVE_COLOR
+		"attack":
+			return INFO_ATTACK_COLOR
+		"both":
+			return INFO_BOTH_COLOR
+		"piece":
+			return INFO_PIECE_COLOR
+		_:
+			return INFO_EMPTY_COLOR
+
+func _movement_pattern(piece_def_id: String) -> Dictionary:
+	var pattern: Dictionary = {}
+	match piece_def_id:
+		"pawn":
+			pattern[Vector2i(0, -1)] = "move"
+			pattern[Vector2i(0, -2)] = "move"
+			pattern[Vector2i(-1, -1)] = "attack"
+			pattern[Vector2i(1, -1)] = "attack"
+		"knight", "lancer":
+			for offset: Vector2i in [Vector2i(-2, -1), Vector2i(-2, 1), Vector2i(-1, -2), Vector2i(-1, 2), Vector2i(1, -2), Vector2i(1, 2), Vector2i(2, -1), Vector2i(2, 1)]:
+				pattern[offset] = "both"
+		"bishop":
+			_add_pattern_rays(pattern, [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)])
+		"rook":
+			_add_pattern_rays(pattern, [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)])
+		"queen", "archmage":
+			_add_pattern_rays(pattern, [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1)])
+		_:
+			_add_pattern_rays(pattern, [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1)], 1)
+	return pattern
+
+func _add_pattern_rays(pattern: Dictionary, directions: Array[Vector2i], distance: int = 2) -> void:
+	for direction: Vector2i in directions:
+		for step: int in range(1, distance + 1):
+			pattern[direction * step] = "both"
 
 func _set_cards_disabled(disabled_value: bool) -> void:
 	for button: Button in candidate_buttons:
