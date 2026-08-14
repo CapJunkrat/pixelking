@@ -34,7 +34,7 @@ const LOCALES := {
 			"COMMON_CANCEL": "Cancel",
 			"DRAFT_TITLE": "Opening Draft",
 			"DRAFT_ROUND": "Choice %d / %d",
-			"DRAFT_INSTRUCTION": "Tap a card to inspect it, then press Select.",
+			"DRAFT_INSTRUCTION": "Tap a card to center it. Hold to inspect, then press Select.",
 			"DRAFT_POWER": "Base value: %d",
 			"DRAFT_SELECT": "Select",
 			"DRAFT_MOVE_PAWN": "MOVE · 1 forward; up to 2 on its first move.",

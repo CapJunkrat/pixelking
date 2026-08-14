@@ -2,11 +2,13 @@ class_name OpeningDraftScene
 extends Control
 
 const TOTAL_ROUNDS := 3
-const EXPANDED_CARD_WIDTH := 176.0
-const EXPANDED_CARD_HEIGHT := 270.0
-const SIDE_CARD_WIDTH := 80.0
-const SIDE_CARD_HEIGHT := 220.0
-const SELECT_BUTTON_HEIGHT := 40.0
+const CARD_WIDTH := 148.0
+const CARD_HEIGHT := 282.0
+const FAN_ROTATION_DEGREES := 6.0
+const FAN_SIDE_DROP := 20.0
+const SIDE_CARD_SCALE := 0.78
+const FAN_TRANSITION_DURATION := 0.22
+const INFO_HOLD_SECONDS := 0.5
 const COMMON_COLOR := Color("#b9b0a0")
 const RARE_COLOR := Color("#39bde8")
 const EPIC_COLOR := Color("#ad70ef")
@@ -16,24 +18,52 @@ const LEGENDARY_COLOR := Color("#f2bd4d")
 @onready var instruction_label: Label = $SafeArea/Layout/Header/InstructionLabel
 @onready var seed_label: Label = $SafeArea/Layout/Footer/SeedLabel
 @onready var candidate_cards: Control = $SafeArea/Layout/CandidateCards
+@onready var select_button: Button = $SafeArea/Layout/CandidateCards/SelectButton
+@onready var info_popup: PanelContainer = $CandidateInfoPopup
 @onready var selected_roster: HBoxContainer = $SafeArea/Layout/SelectedRoster
 @onready var error_dialog: AcceptDialog = $ErrorDialog
 @onready var run_manager: AppRunManager = get_node("/root/RunManager") as AppRunManager
 
 var candidate_buttons: Array[Button] = []
-var select_buttons: Array[Button] = []
+var card_pivots: Array[Node2D] = []
 var candidate_ids: Array[String] = []
 var previewed_candidate_index: int = 1
+var pending_info_index: int = -1
+var info_timer: Timer
+var fan_tween: Tween
 
 func _ready() -> void:
+	card_pivots = [
+		$SafeArea/Layout/CandidateCards/CardPivot0 as Node2D,
+		$SafeArea/Layout/CandidateCards/CardPivot1 as Node2D,
+		$SafeArea/Layout/CandidateCards/CardPivot2 as Node2D,
+	]
 	candidate_buttons = [
-		$SafeArea/Layout/CandidateCards/Slot0/Candidate0 as Button,
-		$SafeArea/Layout/CandidateCards/Slot1/Candidate1 as Button,
-		$SafeArea/Layout/CandidateCards/Slot2/Candidate2 as Button,
+		$SafeArea/Layout/CandidateCards/CardPivot0/Candidate0 as Button,
+		$SafeArea/Layout/CandidateCards/CardPivot1/Candidate1 as Button,
+		$SafeArea/Layout/CandidateCards/CardPivot2/Candidate2 as Button,
 	]
 	for index: int in range(candidate_buttons.size()):
-		candidate_buttons[index].pressed.connect(_on_card_preview_pressed.bind(index))
-	_build_candidate_details_and_actions()
+		var card: Button = candidate_buttons[index]
+		card.focus_mode = Control.FOCUS_NONE
+		card.position = Vector2(-CARD_WIDTH * 0.5, -CARD_HEIGHT * 0.5)
+		card.size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+		card.rotation = 0.0
+		card.scale = Vector2.ONE
+		card.z_index = 0
+		card.pressed.connect(_on_card_preview_pressed.bind(index))
+		card.mouse_entered.connect(_start_candidate_info.bind(index))
+		card.mouse_exited.connect(_stop_candidate_info)
+		card.button_down.connect(_start_candidate_info.bind(index))
+		card.button_up.connect(_stop_candidate_info)
+	select_button.pressed.connect(_on_select_candidate_pressed)
+	info_timer = Timer.new()
+	info_timer.one_shot = true
+	info_timer.wait_time = INFO_HOLD_SECONDS
+	info_timer.timeout.connect(_on_info_timer_timeout)
+	add_child(info_timer)
+	candidate_cards.resized.connect(_layout_card_fan)
+	call_deferred("_layout_card_fan")
 	$SafeArea/Layout/Footer/BackButton.pressed.connect(_return_to_menu)
 	PieceSkinManager.skin_changed.connect(_on_skin_changed)
 	_apply_locale()
@@ -68,75 +98,46 @@ func _render() -> void:
 	round_label.text = Localization.text("DRAFT_ROUND") % [round_index + 1, TOTAL_ROUNDS]
 	candidate_ids = _to_string_array(choice.get("candidate_piece_def_ids", []))
 	previewed_candidate_index = 1
+	info_popup.hide()
 	for index: int in range(candidate_buttons.size()):
 		_render_candidate(candidate_buttons[index], candidate_ids[index] if index < candidate_ids.size() else "")
-	_set_cards_disabled(false)
 	_layout_card_fan()
-	if candidate_buttons.size() > 1:
-		candidate_buttons[1].grab_focus()
+	_set_cards_disabled(false)
+	select_button.grab_focus()
 
-func _layout_card_fan(_animate: bool = false) -> void:
-	if candidate_cards == null or candidate_buttons.size() != 3 or select_buttons.size() != 3:
+func _layout_card_fan(animate: bool = false) -> void:
+	if candidate_cards == null or candidate_buttons.size() != 3:
 		return
-	for index: int in range(candidate_buttons.size()):
-		var is_previewed: bool = index == previewed_candidate_index
-		var slot: VBoxContainer = candidate_cards.get_node("Slot%d" % index) as VBoxContainer
-		var button: Button = candidate_buttons[index]
-		var spacer: Control = slot.get_node("Spacer") as Control
-		slot.custom_minimum_size.x = EXPANDED_CARD_WIDTH if is_previewed else SIDE_CARD_WIDTH
-		button.custom_minimum_size = Vector2(EXPANDED_CARD_WIDTH, EXPANDED_CARD_HEIGHT) if is_previewed else Vector2(SIDE_CARD_WIDTH, SIDE_CARD_HEIGHT)
-		button.rotation_degrees = 0.0
-		spacer.custom_minimum_size.y = 0.0 if is_previewed else EXPANDED_CARD_HEIGHT - SIDE_CARD_HEIGHT
-		_update_detail_visibility(button, is_previewed)
-		var portrait: TextureRect = button.get_node("Content/Portrait") as TextureRect
-		portrait.custom_minimum_size = Vector2(130, 108) if is_previewed else Vector2(56, 108)
-		var select_button: Button = select_buttons[index]
-		select_button.custom_minimum_size = Vector2(0.0, SELECT_BUTTON_HEIGHT)
-		select_button.modulate = Color.WHITE if is_previewed else Color("#aab8b3")
+	var available_width: float = candidate_cards.size.x
+	var available_height: float = candidate_cards.size.y
+	if available_width <= 0.0 or available_height <= 0.0:
+		return
+	if is_instance_valid(fan_tween):
+		fan_tween.kill()
+	fan_tween = create_tween().set_parallel(true) if animate else null
+	if fan_tween != null:
+		fan_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var center_x: float = (available_width - CARD_WIDTH) * 0.5
+	var center_y: float = maxf(0.0, (available_height - CARD_HEIGHT - 48.0) * 0.28)
+	var left_index: int = (previewed_candidate_index + 2) % 3
+	var right_index: int = (previewed_candidate_index + 1) % 3
+	_apply_card_transform(left_index, Vector2(CARD_WIDTH * 0.5, center_y + FAN_SIDE_DROP + CARD_HEIGHT * 0.5), -FAN_ROTATION_DEGREES, Vector2.ONE * SIDE_CARD_SCALE, 1, animate)
+	_apply_card_transform(right_index, Vector2(available_width - CARD_WIDTH * 0.5, center_y + FAN_SIDE_DROP + CARD_HEIGHT * 0.5), FAN_ROTATION_DEGREES, Vector2.ONE * SIDE_CARD_SCALE, 2, animate)
+	_apply_card_transform(previewed_candidate_index, Vector2(center_x + CARD_WIDTH * 0.5, center_y + CARD_HEIGHT * 0.5), 0.0, Vector2.ONE, 10, animate)
+	select_button.position = Vector2(center_x, center_y + CARD_HEIGHT + 6.0)
+	select_button.size = Vector2(CARD_WIDTH, 42.0)
 
-func _update_detail_visibility(button: Button, visible_value: bool) -> void:
-	(button.get_node("Content/Text/MovementLabel") as Label).visible = visible_value
-	(button.get_node("Content/Text/AttackLabel") as Label).visible = visible_value
-	(button.get_node("Content/Text/RarityLabel") as Label).visible = visible_value
-	(button.get_node("Content/Text/DescriptionLabel") as Label).visible = visible_value
-	var name_label: Label = button.get_node("Content/Text/NameLabel") as Label
-	name_label.add_theme_font_size_override("font_size", 20 if visible_value else 14)
-
-func _build_candidate_details_and_actions() -> void:
-	for index: int in range(candidate_buttons.size()):
-		var text_box: VBoxContainer = candidate_buttons[index].get_node("Content/Text") as VBoxContainer
-		var movement_label: Label = _detail_label("MovementLabel", Color("#82d8ea"))
-		var attack_label: Label = _detail_label("AttackLabel", Color("#f29a78"))
-		text_box.add_child(movement_label)
-		text_box.add_child(attack_label)
-		var select_button: Button = Button.new()
-		select_button.name = "Select%d" % index
-		select_button.text = Localization.text("DRAFT_SELECT")
-		select_button.focus_mode = Control.FOCUS_ALL
-		select_button.add_theme_font_size_override("font_size", 17)
-		select_button.add_theme_stylebox_override("normal", _card_style(Color("#123227"), Color("#61c985"), 2))
-		select_button.add_theme_stylebox_override("hover", _card_style(Color("#1d4a38"), Color("#f2cf65"), 3))
-		select_button.add_theme_stylebox_override("focus", _card_style(Color("#1d4a38"), Color("#f2cf65"), 3))
-		select_button.add_theme_stylebox_override("pressed", _card_style(Color("#0b211a"), Color("#61c985"), 2))
-		select_button.pressed.connect(_on_select_candidate_pressed.bind(index))
-		var slot: VBoxContainer = candidate_cards.get_node("Slot%d" % index) as VBoxContainer
-		var spacer: Control = Control.new()
-		spacer.name = "Spacer"
-		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		slot.add_child(spacer)
-		slot.add_child(select_button)
-		select_buttons.append(select_button)
-
-func _detail_label(label_name: String, color: Color) -> Label:
-	var label: Label = Label.new()
-	label.name = label_name
-	label.visible = false
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_font_size_override("font_size", 10)
-	return label
+func _apply_card_transform(index: int, target_position: Vector2, target_rotation: float, target_scale: Vector2, target_z: int, animate: bool) -> void:
+	var pivot: Node2D = card_pivots[index]
+	pivot.z_index = target_z
+	if animate and fan_tween != null:
+		fan_tween.tween_property(pivot, "position", target_position, FAN_TRANSITION_DURATION)
+		fan_tween.tween_property(pivot, "rotation_degrees", target_rotation, FAN_TRANSITION_DURATION)
+		fan_tween.tween_property(pivot, "scale", target_scale, FAN_TRANSITION_DURATION)
+	else:
+		pivot.position = target_position
+		pivot.rotation_degrees = target_rotation
+		pivot.scale = target_scale
 
 func _render_candidate(button: Button, piece_def_id: String) -> void:
 	var definition: PieceDef = PieceDefDatabase.get_def(piece_def_id)
@@ -146,31 +147,22 @@ func _render_candidate(button: Button, piece_def_id: String) -> void:
 	var name_label: Label = button.get_node("Content/Text/NameLabel") as Label
 	var rarity_label: Label = button.get_node("Content/Text/RarityLabel") as Label
 	var description_label: Label = button.get_node("Content/Text/DescriptionLabel") as Label
-	var movement_label: Label = button.get_node("Content/Text/MovementLabel") as Label
-	var attack_label: Label = button.get_node("Content/Text/AttackLabel") as Label
 	if definition == null:
 		portrait.texture = null
 		name_label.text = "?"
 		rarity_label.text = ""
 		description_label.text = ""
-		movement_label.text = ""
-		attack_label.text = ""
 		return
 	portrait.texture = PieceSkinManager.piece_texture(&"white", StringName(piece_def_id))
 	name_label.text = Localization.text(String(definition.display_name_key))
 	rarity_label.text = Localization.text(_rarity_key(definition.rarity))
 	rarity_label.add_theme_color_override("font_color", _rarity_color(definition.rarity))
 	description_label.text = Localization.text("DRAFT_POWER") % definition.base_value
-	movement_label.text = Localization.text("DRAFT_MOVE_%s" % definition.id.to_upper())
-	attack_label.text = Localization.text("DRAFT_ATTACK_%s" % definition.id.to_upper())
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	description_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var border_color: Color = _rarity_color(definition.rarity)
-	button.add_theme_stylebox_override("normal", _card_style(Color("#111d2b"), border_color, 2))
-	button.add_theme_stylebox_override("hover", _card_style(Color("#193148"), border_color.lightened(0.18), 3))
-	button.add_theme_stylebox_override("focus", _card_style(Color("#193148"), border_color.lightened(0.18), 3))
-	button.add_theme_stylebox_override("pressed", _card_style(Color("#0b1520"), border_color, 2))
+	# Card frames remain stable while candidates rotate between fixed fan slots.
+	# Rarity is communicated by the label so runtime theme replacement cannot flash.
 
 func _render_selected_roster(run_state: RunState) -> void:
 	for child: Node in selected_roster.get_children():
@@ -192,24 +184,47 @@ func _on_card_preview_pressed(index: int) -> void:
 	if index < 0 or index >= candidate_ids.size() or index == previewed_candidate_index:
 		return
 	previewed_candidate_index = index
-	_layout_card_fan()
+	info_popup.hide()
+	_layout_card_fan(true)
 
-func _on_select_candidate_pressed(index: int) -> void:
-	if index < 0 or index >= candidate_ids.size():
+func _on_select_candidate_pressed() -> void:
+	if previewed_candidate_index < 0 or previewed_candidate_index >= candidate_ids.size():
 		return
 	_set_cards_disabled(true)
-	var error: Error = run_manager.submit_opening_draft_choice(candidate_ids[index])
+	var error: Error = run_manager.submit_opening_draft_choice(candidate_ids[previewed_candidate_index])
 	if error != OK:
 		_set_cards_disabled(false)
 		_show_error(Localization.text("SAVE_ERROR"))
 		return
 	_render()
 
+func _start_candidate_info(index: int) -> void:
+	if index < 0 or index >= candidate_ids.size() or info_timer == null:
+		return
+	pending_info_index = index
+	info_timer.start()
+
+func _stop_candidate_info() -> void:
+	pending_info_index = -1
+	if info_timer != null:
+		info_timer.stop()
+	info_popup.hide()
+
+func _on_info_timer_timeout() -> void:
+	if pending_info_index < 0 or pending_info_index >= candidate_ids.size():
+		return
+	var definition: PieceDef = PieceDefDatabase.get_def(candidate_ids[pending_info_index])
+	if definition == null:
+		return
+	(info_popup.get_node("Content/NameLabel") as Label).text = Localization.text(String(definition.display_name_key))
+	(info_popup.get_node("Content/MovementLabel") as Label).text = Localization.text("DRAFT_MOVE_%s" % definition.id.to_upper())
+	(info_popup.get_node("Content/AttackLabel") as Label).text = Localization.text("DRAFT_ATTACK_%s" % definition.id.to_upper())
+	info_popup.show()
+
 func _set_cards_disabled(disabled_value: bool) -> void:
 	for button: Button in candidate_buttons:
 		button.disabled = disabled_value
-	for button: Button in select_buttons:
-		button.disabled = disabled_value
+	select_button.disabled = disabled_value
 
 func _show_error(message: String) -> void:
 	error_dialog.dialog_text = message
@@ -219,8 +234,7 @@ func _apply_locale() -> void:
 	$SafeArea/Layout/Header/Title.text = Localization.text("DRAFT_TITLE")
 	instruction_label.text = Localization.text("DRAFT_INSTRUCTION")
 	$SafeArea/Layout/Footer/BackButton.text = Localization.text("COMMON_BACK")
-	for select_button: Button in select_buttons:
-		select_button.text = Localization.text("DRAFT_SELECT")
+	select_button.text = Localization.text("DRAFT_SELECT")
 
 func _rarity_key(rarity: PieceDef.Rarity) -> String:
 	match rarity:
@@ -243,18 +257,6 @@ func _rarity_color(rarity: PieceDef.Rarity) -> Color:
 			return LEGENDARY_COLOR
 		_:
 			return COMMON_COLOR
-
-func _card_style(fill: Color, border: Color, width: int) -> StyleBoxFlat:
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = fill
-	style.border_color = border
-	style.set_border_width_all(width)
-	style.set_corner_radius_all(6)
-	style.content_margin_left = 10
-	style.content_margin_right = 10
-	style.content_margin_top = 7
-	style.content_margin_bottom = 7
-	return style
 
 func _to_string_array(value: Variant) -> Array[String]:
 	var result: Array[String] = []

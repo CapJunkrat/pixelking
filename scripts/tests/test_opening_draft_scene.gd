@@ -25,28 +25,38 @@ func _run() -> void:
 	var round_label: Label = draft.get_node("SafeArea/Layout/Header/RoundLabel") as Label
 	_expect("1" in round_label.text and "3" in round_label.text, "scene displays round 1 of 3")
 	var fan: Control = draft.get_node("SafeArea/Layout/CandidateCards") as Control
-	var expected_rotations: Array[float] = [0.0, 0.0, 0.0]
+	var expected_rotations: Array[float] = [-6.0, 0.0, 6.0]
 	for index: int in range(3):
-		var card: Button = fan.get_node("Slot%d/Candidate%d" % [index, index]) as Button
+		var pivot: Node2D = fan.get_node("CardPivot%d" % index) as Node2D
+		var card: Button = pivot.get_node("Candidate%d" % index) as Button
 		var portrait: TextureRect = card.get_node("Content/Portrait") as TextureRect
-		var select_button: Button = fan.get_node("Slot%d/Select%d" % [index, index]) as Button
 		_expect(card.visible and not card.disabled, "candidate card %d is previewable" % index)
-		_expect(select_button.visible and not select_button.disabled, "candidate card %d has a separate Select action" % index)
 		_expect(portrait.texture != null, "candidate card %d has a piece portrait" % index)
-		_expect(is_equal_approx(card.rotation_degrees, expected_rotations[index]), "candidate card %d follows the focused fan layout" % index)
-	_expect((fan.get_node("Slot1/Candidate1") as Button).size.x > (fan.get_node("Slot0/Candidate0") as Button).size.x, "previewed candidate is visually emphasized over the side cards")
+		_expect(is_equal_approx(pivot.rotation_degrees, expected_rotations[index]), "candidate card %d follows the rotating fan" % index)
+	var select_button: Button = fan.get_node("SelectButton") as Button
+	_expect(select_button.visible and not select_button.disabled, "only one Select action sits below the centered card")
 	var original_reserve_count: int = (run_manager.get("current_run") as RunState).reserve_piece_ids.size()
-	var left_card: Button = fan.get_node("Slot0/Candidate0") as Button
+	var left_pivot: Node2D = fan.get_node("CardPivot0") as Node2D
+	var left_card: Button = left_pivot.get_node("Candidate0") as Button
 	left_card.pressed.emit()
-	await create_timer(0.25).timeout
+	await create_timer(0.3).timeout
 	_expect((run_manager.get("current_run") as RunState).reserve_piece_ids.size() == original_reserve_count, "clicking a card previews it without choosing it")
-	_expect(left_card.size.x > (fan.get_node("Slot1/Candidate1") as Button).size.x, "previewed card grows while the other cards move aside")
-	_expect((left_card.get_node("Content/Text/MovementLabel") as Label).visible, "previewed card displays movement information")
-	_expect((left_card.get_node("Content/Text/AttackLabel") as Label).visible, "previewed card displays attack information")
+	_expect(is_zero_approx(left_pivot.rotation_degrees) and left_pivot.scale.is_equal_approx(Vector2.ONE), "clicked card moves upright to the center at the original card size")
+	_expect((fan.get_node("CardPivot1") as Node2D).scale.x < left_pivot.scale.x, "other candidates move aside and shrink")
+	draft.call("_start_candidate_info", 0)
+	await create_timer(0.55).timeout
+	var info_popup: PanelContainer = draft.get_node("CandidateInfoPopup") as PanelContainer
+	_expect(info_popup.visible, "holding a card opens the floating piece information")
+	_expect(not (info_popup.get_node("Content/MovementLabel") as Label).text.is_empty(), "floating information describes movement")
+	_expect(not (info_popup.get_node("Content/AttackLabel") as Label).text.is_empty(), "floating information describes attacks")
+	draft.call("_stop_candidate_info")
 
 	for round_index: int in range(3):
-		var first_select: Button = draft.get_node("SafeArea/Layout/CandidateCards/Slot0/Select0") as Button
-		first_select.pressed.emit()
+		var first_card: Button = draft.get_node("SafeArea/Layout/CandidateCards/CardPivot0/Candidate0") as Button
+		first_card.pressed.emit()
+		await create_timer(0.3).timeout
+		select_button = draft.get_node("SafeArea/Layout/CandidateCards/SelectButton") as Button
+		select_button.pressed.emit()
 		await process_frame
 	_expect(draft.get_node_or_null("CompletionOverlay") == null, "draft completion overlay is removed")
 	_expect(run_manager.call("resume_scene_path").ends_with("PathMapScene.tscn"), "completed draft routes directly to the map")
