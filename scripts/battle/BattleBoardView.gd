@@ -10,16 +10,6 @@ signal item_target_requested(position: Vector2i)
 signal presentations_completed
 
 const NO_SQUARE := Vector2i(-1, -1)
-const BOARD_MARGIN := 6.0
-const BOARD_THICKNESS := 9.0
-const PIECE_HEIGHT_CELLS := 1.28
-const STAND_FORWARD_CELLS := 0.2
-const SQUARE_LIGHT := Color("#b89b68")
-const SQUARE_DARK := Color("#2a4458")
-const FRAME_TOP := Color("#3b2a20")
-const FRAME_INLAY := Color("#6b4d34")
-const FRAME_SIDE := Color("#2a1c14")
-const FRAME_SIDE_DARK := Color("#1d130d")
 const SELECTED_TINT := Color(0.88, 0.71, 0.36, 0.55)
 const CAPTURE_TINT := Color(0.88, 0.40, 0.35, 0.50)
 const MOVE_DOT := Color(1.0, 0.94, 0.78, 0.72)
@@ -55,7 +45,6 @@ var _piece_sprites: Dictionary = {}
 var _hidden_squares: Dictionary = {}
 var _presentation_tweens: Array[Tween] = []
 var _presentation_nodes: Array[Node] = []
-var _used_rect_cache: Dictionary = {}
 
 func _ready() -> void:
 	piece_skin_manager.connect("skin_changed", _on_skin_changed)
@@ -132,7 +121,7 @@ func square_at(point: Vector2) -> Vector2i:
 			for file: int in range(board.board_size):
 				var square: Vector2i = Vector2i(file, rank)
 				var sprite: Sprite2D = _piece_sprites.get(square) as Sprite2D
-				if sprite != null and sprite.visible and _sprite_hit_rect(sprite).has_point(point):
+				if sprite != null and sprite.visible and BoardPainter.sprite_hit_rect(sprite).has_point(point):
 					return square
 	return ground
 
@@ -163,7 +152,7 @@ func standing_sprites() -> Dictionary:
 
 ## How far in front of a square's centre a piece plants its feet, in world units.
 func standing_offset() -> float:
-	return projection.cell * STAND_FORWARD_CELLS
+	return projection.cell * BoardPainter.STAND_FORWARD_CELLS
 
 func make_piece_sprite(texture: Texture2D) -> Sprite2D:
 	return _make_piece_sprite(texture)
@@ -177,12 +166,10 @@ func set_camera(camera: Transform2D) -> void:
 func _update_projection() -> void:
 	var board_size: int = 8 if board == null else board.board_size
 	var view: Vector2 = size if size.x > 0.0 and size.y > 0.0 else custom_minimum_size
-	var near_scale: float = BoardProjection.DISTANCE_CELLS / (BoardProjection.DISTANCE_CELLS - board_size * 0.5 * cos(deg_to_rad(BoardProjection.PITCH_DEGREES)))
-	var cell: float = floorf((minf(view.x, view.y) - BOARD_MARGIN * 2.0 * near_scale - 4.0) / (board_size * near_scale))
-	projection = BoardProjection.new(board_size, cell, Vector2(view.x * 0.5, view.y * 0.535))
+	projection = BoardPainter.fit(board_size, view)
 	if _strike != null:
 		_strike.fx.projection = projection
-		_strike.fx.unit = cell / 18.0
+		_strike.fx.unit = projection.cell / 18.0
 
 func _on_resized() -> void:
 	_update_projection()
@@ -258,15 +245,7 @@ func set_selection_state(square: Vector2i, targets: Array[Vector2i], dangers: Ar
 # --- board drawing ----------------------------------------------------------
 
 func _draw_board() -> void:
-	var top: PackedVector2Array = projection.board_polygon(BOARD_MARGIN)
-	var bottom: PackedVector2Array = projection.board_polygon(BOARD_MARGIN, -BOARD_THICKNESS)
-	for index: int in range(4):
-		var next: int = (index + 1) % 4
-		_board_canvas.draw_colored_polygon(PackedVector2Array([top[index], top[next], bottom[next], bottom[index]]), FRAME_SIDE if index % 2 == 0 else FRAME_SIDE_DARK)
-	_board_canvas.draw_colored_polygon(top, FRAME_TOP)
-	var inlay: PackedVector2Array = projection.board_polygon(1.5)
-	inlay.append(inlay[0])
-	_board_canvas.draw_polyline(inlay, FRAME_INLAY, 1.0)
+	BoardPainter.draw_frame(_board_canvas, projection)
 	if board == null:
 		return
 	var last_from: Vector2i = NO_SQUARE
@@ -278,14 +257,10 @@ func _draw_board() -> void:
 	for rank: int in range(board.board_size):
 		for file: int in range(board.board_size):
 			var square: Vector2i = Vector2i(file, rank)
-			var fill: Color = SQUARE_DARK if (file + rank) % 2 == 0 else SQUARE_LIGHT
+			var fill: Color = BoardPainter.square_color(square)
 			if square == last_from or square == last_to:
 				fill = fill.lightened(0.14)
-			var polygon: PackedVector2Array = projection.square_polygon(square)
-			_board_canvas.draw_colored_polygon(polygon, fill)
-			# One-pixel bevel so squares read as inlaid tiles rather than flat paint.
-			_board_canvas.draw_line(polygon[0], polygon[1], fill.lightened(0.12), 1.0)
-			_board_canvas.draw_line(polygon[3], polygon[2], fill.darkened(0.18), 1.0)
+			BoardPainter.draw_square(_board_canvas, projection, square, fill)
 	for color: int in [GameRules.PieceColor.WHITE, GameRules.PieceColor.BLACK]:
 		if board.has_king(color) and board.is_in_check(color):
 			_draw_square_marker(board.king_pos[color], CHECK_TINT)
@@ -300,21 +275,13 @@ func _draw_board() -> void:
 		for file: int in range(board.board_size):
 			var square: Vector2i = Vector2i(file, rank)
 			if board.get_piece(square) != null and not _hidden_squares.has(square):
-				_draw_ground_ellipse(square, projection.cell * 0.33, Color(0.0, 0.0, 0.0, 0.34))
+				_draw_ground_ellipse(square, projection.cell * 0.33, BoardPainter.SHADOW)
 
 func _draw_square_marker(square: Vector2i, tint: Color) -> void:
-	_board_canvas.draw_colored_polygon(projection.square_polygon(square, 1.0), tint)
-	var outline: PackedVector2Array = projection.square_polygon(square, 1.0)
-	outline.append(outline[0])
-	_board_canvas.draw_polyline(outline, Color(tint, 0.95), 1.0)
+	BoardPainter.draw_marker(_board_canvas, projection, square, tint)
 
 func _draw_ground_ellipse(square: Vector2i, radius: float, color: Color) -> void:
-	var world: Vector3 = projection.square_world(square)
-	var points: PackedVector2Array = PackedVector2Array()
-	for step: int in range(16):
-		var angle: float = TAU * step / 16.0
-		points.append(projection.project(world + Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)))
-	_board_canvas.draw_colored_polygon(points, color)
+	BoardPainter.draw_ground_ellipse(_board_canvas, projection, square, radius, color)
 
 func _draw_overlay() -> void:
 	if board == null:
@@ -362,47 +329,11 @@ func _rebuild_pieces() -> void:
 			_piece_sprites[square] = sprite
 
 func _make_piece_sprite(texture: Texture2D) -> Sprite2D:
-	if texture == null:
-		return null
-	var sprite: Sprite2D = Sprite2D.new()
-	sprite.texture = texture
-	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	sprite.centered = false
-	var used: Rect2i = _used_rect(texture)
-	# Anchor the node on the bottom-centre of the painted pixels so the piece stands on its square.
-	sprite.offset = -Vector2(used.position.x + used.size.x * 0.5, used.end.y)
-	sprite.set_meta("base_scale", projection.cell * PIECE_HEIGHT_CELLS / float(maxi(texture.get_width(), 1)))
-	return sprite
+	return BoardPainter.make_sprite(texture, projection)
 
 ## Positions a piece sprite so its feet rest on `world` (Y lifts it off the board).
 func _place_sprite(sprite: Sprite2D, world: Vector3) -> void:
-	var ground: Vector3 = Vector3(world.x, 0.0, world.z + standing_offset())
-	var scale_value: float = float(sprite.get_meta("base_scale", 1.0)) * projection.scale_at(ground)
-	sprite.set_meta("placed_scale", scale_value)
-	sprite.set_meta("world", world)
-	sprite.scale = Vector2(scale_value, scale_value) * (sprite.get_meta("stretch", Vector2.ONE) as Vector2)
-	sprite.position = projection.project(Vector3(ground.x, world.y, ground.z))
-
-func _sprite_hit_rect(sprite: Sprite2D) -> Rect2:
-	var used: Rect2i = _used_rect(sprite.texture)
-	var rect_size: Vector2 = Vector2(used.size) * sprite.scale
-	var rect: Rect2 = Rect2(sprite.position + Vector2(-rect_size.x * 0.5, -rect_size.y), rect_size)
-	return rect.grow_individual(-rect_size.x * 0.12, 0.0, -rect_size.x * 0.12, 0.0)
-
-func _used_rect(texture: Texture2D) -> Rect2i:
-	var key: int = texture.get_rid().get_id()
-	if _used_rect_cache.has(key):
-		return _used_rect_cache[key]
-	var rect: Rect2i = Rect2i(Vector2i.ZERO, Vector2i(texture.get_size()))
-	var image: Image = texture.get_image()
-	if image != null and not image.is_empty():
-		if image.is_compressed():
-			image.decompress()
-		var used: Rect2i = image.get_used_rect()
-		if used.size.x > 0 and used.size.y > 0:
-			rect = used
-	_used_rect_cache[key] = rect
-	return rect
+	BoardPainter.place_sprite(sprite, projection, world)
 
 func _piece_texture(piece: ChessPiece) -> Texture2D:
 	if piece == null:

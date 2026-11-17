@@ -18,49 +18,48 @@ func _run() -> void:
 	var deployment_scene: DeploymentScene = scene.instantiate() as DeploymentScene
 	root.add_child(deployment_scene)
 	await process_frame
-	var grid: GridContainer = deployment_scene.get_node("SafeArea/Layout/BoardFrame/BoardCenter/BoardGrid") as GridContainer
-	_expect(grid.columns == 8 and grid.get_child_count() == 64, "deployment scene renders the complete standard 8 x 8 board")
-	var visible_player_count: int = 0
-	var visible_enemy_count: int = 0
-	for child: Node in grid.get_children():
-		var square: Button = child as Button
-		var position: Vector2i = square.get_meta("board_position", Vector2i(-1, -1))
-		var texture: Texture2D = (square.get_node("Piece") as TextureRect).texture
-		if texture == null:
-			continue
-		if manager.current_run.deployment_state.player_at(position) > 0:
-			visible_player_count += 1
-		else:
-			visible_enemy_count += 1
-	_expect(visible_player_count == manager.current_run.active_piece_ids.size(), "deployment shows every active player piece")
-	_expect(visible_enemy_count == manager.current_run.deployment_state.enemy_placements.size(), "deployment reveals complete enemy setup")
+	var board: DeploymentBoardView = deployment_scene.get_node("SafeArea/Layout/BoardFrame") as DeploymentBoardView
+	_expect(board != null and board.board_size == 8 and board.square_count() == 64, "deployment scene renders the complete standard 8 x 8 board")
+	var round_trip: bool = true
+	for y_position: int in range(8):
+		for x_position: int in range(8):
+			if board.projection.screen_to_square(board.square_center(Vector2i(x_position, y_position))) != Vector2i(x_position, y_position):
+				round_trip = false
+	_expect(round_trip, "every deployment square maps back to itself on the tilted board")
+	_expect(board.square_center(Vector2i(0, 0)).y > board.square_center(Vector2i(0, 7)).y, "the player's deployment rows are nearest the viewer")
+	_expect(board.piece_count(true) == manager.current_run.active_piece_ids.size(), "deployment shows every active player piece")
+	_expect(board.piece_count(false) == manager.current_run.deployment_state.enemy_placements.size(), "deployment reveals complete enemy setup")
+	_expect(board.get_node("PieceLayer").get_child_count() == board.piece_count(true) + board.piece_count(false), "every shown piece stands on the board as a sprite")
 	var king_id: int = manager.current_run.active_piece_ids[0]
 	var source: Vector2i = manager.current_run.deployment_state.player_position(king_id)
 	var target: Vector2i = _empty_player_square(manager.current_run.deployment_state)
-	var source_button: Button = grid.get_node("Square_%d_%d" % [source.x, source.y]) as Button
-	source_button.pressed.emit()
+	var king_sprite: Sprite2D = board.get_node("PieceLayer/Piece_%d_%d" % [source.x, source.y]) as Sprite2D
+	var tap: InputEventMouseButton = InputEventMouseButton.new()
+	tap.button_index = MOUSE_BUTTON_LEFT
+	tap.pressed = true
+	tap.position = king_sprite.position + Vector2(0, -10)
+	board._gui_input(tap)
 	await process_frame
-	var target_button: Button = grid.get_node("Square_%d_%d" % [target.x, target.y]) as Button
-	target_button.pressed.emit()
+	_expect(deployment_scene.selected_instance_id == king_id and board.selected_square == source, "tapping a standing piece picks it up")
+	_expect(board.square_at(board.square_center(target)) == target, "an empty deployment square wins the tap while a piece is in hand")
+	board.press_square(target)
 	await process_frame
 	_expect(manager.current_run.deployment_state.player_position(king_id) == target, "board interaction freely repositions the King")
 	var swap_a: int = manager.current_run.active_piece_ids[0]
 	var swap_b: int = manager.current_run.active_piece_ids[1]
 	var swap_a_before: Vector2i = manager.current_run.deployment_state.player_position(swap_a)
 	var swap_b_before: Vector2i = manager.current_run.deployment_state.player_position(swap_b)
-	grid = deployment_scene.get_node("SafeArea/Layout/BoardFrame/BoardCenter/BoardGrid") as GridContainer
-	(grid.get_node("Square_%d_%d" % [swap_a_before.x, swap_a_before.y]) as Button).pressed.emit()
+	board.press_square(swap_a_before)
 	await process_frame
-	grid = deployment_scene.get_node("SafeArea/Layout/BoardFrame/BoardCenter/BoardGrid") as GridContainer
-	(grid.get_node("Square_%d_%d" % [swap_b_before.x, swap_b_before.y]) as Button).pressed.emit()
+	board.press_square(swap_b_before)
 	await process_frame
 	_expect(manager.current_run.deployment_state.player_position(swap_a) == swap_b_before, "clicking a second deployed piece moves the selected piece to its square")
 	_expect(manager.current_run.deployment_state.player_position(swap_b) == swap_a_before, "clicking a second deployed piece swaps both positions")
 	_expect(deployment_scene.selected_instance_id == 0, "successful swap clears the selected piece")
-	grid = deployment_scene.get_node("SafeArea/Layout/BoardFrame/BoardCenter/BoardGrid") as GridContainer
-	var swapped_button: Button = grid.get_node("Square_%d_%d" % [swap_b_before.x, swap_b_before.y]) as Button
-	var swapped_style: StyleBoxFlat = swapped_button.get_theme_stylebox("normal") as StyleBoxFlat
-	_expect(swapped_style.border_color != Color("#f1d56f"), "successful swap clears the board highlight")
+	_expect(board.selected_square == Vector2i(-1, -1), "successful swap clears the board highlight")
+	board.press_square(Vector2i(3, 4))
+	await process_frame
+	_expect(manager.current_run.deployment_state.player_position(swap_a) == swap_b_before, "tapping outside the deployment rows moves nothing")
 	_expect(deployment_scene.get_node("SafeArea/Layout/Actions/RosterButton") != null, "deployment provides roster management access")
 	_expect(not (deployment_scene.get_node("SafeArea/Layout/Actions/ConfirmButton") as Button).disabled, "valid deployment enables battle confirmation")
 	deployment_scene.queue_free()

@@ -1144,6 +1144,6 @@ scenes/run/RunSummaryScene.tscn
 - [ ] 道具（如皇家炸弹）的演出。
 - [x] 加速/跳过保留；战斗设置新增“简短战斗动画”开关（击杀 2.2 倍速、移动 1.5 倍速，存入 `user://settings.cfg`）。
 - [ ] 真机验证。
-- [ ] 战前部署界面换成同一套 2.5D 棋盘。
+- [x] 战前部署界面换成同一套 2.5D 棋盘（`scripts/run/DeploymentBoardView.gd`；棋盘外观由 `scripts/battle/BoardPainter.gd` 与战斗棋盘共用）。
 - [ ] 正式站立棋子图与棋盘底图。
 

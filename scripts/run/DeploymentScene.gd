@@ -1,13 +1,7 @@
 class_name DeploymentScene
 extends Control
 
-const BOARD_PIXELS := 312.0
-const PLAYER_LIGHT := Color("#d9c58f")
-const PLAYER_DARK := Color("#a99062")
-const BOARD_LIGHT := Color("#8ba0a5")
-const BOARD_DARK := Color("#526b72")
-
-@onready var board_grid: GridContainer = $SafeArea/Layout/BoardFrame/BoardCenter/BoardGrid
+@onready var board_view: DeploymentBoardView = $SafeArea/Layout/BoardFrame as DeploymentBoardView
 @onready var active_tray: HBoxContainer = $SafeArea/Layout/ActiveTray
 @onready var status_label: Label = $SafeArea/Layout/StatusLabel
 @onready var confirm_button: Button = $SafeArea/Layout/Actions/ConfirmButton
@@ -15,11 +9,13 @@ const BOARD_DARK := Color("#526b72")
 @onready var piece_skin_manager: Node = get_node("/root/PieceSkinManager")
 
 var selected_instance_id: int = 0
+var _dropped_square: Vector2i = Vector2i(-1, -1)
 
 func _ready() -> void:
 	$SafeArea/Layout/Actions/RosterButton.pressed.connect(_open_roster)
 	$SafeArea/Layout/Actions/MapButton.pressed.connect(_return_to_map)
 	confirm_button.pressed.connect(_confirm_deployment)
+	board_view.square_pressed.connect(_on_square_pressed)
 	_apply_locale()
 	if run_manager.current_run == null:
 		status_label.text = _text("DEPLOY_NO_ACTIVE_RUN")
@@ -46,34 +42,21 @@ func _render() -> void:
 	confirm_button.disabled = run_manager.current_run.deployment_state == null or not run_manager.current_run.deployment_state.is_valid(run_manager.current_run)
 
 func _render_board() -> void:
-	for child: Node in board_grid.get_children():
-		board_grid.remove_child(child)
-		child.queue_free()
 	var deployment: DeploymentState = run_manager.current_run.deployment_state
-	board_grid.columns = deployment.board_size
-	var cell_size: float = floorf(BOARD_PIXELS / float(deployment.board_size))
-	for display_y: int in range(deployment.board_size):
-		var board_y: int = deployment.board_size - 1 - display_y
+	var pieces: Dictionary = {}
+	var selected_square: Vector2i = Vector2i(-1, -1)
+	for y_position: int in range(deployment.board_size):
 		for x_position: int in range(deployment.board_size):
-			var board_position: Vector2i = Vector2i(x_position, board_y)
-			var button: Button = Button.new()
-			button.name = "Square_%d_%d" % [x_position, board_y]
-			button.custom_minimum_size = Vector2(cell_size, cell_size)
-			button.set_meta("board_position", board_position)
-			button.add_theme_stylebox_override("normal", _square_style(board_position, false))
-			button.add_theme_stylebox_override("hover", _square_style(board_position, true))
-			button.add_theme_stylebox_override("focus", _square_style(board_position, true))
-			button.pressed.connect(_on_square_pressed.bind(board_position))
-			var portrait: TextureRect = TextureRect.new()
-			portrait.name = "Piece"
-			portrait.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 7)
-			portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-			portrait.texture = _texture_at(board_position)
-			button.add_child(portrait)
-			board_grid.add_child(button)
+			var board_position: Vector2i = Vector2i(x_position, y_position)
+			var texture: Texture2D = _texture_at(board_position)
+			if texture == null:
+				continue
+			var player_id: int = deployment.player_at(board_position)
+			pieces[board_position] = {"texture": texture, "player": player_id > 0}
+			if player_id > 0 and player_id == selected_instance_id:
+				selected_square = board_position
+	board_view.show_position(deployment.board_size, pieces, selected_square, _dropped_square)
+	_dropped_square = Vector2i(-1, -1)
 
 func _render_tray() -> void:
 	for child: Node in active_tray.get_children():
@@ -105,6 +88,7 @@ func _on_square_pressed(board_position: Vector2i) -> void:
 			status_label.text = _text("DEPLOY_PLAYER_ROWS_ONLY")
 			return
 		selected_instance_id = 0
+		_dropped_square = board_position
 		_render()
 		return
 	if selected_instance_id <= 0:
@@ -115,6 +99,7 @@ func _on_square_pressed(board_position: Vector2i) -> void:
 		status_label.text = _text("DEPLOY_PLAYER_ROWS_ONLY")
 		return
 	selected_instance_id = 0
+	_dropped_square = board_position
 	_render()
 
 func _select_piece(instance_id: int) -> void:
@@ -131,21 +116,6 @@ func _texture_at(board_position: Vector2i) -> Texture2D:
 		if DeploymentState.position_from_value(placement.get("position", {})) == board_position:
 			return piece_skin_manager.call("piece_texture", &"black", StringName(str(placement.get("piece_def_id", "")))) as Texture2D
 	return null
-
-func _square_style(board_position: Vector2i, highlighted: bool) -> StyleBoxFlat:
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	var is_player_row: bool = board_position.y <= 1
-	var fill: Color = PLAYER_LIGHT if (board_position.x + board_position.y) % 2 == 0 else PLAYER_DARK
-	if not is_player_row:
-		fill = BOARD_LIGHT if (board_position.x + board_position.y) % 2 == 0 else BOARD_DARK
-	style.bg_color = fill.lightened(0.12) if highlighted else fill
-	style.border_color = Color("#f1d56f") if run_manager.current_run != null and run_manager.current_run.deployment_state != null and run_manager.current_run.deployment_state.player_at(board_position) == selected_instance_id and selected_instance_id > 0 else Color("#1b2b32")
-	style.set_border_width_all(3 if style.border_color == Color("#f1d56f") else 1)
-	style.content_margin_left = 2
-	style.content_margin_right = 2
-	style.content_margin_top = 2
-	style.content_margin_bottom = 2
-	return style
 
 func _piece_name(instance_id: int) -> String:
 	var piece: PieceInstanceState = run_manager.current_run.get_piece_state(instance_id) if run_manager.current_run != null else null
