@@ -80,8 +80,6 @@ func submit(run_state: RunState, _rng: RunRngService, progress: MapProgressServi
 			return _resolve_interaction_node(run_state, progress, {"outcome": pending_type, "choice": choice_id})
 		"fusion_confirmation":
 			return fusion_interaction_service.submit(run_state, progress, deployment, choice_id)
-		"sacrifice":
-			return roster_choice_service.submit_sacrifice(run_state, payload, deployment)
 		_:
 			return ERR_INVALID_PARAMETER
 

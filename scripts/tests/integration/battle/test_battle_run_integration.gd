@@ -37,12 +37,10 @@ func _run() -> void:
 	await process_frame
 	var defeat_exit: Button = flow.get("exit_button") as Button
 	_expect(manager.current_run.failed_battles == 1, "defeat increments the Run failure counter")
-	_expect(str(manager.current_run.pending_choice.get("type", "")) == "sacrifice", "retryable defeat stages a persisted sacrifice")
-	_expect(manager.resume_scene_path() == RunContentService.INTERACTION_SCENE, "defeated Run resumes at sacrifice")
-	_expect(defeat_exit.text == "Choose Sacrifice", "defeat result routes to sacrifice")
-	var sacrifice_options: Array = manager.current_run.pending_choice.get("options", []) as Array
-	var sacrifice_id: String = str((sacrifice_options[0] as Dictionary).get("id", ""))
-	_expect(manager.submit_run_interaction(sacrifice_id) == OK, "sacrifice commits and recreates deployment")
+	_expect(manager.current_run.retries_left == 0, "defeat spends the run's single retry")
+	_expect(manager.current_run.pending_choice.is_empty() and manager.current_run.phase == RunPhase.DEPLOYMENT, "retryable defeat goes straight back to deployment")
+	_expect(manager.resume_scene_path() == AppSceneRoutes.DEPLOYMENT, "defeated Run resumes at deployment")
+	_expect(defeat_exit.text == "Redeploy and Retry", "defeat result offers to redeploy")
 	manager.confirm_deployment()
 	_expect(manager.start_current_battle() == OK, "retry starts from the confirmed deployment")
 	_expect(manager.apply_battle_outcome(true) == OK, "subsequent victory resolves the encounter")

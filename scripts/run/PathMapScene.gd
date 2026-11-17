@@ -14,6 +14,7 @@ extends Control
 var presented_node_id: StringName = &""
 var _progress_pips: Control = null
 var _reached_layer: int = 0
+var _retry_ready: bool = true
 var _total_layers: int = 0
 var _scrolled_once: bool = false
 var _scroll_tween: Tween = null
@@ -56,7 +57,8 @@ func _render() -> void:
 		return
 	var current: MapNodeState = run_manager.current_map_node()
 	var reached_layer: int = current.layer_index + 1 if current != null else 0
-	progress_label.text = _text("MAP_PROGRESS") % [reached_layer, run_state.map_state.total_layers]
+	_retry_ready = run_state.retries_left > 0
+	progress_label.text = "%s   ·   %s" % [_text("MAP_PROGRESS") % [reached_layer, run_state.map_state.total_layers], _text("MAP_RETRY_READY" if _retry_ready else "MAP_RETRY_SPENT")]
 	_reached_layer = reached_layer
 	_total_layers = run_state.map_state.total_layers
 	_progress_pips.queue_redraw()
@@ -189,6 +191,20 @@ func _draw_progress_pips() -> void:
 		else:
 			_progress_pips.draw_circle(center, 4.0 if last else 3.5, Color("#e45b55") if last else Color("#2c4054"))
 			_progress_pips.draw_circle(center, 2.0, Color("#0b1620"))
+	_draw_retry_heart(Vector2(start + (_total_layers - 1) * spacing + 20.0, 6.0))
+
+## Pixel heart beside the pips: red while the run's single retry is unused, hollow once spent.
+func _draw_retry_heart(center: Vector2) -> void:
+	const HEART := ["0110110", "1111111", "1111111", "0111110", "0011100", "0001000"]
+	var pixel: float = 2.0
+	var origin: Vector2 = center - Vector2(3.5, 3.0) * pixel
+	for row: int in range(HEART.size()):
+		for column: int in range(7):
+			if HEART[row][column] != "1":
+				continue
+			var edge: bool = row == 0 or column == 0 or column == 6 or HEART[row - 1][column] != "1" or (column > 0 and HEART[row][column - 1] != "1") or (column < 6 and HEART[row][column + 1] != "1") or row == HEART.size() - 1 or HEART[row + 1][column] != "1"
+			var color: Color = Color("#e4524b") if _retry_ready else (Color("#5a6b7a") if edge else Color("#1b2a38"))
+			_progress_pips.draw_rect(Rect2(origin + Vector2(column, row) * pixel, Vector2(pixel, pixel)), color)
 
 func _hide_node_overlay() -> void:
 	node_overlay.hide()

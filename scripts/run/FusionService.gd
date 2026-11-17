@@ -124,8 +124,6 @@ func confirm(
 		var king_piece: PieceInstanceState = run_state.get_piece_state(plan.preserved_king_instance_id)
 		king_piece.piece_def_id = plan.result_piece_def_id
 		king_piece.is_king = true
-		king_piece.is_protected = false
-		run_state.protected_piece_ids.erase(king_piece.instance_id)
 		for instance_id: int in plan.ingredient_instance_ids:
 			if instance_id != plan.preserved_king_instance_id:
 				_remove_piece(run_state, instance_id)
@@ -247,7 +245,6 @@ func _remove_piece(run_state: RunState, instance_id: int) -> void:
 		return
 	run_state.active_piece_ids.erase(instance_id)
 	run_state.reserve_piece_ids.erase(instance_id)
-	run_state.protected_piece_ids.erase(instance_id)
 	run_state.player_roster.erase(piece)
 
 func _restore(run_state: RunState, snapshot: Dictionary) -> void:

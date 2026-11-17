@@ -9,7 +9,7 @@ extends Resource
 @export var relic_price: int = 35
 @export var piece_price: int = 25
 @export var consumable_price: int = 20
-@export var protection_price: int = 15
+@export var retry_price: int = 15
 @export var fusion_price: int = 40
 
 func is_valid() -> bool:
@@ -20,6 +20,6 @@ func is_valid() -> bool:
 		and relic_price >= 0
 		and piece_price >= 0
 		and consumable_price >= 0
-		and protection_price >= 0
+		and retry_price >= 0
 		and fusion_price >= 0
 	)

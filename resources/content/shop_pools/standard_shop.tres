@@ -12,5 +12,5 @@ consumable_id = &"royal_bomb"
 relic_price = 35
 piece_price = 25
 consumable_price = 20
-protection_price = 15
+retry_price = 15
 fusion_price = 40

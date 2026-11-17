@@ -21,7 +21,6 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 	if run_state.challenger_slots.size() < 6:
 		var item_label: String = reward_service.definition_label(String(pool.consumable_id))
 		options.append(RunChoiceBuilder.option("buy_bomb", "%s — %d Gold" % [item_label, pool.consumable_price], "item", {"item_id": String(pool.consumable_id), "price": pool.consumable_price}, run_state.gold >= pool.consumable_price))
-	else:
-		options.append(RunChoiceBuilder.option("buy_protection", "Protect a Challenger — %d Gold" % pool.protection_price, "protect", {"price": pool.protection_price}, run_state.gold >= pool.protection_price and reward_service.first_unprotected_non_king(run_state) > 0))
+	options.append(RunChoiceBuilder.option("buy_retry", "%s — %d Gold" % [RunRewardService.retry_label(run_state), pool.retry_price], "restore_retry", {"price": pool.retry_price}, run_state.gold >= pool.retry_price and not run_state.has_full_retries()))
 	run_state.pending_choice = RunChoiceBuilder.pending("shop", pool.title, pool.description, options, true)
 	return OK

@@ -26,7 +26,10 @@ func test_shop_and_event_use_catalog_order_and_values() -> void:
 	assert(shop_generator.generate(shop_run, shop_rng, FusionService.new(), reward_service) == OK)
 	assert(str(shop_run.pending_choice.get("title", "")) == RunContentDatabase.shop_pool().title)
 	var shop_options: Array = shop_run.pending_choice.get("options", []) as Array
-	assert(shop_options.size() == 3)
+	assert(shop_options.size() == 4)
+	var retry_option: Dictionary = shop_options[3] as Dictionary
+	assert(str((retry_option.get("payload", {}) as Dictionary).get("kind", "")) == "restore_retry")
+	assert(not bool(retry_option.get("enabled", true)), "a full retry cannot be bought again")
 	assert(int(((shop_options[1] as Dictionary).get("payload", {}) as Dictionary).get("price", -1)) == RunContentDatabase.shop_pool().piece_price)
 	var event_run: RunState = _base_run(445566)
 	var event_rng: RunRngService = _rng(event_run.run_seed)

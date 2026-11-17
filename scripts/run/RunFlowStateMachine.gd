@@ -10,11 +10,10 @@ const TRANSITIONS: Dictionary = {
 	RunPhaseType.NODE_INTERACTION: [RunPhaseType.MAP, RunPhaseType.FUSION_CONFIRMATION],
 	RunPhaseType.DEPLOYMENT: [RunPhaseType.BATTLE_READY],
 	RunPhaseType.BATTLE_READY: [RunPhaseType.DEPLOYMENT, RunPhaseType.BATTLE_ACTIVE],
-	RunPhaseType.BATTLE_ACTIVE: [RunPhaseType.BATTLE_READY, RunPhaseType.DEPLOYMENT, RunPhaseType.POST_BATTLE_CHOICE, RunPhaseType.SACRIFICE, RunPhaseType.RUN_SUMMARY, RunPhaseType.MAP],
+	RunPhaseType.BATTLE_ACTIVE: [RunPhaseType.BATTLE_READY, RunPhaseType.DEPLOYMENT, RunPhaseType.POST_BATTLE_CHOICE, RunPhaseType.RUN_SUMMARY, RunPhaseType.MAP],
 	RunPhaseType.POST_BATTLE_CHOICE: [RunPhaseType.MAP, RunPhaseType.ROSTER_OVERFLOW, RunPhaseType.FUSION_CONFIRMATION],
 	RunPhaseType.ROSTER_OVERFLOW: [RunPhaseType.MAP],
 	RunPhaseType.FUSION_CONFIRMATION: [RunPhaseType.POST_BATTLE_CHOICE, RunPhaseType.NODE_INTERACTION, RunPhaseType.MAP],
-	RunPhaseType.SACRIFICE: [RunPhaseType.DEPLOYMENT, RunPhaseType.RUN_SUMMARY],
 	RunPhaseType.RUN_SUMMARY: [],
 }
 
@@ -57,8 +56,6 @@ func derive_phase(run_state: RunState) -> StringName:
 				return RunPhaseType.ROSTER_OVERFLOW
 			"fusion_confirmation":
 				return RunPhaseType.FUSION_CONFIRMATION
-			"sacrifice":
-				return RunPhaseType.SACRIFICE
 			"run_summary":
 				return RunPhaseType.RUN_SUMMARY
 			_:

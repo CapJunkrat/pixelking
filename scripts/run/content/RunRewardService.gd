@@ -20,13 +20,11 @@ func apply(run_state: RunState, payload: Dictionary) -> Error:
 			if item_definition == null or not item_definition.is_consumable() or run_state.challenger_slots.size() >= 6:
 				return ERR_UNAVAILABLE
 			run_state.challenger_slots.append(item_id)
-		"protect":
-			var target_id: int = first_unprotected_non_king(run_state)
-			if target_id <= 0:
+		"restore_retry":
+			# Capped at one retry: restoring while already full changes nothing.
+			if run_state.has_full_retries():
 				return ERR_UNAVAILABLE
-			run_state.protected_piece_ids.append(target_id)
-			var piece: PieceInstanceState = run_state.get_piece_state(target_id)
-			piece.is_protected = true
+			run_state.restore_retries()
 		"fusion":
 			return ERR_INVALID_PARAMETER
 		_:
@@ -41,15 +39,8 @@ func remove_piece(run_state: RunState, instance_id: int) -> Error:
 		return ERR_UNAUTHORIZED
 	run_state.active_piece_ids.erase(instance_id)
 	run_state.reserve_piece_ids.erase(instance_id)
-	run_state.protected_piece_ids.erase(instance_id)
 	run_state.player_roster.erase(piece)
 	return OK
-
-func first_unprotected_non_king(run_state: RunState) -> int:
-	for piece: PieceInstanceState in run_state.player_roster:
-		if not piece.is_king and piece.instance_id not in run_state.protected_piece_ids:
-			return piece.instance_id
-	return 0
 
 func unowned_relic(run_state: RunState, rng: RunRngService, stream: StringName) -> StringName:
 	var candidates: Array[StringName] = []
@@ -57,6 +48,9 @@ func unowned_relic(run_state: RunState, rng: RunRngService, stream: StringName) 
 		if relic not in run_state.challenger_slots:
 			candidates.append(relic)
 	return candidates[rng.pick_index(stream, candidates.size())] if not candidates.is_empty() else &""
+
+static func retry_label(run_state: RunState) -> String:
+	return "Restore your retry (already full)" if run_state.has_full_retries() else "Restore your retry"
 
 func piece_label(piece: PieceInstanceState) -> String:
 	return "%s #%d" % [definition_label(String(piece.piece_def_id)), piece.instance_id]

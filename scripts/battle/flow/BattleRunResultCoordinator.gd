@@ -21,11 +21,14 @@ func integrate(manager: AppRunManager, player_won: bool) -> BattleRunResult:
 	match result.pending_type:
 		&"battle_reward":
 			result.exit_text = "Choose Reward"
-		&"sacrifice":
-			result.exit_text = "Choose Sacrifice"
 		&"run_summary":
 			result.exit_text = "Run Summary"
+			if not player_won:
+				result.defeat_detail_key = &"BATTLE_DEFEAT_RUN_OVER"
 		_:
 			result.exit_text = ""
 			result.exit_text_key = &"BATTLE_RESULT_MAP"
+			if not player_won and manager.current_run.phase == RunPhase.DEPLOYMENT:
+				result.exit_text_key = &"BATTLE_RESULT_REDEPLOY"
+				result.defeat_detail_key = &"BATTLE_DEFEAT_RETRY_USED"
 	return result

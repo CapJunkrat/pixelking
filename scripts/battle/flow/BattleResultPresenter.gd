@@ -32,6 +32,8 @@ func present(player_won: bool, draw: bool, run_result: BattleRunResult) -> void:
 		detail_text = _text("BATTLE_DEFEAT_DETAIL")
 	if run_result != null:
 		retry_button.visible = run_result.retry_visible
+		if not player_won and not draw and not run_result.defeat_detail_key.is_empty():
+			detail_text = "%s\n%s" % [detail_text, _text(String(run_result.defeat_detail_key))]
 		exit_button.text = run_result.exit_text if not run_result.exit_text.is_empty() else _text(String(run_result.exit_text_key))
 		if not run_result.success and run_result.error != OK:
 			detail_text = "%s\nRun save error: %s" % [detail_text, error_string(run_result.error)]

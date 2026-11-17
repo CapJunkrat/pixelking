@@ -34,7 +34,6 @@ func _run() -> void:
 		RunPhase.BATTLE_ACTIVE: AppSceneRoutes.DEPLOYMENT,
 		RunPhase.NODE_INTERACTION: AppSceneRoutes.RUN_INTERACTION,
 		RunPhase.POST_BATTLE_CHOICE: AppSceneRoutes.RUN_INTERACTION,
-		RunPhase.SACRIFICE: AppSceneRoutes.RUN_INTERACTION,
 		RunPhase.RUN_SUMMARY: AppSceneRoutes.RUN_INTERACTION,
 	}
 	for phase_value: Variant in expected_by_phase:

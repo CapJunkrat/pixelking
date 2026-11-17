@@ -371,7 +371,7 @@ func submit_run_interaction(choice_id: String) -> Error:
 	_ensure_services()
 	if current_run == null:
 		return ERR_DOES_NOT_EXIST
-	if not _phase_is([RunPhase.NODE_INTERACTION, RunPhase.POST_BATTLE_CHOICE, RunPhase.ROSTER_OVERFLOW, RunPhase.FUSION_CONFIRMATION, RunPhase.SACRIFICE]):
+	if not _phase_is([RunPhase.NODE_INTERACTION, RunPhase.POST_BATTLE_CHOICE, RunPhase.ROSTER_OVERFLOW, RunPhase.FUSION_CONFIRMATION]):
 		return ERR_UNAVAILABLE
 	var transaction: Dictionary = _clone_transaction()
 	if transaction.is_empty():

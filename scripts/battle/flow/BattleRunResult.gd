@@ -8,3 +8,4 @@ var exit_text: String = ""
 var exit_text_key: StringName = &"BATTLE_RESULT_MAIN_MENU"
 var error: Error = OK
 var pending_type: StringName = &""
+var defeat_detail_key: StringName = &""

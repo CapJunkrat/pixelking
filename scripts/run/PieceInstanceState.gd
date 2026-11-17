@@ -4,7 +4,6 @@ extends RefCounted
 var instance_id: int = 0
 var piece_def_id: StringName = &""
 var is_king: bool = false
-var is_protected: bool = false
 
 func _init(p_instance_id: int = 0, p_piece_def_id: StringName = &"", p_is_king: bool = false) -> void:
 	instance_id = p_instance_id
@@ -24,7 +23,6 @@ func to_dictionary() -> Dictionary:
 		"instance_id": instance_id,
 		"piece_def_id": String(piece_def_id),
 		"is_king": is_king,
-		"is_protected": is_protected,
 	}
 
 func load_from_dictionary(data: Dictionary) -> bool:
@@ -33,7 +31,6 @@ func load_from_dictionary(data: Dictionary) -> bool:
 	instance_id = int(data.get("instance_id", 0))
 	piece_def_id = StringName(str(data.get("piece_def_id", "")))
 	is_king = bool(data.get("is_king", false))
-	is_protected = bool(data.get("is_protected", false))
 	return is_valid()
 
 func to_chess_piece(color: int) -> ChessPiece:

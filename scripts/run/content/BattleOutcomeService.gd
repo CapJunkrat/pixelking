@@ -41,14 +41,11 @@ func apply_defeat(run_state: RunState, rng: RunRngService, deployment: Deploymen
 	if run_state == null or rng == null or deployment == null:
 		return ERR_INVALID_PARAMETER
 	run_state.failed_battles += 1
-	run_state.remaining_failure_allowance = maxi(0, RunState.MAX_FAILURES - run_state.failed_battles)
 	run_state.run_statistics["battles_lost"] = int(run_state.run_statistics.get("battles_lost", 0)) + 1
 	deployment.clear(run_state)
-	if run_state.failed_battles >= RunState.MAX_FAILURES:
+	if run_state.retries_left <= 0:
 		summary_service.stage(run_state, false)
 		return OK
-	var roster_error: Error = roster_choice_service.stage_defeat_choice(run_state, rng, deployment)
-	if roster_error == ERR_DOES_NOT_EXIST:
-		summary_service.stage(run_state, false)
-		return OK
-	return roster_error
+	run_state.retries_left -= 1
+	run_state.run_statistics["retries_used"] = int(run_state.run_statistics.get("retries_used", 0)) + 1
+	return deployment.ensure_deployment(run_state)

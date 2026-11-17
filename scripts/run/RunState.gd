@@ -7,7 +7,9 @@ const MODE_STANDARD := "standard"
 const MODE_ENDLESS := "endless"
 const MAX_ACTIVE_NON_KING_PIECES := 5
 const MAX_RESERVE_PIECES := 5
-const MAX_FAILURES := 3
+## Each run gets one free retry. A defeat with a retry left sends the player back to
+## redeploy; a defeat with none left ends the run.
+const MAX_RETRIES := 1
 const FusionPlanType = preload("res://scripts/run/FusionPlan.gd")
 const RunPhaseType = preload("res://scripts/run/RunPhase.gd")
 
@@ -23,14 +25,13 @@ var current_node_id: StringName = &""
 var visited_node_ids: Array[StringName] = []
 var resolved_node_payloads: Dictionary = {}
 var failed_battles: int = 0
-var remaining_failure_allowance: int = MAX_FAILURES
+var retries_left: int = MAX_RETRIES
 var player_roster: Array[PieceInstanceState] = []
 var active_piece_ids: Array[int] = []
 var reserve_piece_ids: Array[int] = []
 var challenger_slots: Array[StringName] = []
 var owned_recipe_history: Array[StringName] = []
 var gold: int = 0
-var protected_piece_ids: Array[int] = []
 var current_encounter_id: StringName = &""
 var current_encounter_seed: int = 0
 var deployment_state: DeploymentState = null
@@ -51,14 +52,13 @@ func initialize_new(seed_value: int, mode_value: String = MODE_STANDARD) -> void
 	visited_node_ids.clear()
 	resolved_node_payloads.clear()
 	failed_battles = 0
-	remaining_failure_allowance = MAX_FAILURES
+	retries_left = MAX_RETRIES
 	player_roster.clear()
 	active_piece_ids.clear()
 	reserve_piece_ids.clear()
 	challenger_slots.clear()
 	owned_recipe_history.clear()
 	gold = 0
-	protected_piece_ids.clear()
 	current_encounter_id = &""
 	current_encounter_seed = 0
 	deployment_state = null
@@ -109,12 +109,16 @@ func move_piece_to_reserve(instance_id: int) -> bool:
 	reserve_piece_ids.append(instance_id)
 	return true
 
+func has_full_retries() -> bool:
+	return retries_left >= MAX_RETRIES
+
+func restore_retries() -> void:
+	retries_left = MAX_RETRIES
+
 func is_valid() -> bool:
 	if run_version != CURRENT_RUN_VERSION or not RunPhaseType.is_valid(phase) or mode not in [MODE_STANDARD, MODE_ENDLESS]:
 		return false
-	if failed_battles < 0 or failed_battles > MAX_FAILURES:
-		return false
-	if remaining_failure_allowance != maxi(0, MAX_FAILURES - failed_battles):
+	if failed_battles < 0 or retries_left < 0 or retries_left > MAX_RETRIES:
 		return false
 	if gold < 0 or challenger_slots.size() > 6:
 		return false
@@ -141,9 +145,6 @@ func is_valid() -> bool:
 		membership[instance_id] = true
 	if membership.size() != player_roster.size():
 		return false
-	for instance_id: int in protected_piece_ids:
-		if not roster_ids.has(instance_id):
-			return false
 	var king: PieceInstanceState = _king_piece()
 	if king == null or king.instance_id not in active_piece_ids:
 		return false
@@ -170,14 +171,13 @@ func to_dictionary() -> Dictionary:
 		"visited_node_ids": _string_name_array_to_strings(visited_node_ids),
 		"resolved_node_payloads": resolved_node_payloads.duplicate(true),
 		"failed_battles": failed_battles,
-		"remaining_failure_allowance": remaining_failure_allowance,
+		"retries_left": retries_left,
 		"player_roster": roster_data,
 		"active_piece_ids": active_piece_ids.duplicate(),
 		"reserve_piece_ids": reserve_piece_ids.duplicate(),
 		"challenger_slots": _string_name_array_to_strings(challenger_slots),
 		"owned_recipe_history": _string_name_array_to_strings(owned_recipe_history),
 		"gold": gold,
-		"protected_piece_ids": protected_piece_ids.duplicate(),
 		"current_encounter_id": String(current_encounter_id),
 		"current_encounter_seed": current_encounter_seed,
 		"deployment_state": deployment_state.to_dictionary() if deployment_state != null else {},
@@ -212,7 +212,11 @@ func load_from_dictionary(data: Dictionary, normalize_active_battle: bool = true
 	visited_node_ids = _to_string_name_array(data.get("visited_node_ids", []))
 	resolved_node_payloads = _dictionary_value(data, "resolved_node_payloads")
 	failed_battles = int(data.get("failed_battles", 0))
-	remaining_failure_allowance = int(data.get("remaining_failure_allowance", MAX_FAILURES))
+	if data.has("retries_left"):
+		retries_left = int(data.get("retries_left", MAX_RETRIES))
+	else:
+		# Older saves allowed three defeats; one allowance left meant the next defeat ended the run.
+		retries_left = clampi(int(data.get("remaining_failure_allowance", 3)) - 1, 0, MAX_RETRIES)
 	player_roster.clear()
 	var roster_values: Array = data.get("player_roster", []) as Array
 	for value: Variant in roster_values:
@@ -227,7 +231,6 @@ func load_from_dictionary(data: Dictionary, normalize_active_battle: bool = true
 	challenger_slots = _to_string_name_array(data.get("challenger_slots", []))
 	owned_recipe_history = _to_string_name_array(data.get("owned_recipe_history", []))
 	gold = int(data.get("gold", 0))
-	protected_piece_ids = _to_int_array(data.get("protected_piece_ids", []))
 	current_encounter_id = StringName(str(data.get("current_encounter_id", "")))
 	current_encounter_seed = int(data.get("current_encounter_seed", 0))
 	deployment_state = null
@@ -241,7 +244,14 @@ func load_from_dictionary(data: Dictionary, normalize_active_battle: bool = true
 	pending_choice = _dictionary_value(data, "pending_choice")
 	run_statistics = _dictionary_value(data, "run_statistics")
 	next_piece_instance_id = int(data.get("next_piece_instance_id", 1))
-	if data.has("phase") and loaded_version == CURRENT_RUN_VERSION:
+	var legacy_sacrifice: bool = str(pending_choice.get("type", "")) == "sacrifice"
+	if legacy_sacrifice:
+		# Older saves could stop on the removed sacrifice screen; send the player back to the battle node.
+		pending_choice.clear()
+	if legacy_sacrifice:
+		phase = infer_phase_from_state()
+		was_migrated_from_legacy = true
+	elif data.has("phase") and loaded_version == CURRENT_RUN_VERSION:
 		phase = StringName(str(data.get("phase", "")))
 		if not RunPhaseType.is_valid(phase):
 			return false
@@ -266,8 +276,6 @@ func infer_phase_from_state() -> StringName:
 				return RunPhaseType.ROSTER_OVERFLOW
 			"fusion_confirmation":
 				return RunPhaseType.FUSION_CONFIRMATION
-			"sacrifice":
-				return RunPhaseType.SACRIFICE
 			"run_summary":
 				return RunPhaseType.RUN_SUMMARY
 			_:
@@ -314,8 +322,6 @@ func is_phase_consistent() -> bool:
 				return false
 			var source_type: String = str((plan_value as Dictionary).get("source_type", ""))
 			return _current_node_is_resolved_battle() if source_type == "battle_reward" else source_type == "shop" and _has_unresolved_current_node() and _current_node_type() == &"shop"
-		RunPhaseType.SACRIFICE:
-			return pending_type == "sacrifice" and deployment_state == null and _current_node_is_unresolved_battle()
 		RunPhaseType.RUN_SUMMARY:
 			return pending_type == "run_summary" and deployment_state == null
 	return false
@@ -351,7 +357,7 @@ func _pending_choice_is_valid() -> bool:
 		return _opening_choice_is_valid()
 	if type == "fusion_confirmation":
 		return _fusion_confirmation_is_valid()
-	if type not in ["battle_reward", "roster_overflow", "shop", "event", "rest", "sacrifice", "run_summary"]:
+	if type not in ["battle_reward", "roster_overflow", "shop", "event", "rest", "run_summary"]:
 		return false
 	var options_value: Variant = pending_choice.get("options", [])
 	if not options_value is Array:
