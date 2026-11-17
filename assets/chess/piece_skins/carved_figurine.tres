@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="PieceSkin" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/PieceSkin.gd" id="1_skin"]
+
+[resource]
+script = ExtResource("1_skin")
+skin_id = &"carved_figurine"
+display_name = "Carved Figurine"
+texture_root = "res://assets/chess/piece_skins/carved_figurine"

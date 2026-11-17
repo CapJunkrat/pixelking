@@ -14,7 +14,12 @@ func _run() -> void:
 	for skin_value: Variant in skins:
 		var skin: PieceSkin = skin_value as PieceSkin
 		skin_ids.append(skin.skin_id)
-	expect(skins.size() == 2 and &"royal_forge" in skin_ids and &"modern_parchment" in skin_ids, "both built-in piece skins are available")
+	expect(skins.size() == 3 and &"carved_figurine" in skin_ids and &"royal_forge" in skin_ids and &"modern_parchment" in skin_ids, "all built-in piece skins are available")
+	expect(piece_skin_manager.get("current_skin_id") == &"carved_figurine", "carved figurines are the default skin")
+	var carved: PieceSkin = load("res://assets/chess/piece_skins/carved_figurine.tres") as PieceSkin
+	for color: StringName in [&"white", &"black"]:
+		for piece_type: StringName in [&"lancer", &"archmage"]:
+			expect(carved.has_texture(color, piece_type), "carved figurines include their own %s_%s" % [color, piece_type])
 	for skin_value: Variant in skins:
 		var skin: PieceSkin = skin_value as PieceSkin
 		for color: StringName in [&"white", &"black"]:
@@ -33,7 +38,7 @@ func _run() -> void:
 	var option_names: Array[String] = []
 	for index: int in option.item_count:
 		option_names.append(option.get_item_text(index))
-	expect(option.item_count == 2 and "Royal Forge" in option_names and "Modern Parchment" in option_names, "piece skin selector lists both skins")
+	expect(option.item_count == 3 and "Carved Figurine" in option_names and "Royal Forge" in option_names and "Modern Parchment" in option_names, "piece skin selector lists every skin")
 	expect(white_preview.get_child_count() == 16 and black_preview.get_child_count() == 16, "settings preview includes all catalogued piece skins")
 	menu.queue_free()
 	finish_test("Piece skin test")

@@ -3,11 +3,13 @@ extends Node
 signal skin_changed(skin_id: StringName)
 
 const SETTINGS_PATH := "user://settings.cfg"
-const DEFAULT_SKIN_ID: StringName = &"modern_parchment"
-const CURRENT_STYLE_VERSION := 2
+const DEFAULT_SKIN_ID: StringName = &"carved_figurine"
+## Bumped when the default art changes so existing players switch to it once.
+const CURRENT_STYLE_VERSION := 3
+const CARVED_FIGURINE_SKIN: PieceSkin = preload("res://assets/chess/piece_skins/carved_figurine.tres")
 const MODERN_PARCHMENT_SKIN: PieceSkin = preload("res://assets/chess/piece_skins/modern_parchment.tres")
 const ROYAL_FORGE_SKIN: PieceSkin = preload("res://assets/chess/piece_skins/royal_forge.tres")
-const BUILT_IN_SKINS: Array[PieceSkin] = [MODERN_PARCHMENT_SKIN, ROYAL_FORGE_SKIN]
+const BUILT_IN_SKINS: Array[PieceSkin] = [CARVED_FIGURINE_SKIN, MODERN_PARCHMENT_SKIN, ROYAL_FORGE_SKIN]
 
 var current_skin_id: StringName = DEFAULT_SKIN_ID
 var _skins: Dictionary = {}
