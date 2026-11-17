@@ -32,10 +32,10 @@ func _run() -> void:
 	_expect(cards.size() == run_manager.current_run.map_state.nodes.size(), "map view renders every public route node")
 	var complete_information: bool = true
 	for card: Button in cards:
-		if card.text.split("\n").size() < 3 or str(card.get_meta("node_type_id", "")).is_empty():
+		if card.tooltip_text.split("\n").size() < 3 or str(card.get_meta("node_type_id", "")).is_empty():
 			complete_information = false
 			break
-	_expect(complete_information, "every map card reveals type, enemy tendency, and reward category")
+	_expect(complete_information, "every map node reveals type, enemy tendency, and reward category")
 	var selectable_cards: Array[Button] = []
 	for card: Button in cards:
 		if not card.disabled:
@@ -51,8 +51,13 @@ func _run() -> void:
 	var selected_id: StringName = selected_card.get_meta("node_id", &"")
 	selected_card.pressed.emit()
 	await process_frame
-	_expect(run_manager.current_run.current_node_id == selected_id, "tapping a map card transactionally locks the route")
+	_expect(run_manager.current_run.current_node_id == selected_id, "tapping a map node transactionally locks the route")
 	var overlay: ColorRect = path_map.get_node("NodeOverlay") as ColorRect
+	_expect(view.is_travelling() and not overlay.visible, "the king walks to the chosen node before its details open")
+	var waited: int = 0
+	while not overlay.visible and waited < 240:
+		waited += 1
+		await process_frame
 	_expect(overlay.visible, "selected node opens a full-information confirmation panel")
 	_expect(run_manager.available_map_node_ids() == [selected_id], "unresolved selected node is the only resumable map action")
 	var selected_node: MapNodeState = run_manager.current_run.map_state.get_node(selected_id)
