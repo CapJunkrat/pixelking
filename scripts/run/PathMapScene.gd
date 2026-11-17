@@ -17,6 +17,8 @@ var _reached_layer: int = 0
 var _total_layers: int = 0
 var _scrolled_once: bool = false
 var _scroll_tween: Tween = null
+var _overlay_badge: Control = null
+var _overlay_type_id: StringName = &""
 
 func _ready() -> void:
 	map_view.node_selected.connect(_on_node_selected)
@@ -26,6 +28,7 @@ func _ready() -> void:
 	action_button.pressed.connect(_on_action_pressed)
 	_apply_locale()
 	_build_progress_pips()
+	_build_overlay_badge()
 	map_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	if run_manager.current_run == null or not run_manager.opening_draft_complete():
 		_show_error(_text("MAP_NO_ACTIVE_RUN"))
@@ -106,11 +109,17 @@ func _show_node_overlay(node_id: StringName) -> void:
 		return
 	var definition: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id)
 	presented_node_id = node_id
-	$NodeOverlay/Center/Panel/Content/Title.text = "%s  %s" % [definition.icon_text, _text(String(definition.display_name_key))]
+	$NodeOverlay/Center/Panel/Content/Title.text = _text(String(definition.display_name_key))
+	_overlay_type_id = node.node_type_id
+	_overlay_badge.queue_redraw()
 	$NodeOverlay/Center/Panel/Content/Description.text = _text(String(definition.description_key))
 	$NodeOverlay/Center/Panel/Content/EnemyHint.text = _text("MAP_ENEMY_LABEL") % _text(String(definition.enemy_hint_key))
 	$NodeOverlay/Center/Panel/Content/RewardHint.text = _text("MAP_REWARD_LABEL") % _text(String(definition.reward_hint_key))
-	action_button.text = _text("MAP_ENTER_BATTLE") if definition.is_battle else _text("MAP_RESOLVE_PLACEHOLDER")
+	var action_key: String = "MAP_ACTION_%s" % String(node.node_type_id).to_upper()
+	var action_text: String = _text(action_key)
+	if action_text == action_key:
+		action_text = _text("MAP_ENTER_BATTLE") if definition.is_battle else _text("MAP_RESOLVE_PLACEHOLDER")
+	action_button.text = action_text
 	node_overlay.show()
 	action_button.grab_focus()
 
@@ -131,6 +140,27 @@ func _on_action_pressed() -> void:
 		_show_error(_text("SAVE_ERROR"))
 		return
 	get_tree().change_scene_to_file(RunContentService.INTERACTION_SCENE)
+
+## The chosen node's medallion at the top of the details popup.
+func _build_overlay_badge() -> void:
+	_overlay_badge = Control.new()
+	_overlay_badge.name = "Badge"
+	_overlay_badge.custom_minimum_size = Vector2(0, 68)
+	_overlay_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_overlay_badge.draw.connect(_draw_overlay_badge)
+	var content: Node = $NodeOverlay/Center/Panel/Content
+	content.add_child(_overlay_badge)
+	content.move_child(_overlay_badge, 0)
+
+func _draw_overlay_badge() -> void:
+	if _overlay_type_id.is_empty():
+		return
+	var center: Vector2 = _overlay_badge.size * 0.5
+	var accent: Color = PathMapView.node_color(_overlay_type_id)
+	_overlay_badge.draw_circle(center, 34.0, Color(accent, 0.18))
+	_overlay_badge.draw_circle(center, 30.0, accent)
+	_overlay_badge.draw_circle(center, 26.0, Color("#1b3247"))
+	PathMapView.paint_icon(_overlay_badge, _overlay_type_id, center, Color("#fff3d2"), 3.0)
 
 ## One pip per layer under the title: walked, current and still ahead.
 func _build_progress_pips() -> void:

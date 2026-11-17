@@ -110,6 +110,8 @@ var visited_node_ids: Array[StringName] = []
 var current_node_id: StringName = &""
 
 var _centers: Dictionary = {}
+## Nodes the player can still reach from where they stand.
+var _reachable: Dictionary = {}
 var _camp: Vector2 = Vector2.ZERO
 var _trees: PackedVector2Array = PackedVector2Array()
 var _stars: PackedVector2Array = PackedVector2Array()
@@ -183,7 +185,26 @@ func _rebuild() -> void:
 		button.size = HIT_SIZE
 		add_child(button)
 	_scatter_scenery(width, height)
+	_find_reachable()
 	queue_redraw()
+
+func _find_reachable() -> void:
+	_reachable.clear()
+	var frontier: Array[StringName] = []
+	if current_node_id.is_empty():
+		for node: MapNodeState in map_state.nodes_in_layer(0):
+			frontier.append(node.node_id)
+	else:
+		frontier.append(current_node_id)
+	while not frontier.is_empty():
+		var node_id: StringName = frontier.pop_back()
+		if _reachable.has(node_id):
+			continue
+		_reachable[node_id] = true
+		var node: MapNodeState = map_state.get_node(node_id)
+		if node != null:
+			for target_id: StringName in node.outgoing_node_ids:
+				frontier.append(target_id)
 
 func _node_center(node: MapNodeState, layer_node_count: int, width: float) -> Vector2:
 	var display_layer: int = map_state.total_layers - 1 - node.layer_index
@@ -331,14 +352,14 @@ func _draw_roads() -> void:
 	for node: MapNodeState in map_state.nodes_in_layer(0):
 		var open: bool = start_open and node.node_id in available_node_ids
 		var walked: bool = node.node_id in visited_node_ids
-		_draw_road(_camp + Vector2(0.0, -8.0), _centers[node.node_id], walked, open)
+		_draw_road(_camp + Vector2(0.0, -8.0), _centers[node.node_id], walked, open, start_open)
 	for node: MapNodeState in map_state.nodes:
 		for target_id: StringName in node.outgoing_node_ids:
 			if not _centers.has(target_id):
 				continue
 			var walked: bool = node.node_id in visited_node_ids and target_id in visited_node_ids
 			var open: bool = node.node_id == current_node_id and target_id in available_node_ids
-			_draw_road(_centers[node.node_id], _centers[target_id], walked, open)
+			_draw_road(_centers[node.node_id], _centers[target_id], walked, open, _reachable.has(node.node_id))
 
 func _road_points(start: Vector2, finish: Vector2) -> PackedVector2Array:
 	var lift: float = (start.y - finish.y) * 0.5
@@ -347,7 +368,7 @@ func _road_points(start: Vector2, finish: Vector2) -> PackedVector2Array:
 		points.append(start.bezier_interpolate(start + Vector2(0.0, -lift), finish + Vector2(0.0, lift), finish, index / 24.0))
 	return points
 
-func _draw_road(start: Vector2, finish: Vector2, walked: bool, open: bool) -> void:
+func _draw_road(start: Vector2, finish: Vector2, walked: bool, open: bool, reachable: bool) -> void:
 	var points: PackedVector2Array = _road_points(start, finish)
 	if walked:
 		draw_polyline(points, Color(SILHOUETTE, 0.8), 6.0)
@@ -355,15 +376,16 @@ func _draw_road(start: Vector2, finish: Vector2, walked: bool, open: bool) -> vo
 		return
 	# Dashes march toward the nodes the player can reach next.
 	var march: int = int(_time * 7.0) if open else 0
-	var color: Color = ROAD_OPEN if open else ROAD_LOCKED
+	# Roads the player has passed by, or can no longer reach, fade into the background.
+	var color: Color = ROAD_OPEN if open else Color(ROAD_LOCKED, 0.85 if reachable else 0.28)
 	for index: int in range(points.size() - 1):
 		if posmod(index - march, 3) != 2:
-			draw_line(points[index], points[index + 1], color, 3.0 if open else 2.0)
+			draw_line(points[index], points[index + 1], color, 3.0 if open else (1.5 if reachable else 1.0))
 
 func _draw_medallion(node: MapNodeState) -> void:
 	var center: Vector2 = _centers[node.node_id]
 	var radius: float = BOSS_RADIUS if node.node_type_id == &"boss" else NODE_RADIUS
-	var accent: Color = _node_color(node.node_type_id)
+	var accent: Color = node_color(node.node_type_id)
 	var available: bool = node.node_id in available_node_ids
 	var visited: bool = node.node_id in visited_node_ids
 	var is_current: bool = node.node_id == current_node_id
@@ -384,6 +406,10 @@ func _draw_medallion(node: MapNodeState) -> void:
 		disc = Color("#1b3247")
 		icon = CREAM
 		label = CREAM
+	elif not visited and not _reachable.has(node.node_id):
+		ring = Color("#222c35")
+		icon = Color("#35414b")
+		label = Color("#3d4a54")
 	_draw_ground_shadow(_centers[node.node_id] + Vector2(0.0, radius + 3.0), radius)
 	draw_circle(center + Vector2(0.0, 2.0), radius, SILHOUETTE)
 	draw_circle(center, radius, GOLD if is_current else ring)
@@ -411,6 +437,10 @@ func _draw_ground_shadow(center: Vector2, radius: float) -> void:
 	draw_colored_polygon(points, Color(0.0, 0.0, 0.0, 0.35))
 
 func _draw_icon(node_type_id: StringName, center: Vector2, color: Color, pixel: float) -> void:
+	paint_icon(self, node_type_id, center, color, pixel)
+
+## Paints a node type's pixel icon on any canvas (the map, the node details popup).
+static func paint_icon(canvas: CanvasItem, node_type_id: StringName, center: Vector2, color: Color, pixel: float) -> void:
 	var rows: Array = ICONS.get(node_type_id, ICONS[&"event"])
 	var origin: Vector2 = (center - Vector2(rows[0].length(), rows.size()) * pixel * 0.5).round()
 	for pass_index: int in range(2):
@@ -420,7 +450,7 @@ func _draw_icon(node_type_id: StringName, center: Vector2, color: Color, pixel: 
 			var line: String = rows[row]
 			for column: int in range(line.length()):
 				if line[column] == "#":
-					draw_rect(Rect2(origin + shift + Vector2(column, row) * pixel, Vector2(pixel, pixel)), paint)
+					canvas.draw_rect(Rect2(origin + shift + Vector2(column, row) * pixel, Vector2(pixel, pixel)), paint)
 
 ## The player's king: stands beside the current node and hops along the road to the next.
 func _draw_token() -> void:
@@ -446,7 +476,7 @@ func _draw_token() -> void:
 	_draw_ground_shadow(stand, 11.0 * (1.0 - hop / 40.0))
 	draw_texture_rect_region(_token_texture, Rect2(stand + Vector2(-drawn.x * 0.5, -drawn.y - hop), drawn), Rect2(used))
 
-func _node_color(node_type_id: StringName) -> Color:
+static func node_color(node_type_id: StringName) -> Color:
 	match node_type_id:
 		&"elite_battle":
 			return Color("#b875e8")
