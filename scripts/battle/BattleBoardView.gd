@@ -13,6 +13,7 @@ const NO_SQUARE := Vector2i(-1, -1)
 const BOARD_MARGIN := 6.0
 const BOARD_THICKNESS := 9.0
 const PIECE_HEIGHT_CELLS := 1.28
+const STAND_FORWARD_CELLS := 0.2
 const SQUARE_LIGHT := Color("#b89b68")
 const SQUARE_DARK := Color("#2a4458")
 const FRAME_TOP := Color("#3b2a20")
@@ -36,6 +37,10 @@ var item_targeting: bool = false
 var input_enabled: bool = true
 var projection: BoardProjection = BoardProjection.new()
 
+var _board_canvas: Node2D = null
+var _ground_canvas: Node2D = null
+var _air_canvas: Node2D = null
+var _strike: StrikeDirector = null
 var _piece_layer: Node2D = null
 var _overlay: Control = null
 var _piece_sprites: Dictionary = {}
@@ -46,16 +51,32 @@ var _used_rect_cache: Dictionary = {}
 
 func _ready() -> void:
 	piece_skin_manager.connect("skin_changed", _on_skin_changed)
+	_board_canvas = Node2D.new()
+	_board_canvas.name = "BoardCanvas"
+	_board_canvas.draw.connect(_draw_board)
+	add_child(_board_canvas)
+	_ground_canvas = Node2D.new()
+	_ground_canvas.name = "GroundFx"
+	add_child(_ground_canvas)
 	_piece_layer = Node2D.new()
 	_piece_layer.name = "PieceLayer"
 	_piece_layer.y_sort_enabled = true
 	add_child(_piece_layer)
+	_air_canvas = Node2D.new()
+	_air_canvas.name = "AirFx"
+	_air_canvas.z_index = 10
+	add_child(_air_canvas)
 	_overlay = Control.new()
 	_overlay.name = "MarkerOverlay"
 	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_overlay.draw.connect(_draw_overlay)
 	add_child(_overlay)
+	_strike = StrikeDirector.new()
+	_strike.name = "StrikeDirector"
+	add_child(_strike)
+	_strike.setup(self)
+	_strike.finished.connect(_on_strike_finished)
 	resized.connect(_on_resized)
 	_update_projection()
 
@@ -80,8 +101,7 @@ func refresh(board_value: BoardState = null) -> void:
 	if projection.board_size != board.board_size:
 		_update_projection()
 	_rebuild_pieces()
-	queue_redraw()
-	_overlay.queue_redraw()
+	_redraw()
 
 # --- geometry ---------------------------------------------------------------
 
@@ -110,6 +130,40 @@ func square_at(point: Vector2) -> Vector2i:
 ## Same entry point as a tap on that square. Used by input handling and scene tests.
 func press_square(square: Vector2i) -> void:
 	_on_square_pressed(square)
+
+func _redraw() -> void:
+	if _board_canvas != null:
+		_board_canvas.queue_redraw()
+	if _overlay != null:
+		_overlay.queue_redraw()
+
+# --- hooks for strike animations ----------------------------------------------
+
+func piece_layer() -> Node2D:
+	return _piece_layer
+
+func ground_canvas() -> Node2D:
+	return _ground_canvas
+
+func air_canvas() -> Node2D:
+	return _air_canvas
+
+## Square -> Sprite2D for every piece currently standing on the board.
+func standing_sprites() -> Dictionary:
+	return _piece_sprites
+
+## How far in front of a square's centre a piece plants its feet, in world units.
+func standing_offset() -> float:
+	return projection.cell * STAND_FORWARD_CELLS
+
+func make_piece_sprite(texture: Texture2D) -> Sprite2D:
+	return _make_piece_sprite(texture)
+
+## Moves the whole board picture (zoom punch, shake). Identity restores it.
+func set_camera(camera: Transform2D) -> void:
+	for layer: Node2D in [_board_canvas, _ground_canvas, _piece_layer, _air_canvas]:
+		if layer != null:
+			layer.transform = camera
 
 func _update_projection() -> void:
 	var board_size: int = 8 if board == null else board.board_size
@@ -165,9 +219,7 @@ func set_input_enabled(enabled: bool) -> void:
 		selected_square = NO_SQUARE
 		legal_targets.clear()
 		dangerous_targets.clear()
-		queue_redraw()
-		if _overlay != null:
-			_overlay.queue_redraw()
+		_redraw()
 
 func begin_item_targeting() -> void:
 	item_targeting = true
@@ -193,16 +245,16 @@ func set_selection_state(square: Vector2i, targets: Array[Vector2i], dangers: Ar
 
 # --- board drawing ----------------------------------------------------------
 
-func _draw() -> void:
+func _draw_board() -> void:
 	var top: PackedVector2Array = projection.board_polygon(BOARD_MARGIN)
 	var bottom: PackedVector2Array = projection.board_polygon(BOARD_MARGIN, -BOARD_THICKNESS)
 	for index: int in range(4):
 		var next: int = (index + 1) % 4
-		draw_colored_polygon(PackedVector2Array([top[index], top[next], bottom[next], bottom[index]]), FRAME_SIDE if index % 2 == 0 else FRAME_SIDE_DARK)
-	draw_colored_polygon(top, FRAME_TOP)
+		_board_canvas.draw_colored_polygon(PackedVector2Array([top[index], top[next], bottom[next], bottom[index]]), FRAME_SIDE if index % 2 == 0 else FRAME_SIDE_DARK)
+	_board_canvas.draw_colored_polygon(top, FRAME_TOP)
 	var inlay: PackedVector2Array = projection.board_polygon(1.5)
 	inlay.append(inlay[0])
-	draw_polyline(inlay, FRAME_INLAY, 1.0)
+	_board_canvas.draw_polyline(inlay, FRAME_INLAY, 1.0)
 	if board == null:
 		return
 	var last_from: Vector2i = NO_SQUARE
@@ -218,10 +270,10 @@ func _draw() -> void:
 			if square == last_from or square == last_to:
 				fill = fill.lightened(0.14)
 			var polygon: PackedVector2Array = projection.square_polygon(square)
-			draw_colored_polygon(polygon, fill)
+			_board_canvas.draw_colored_polygon(polygon, fill)
 			# One-pixel bevel so squares read as inlaid tiles rather than flat paint.
-			draw_line(polygon[0], polygon[1], fill.lightened(0.12), 1.0)
-			draw_line(polygon[3], polygon[2], fill.darkened(0.18), 1.0)
+			_board_canvas.draw_line(polygon[0], polygon[1], fill.lightened(0.12), 1.0)
+			_board_canvas.draw_line(polygon[3], polygon[2], fill.darkened(0.18), 1.0)
 	if selected_square != NO_SQUARE:
 		_draw_square_marker(selected_square, SELECTED_TINT)
 	for target: Vector2i in legal_targets:
@@ -236,10 +288,10 @@ func _draw() -> void:
 				_draw_ground_ellipse(square, projection.cell * 0.33, Color(0.0, 0.0, 0.0, 0.34))
 
 func _draw_square_marker(square: Vector2i, tint: Color) -> void:
-	draw_colored_polygon(projection.square_polygon(square, 1.0), tint)
+	_board_canvas.draw_colored_polygon(projection.square_polygon(square, 1.0), tint)
 	var outline: PackedVector2Array = projection.square_polygon(square, 1.0)
 	outline.append(outline[0])
-	draw_polyline(outline, Color(tint, 0.95), 1.0)
+	_board_canvas.draw_polyline(outline, Color(tint, 0.95), 1.0)
 
 func _draw_ground_ellipse(square: Vector2i, radius: float, color: Color) -> void:
 	var world: Vector3 = projection.square_world(square)
@@ -247,7 +299,7 @@ func _draw_ground_ellipse(square: Vector2i, radius: float, color: Color) -> void
 	for step: int in range(16):
 		var angle: float = TAU * step / 16.0
 		points.append(projection.project(world + Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)))
-	draw_colored_polygon(points, color)
+	_board_canvas.draw_colored_polygon(points, color)
 
 func _draw_overlay() -> void:
 	if board == null:
@@ -309,7 +361,7 @@ func _make_piece_sprite(texture: Texture2D) -> Sprite2D:
 
 ## Positions a piece sprite so its feet rest on `world` (Y lifts it off the board).
 func _place_sprite(sprite: Sprite2D, world: Vector3) -> void:
-	var ground: Vector3 = Vector3(world.x, 0.0, world.z + projection.cell * 0.2)
+	var ground: Vector3 = Vector3(world.x, 0.0, world.z + standing_offset())
 	var scale_value: float = float(sprite.get_meta("base_scale", 1.0)) * projection.scale_at(ground)
 	sprite.scale = Vector2(scale_value, scale_value)
 	sprite.position = projection.project(Vector3(ground.x, world.y, ground.z))
@@ -363,6 +415,8 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 		return
 	var captured: bool = capture_event != null
 	var piece_id: String = str(data.get("piece_def_id", "queen"))
+	if captured and _present_strike(data, capture_event.payload, speed):
+		return
 	var proxy: Sprite2D = _make_piece_sprite(_texture_for(int(data.get("color", player_color)), piece_id))
 	if proxy == null:
 		return
@@ -418,6 +472,31 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 		fade.tween_callback(_finish_tween.bind(fade))
 	tween.tween_callback(_finish_tween.bind(tween))
 
+## Plays the capture as a full strike animation when the attacker has one. Returns
+## false when the simple move presentation should be used instead.
+func _present_strike(move_data: Dictionary, capture_data: Dictionary, speed: float) -> bool:
+	var from: Vector2i = move_data.get("from", NO_SQUARE)
+	var to: Vector2i = move_data.get("to", NO_SQUARE)
+	# En passant and similar captures hit a piece that is not on the destination square.
+	if capture_data.get("position", to) != to:
+		return false
+	var attacker_id: String = str(move_data.get("piece_def_id", ""))
+	var attacker_def: PieceDef = PieceDefDatabase.get_def(attacker_id)
+	if attacker_def == null or not StrikeDirector.can_play(StringName(attacker_id), attacker_def.strike_type):
+		return false
+	var victim_def: PieceDef = PieceDefDatabase.get_def(str(capture_data.get("piece_def_id", "")))
+	var attacker_texture: Texture2D = _texture_for(int(move_data.get("color", player_color)), attacker_id)
+	var victim_texture: Texture2D = _texture_for(int(capture_data.get("color", player_color)), str(capture_data.get("piece_def_id", "")))
+	if victim_def == null or attacker_texture == null or victim_texture == null:
+		return false
+	_hidden_squares[to] = true
+	_strike.play(StringName(attacker_id), attacker_texture, victim_texture, from, to, attacker_def.strike_type, attacker_def.weight_class, victim_def.weight_class, speed)
+	return true
+
+func _on_strike_finished() -> void:
+	if _presentation_tweens.is_empty():
+		_end_presentation()
+
 ## Tween step: moves `sprite` from `start` to `finish`, lifting it along a parabola.
 func _travel(progress: float, sprite: Sprite2D, start: Vector3, finish: Vector3, arc_height: float) -> void:
 	if not is_instance_valid(sprite):
@@ -460,18 +539,20 @@ func _bent_corner_square(definition: PieceDef, from: Vector2i, to: Vector2i) -> 
 	return Vector2i(to.x, from.y)
 
 func is_presenting() -> bool:
-	return not _presentation_tweens.is_empty()
+	return not _presentation_tweens.is_empty() or (_strike != null and _strike.is_playing())
 
 func skip_presentations() -> void:
 	for tween: Tween in _presentation_tweens:
 		if tween != null and tween.is_valid():
 			tween.kill()
 	_presentation_tweens.clear()
+	if _strike != null:
+		_strike.stop()
 	_end_presentation()
 
 func _finish_tween(tween: Tween) -> void:
 	_presentation_tweens.erase(tween)
-	if _presentation_tweens.is_empty():
+	if _presentation_tweens.is_empty() and not _strike.is_playing():
 		_end_presentation()
 
 func _end_presentation() -> void:
