@@ -1,10 +1,12 @@
 class_name MapTemplateDatabase
 extends RefCounted
 
-const STANDARD_TEMPLATE: MapTemplateDef = preload("res://resources/map/templates/standard_region.tres")
+const STANDARD_TEMPLATE_ID: StringName = &"standard_region"
 
+## Compatibility query facade. Formal map-template content is owned by ContentCatalog.
 static func get_def(id: StringName) -> MapTemplateDef:
-	return STANDARD_TEMPLATE if id == STANDARD_TEMPLATE.id else null
+	var registry: ContentRegistry = DefaultContent.registry()
+	return registry.map_template(id) if registry != null else null
 
 static func standard() -> MapTemplateDef:
-	return STANDARD_TEMPLATE
+	return get_def(STANDARD_TEMPLATE_ID)

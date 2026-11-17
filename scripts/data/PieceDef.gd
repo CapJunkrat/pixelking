@@ -24,6 +24,10 @@ enum Rarity {
 @export var is_royal: bool = false
 @export var is_king: bool = false
 @export var is_pawn: bool = false
+## Generic combat traits used by special pieces without hardcoded stable IDs.
+@export var extra_move_on_capture: bool = false
+@export var immobilizes_adjacent: bool = false
+@export var immune_to_immobilization: bool = false
 @export var base_value: int = 0
 @export var rarity: Rarity = Rarity.COMMON
 @export var available_in_opening_draft: bool = false

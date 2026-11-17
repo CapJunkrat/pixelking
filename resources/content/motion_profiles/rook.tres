@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="PieceMotionProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/PieceMotionProfile.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"rook"
+path_type = 0
+move_duration = 0.1
+capture_duration = 0.22
+arc_height_cells = 0.0

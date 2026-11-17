@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/battle/BattleController.gd" id="1_script"]
 [ext_resource type="Theme" path="res://assets/ui/themes/pixel_king_theme.tres" id="2_theme"]
@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://scenes/battle/BattleResultPanel.tscn" id="9_result"]
 [ext_resource type="PackedScene" path="res://scenes/battle/BattleLogPanel.tscn" id="10_log"]
 [ext_resource type="Script" path="res://scripts/battle/BattleAnimationPlayer.gd" id="11_animation"]
+[ext_resource type="Script" path="res://scripts/ui/ResponsiveSafeArea.gd" id="12_safe_area"]
 
 [node name="BattleScene" type="Control"]
 layout_mode = 3
@@ -36,13 +37,14 @@ expand_mode = 1
 stretch_mode = 6
 
 [node name="Margin" type="MarginContainer" parent="."]
+script = ExtResource("12_safe_area")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 4.0
+offset_left = 8.0
 offset_top = 12.0
-offset_right = -4.0
+offset_right = -8.0
 offset_bottom = -12.0
 grow_horizontal = 2
 grow_vertical = 2

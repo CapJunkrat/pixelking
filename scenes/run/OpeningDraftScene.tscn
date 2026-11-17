@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://c4ptqshx5v3wf" path="res://scripts/run/OpeningDraftScene.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://cb57ojybrfvwt" path="res://assets/ui/main_menu_background_clean.png" id="2_bg"]
+[ext_resource type="Script" uid="uid://cin3npm83dvkb" path="res://scripts/ui/ResponsiveSafeArea.gd" id="3_safe_area"]
 
 [sub_resource type="StyleBoxFlat" id="StyleButton"]
 bg_color = Color(0.06, 0.12, 0.18, 1)
@@ -70,6 +71,7 @@ offset_right = -12.0
 offset_bottom = -12.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("3_safe_area")
 
 [node name="Layout" type="VBoxContainer" parent="SafeArea" unique_id=1938650320]
 layout_mode = 2

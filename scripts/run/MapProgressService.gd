@@ -1,7 +1,6 @@
 class_name MapProgressService
 extends RefCounted
 
-const BATTLE_NODE_TYPES: Array[StringName] = [&"normal_battle", &"elite_battle", &"boss"]
 const ENCOUNTER_RNG_STREAM: StringName = &"encounter_rng"
 
 var map_generator: MapGenerator = MapGenerator.new()
@@ -49,7 +48,8 @@ func select_node(run_state: RunState, rng: RunRngService, node_id: StringName) -
 		return ERR_DOES_NOT_EXIST
 	run_state.current_node_id = node_id
 	run_state.visited_node_ids.append(node_id)
-	if selected.node_type_id in BATTLE_NODE_TYPES:
+	var node_definition: MapNodeDef = MapNodeDefDatabase.get_def(selected.node_type_id)
+	if node_definition != null and node_definition.is_battle:
 		run_state.current_encounter_id = StringName("encounter.%s.layer_%d" % [selected.node_type_id, selected.layer_index])
 		run_state.current_encounter_seed = rng.randi(ENCOUNTER_RNG_STREAM)
 	else:

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ChallengerItemDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ChallengerItemDef.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/generated/relic_lucky_coin_frame_0.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"lucky_coin"
+display_name_key = &"ITEM_LUCKY_COIN_NAME"
+description_key = &"ITEM_LUCKY_COIN_DESC"
+icon = ExtResource("2_icon")
+usage_mode = 0
+effect_type = &"noop"
+effect_priority = 0

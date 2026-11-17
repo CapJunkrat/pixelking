@@ -21,9 +21,14 @@ func exists() -> bool:
 func save(run_state: RunState) -> Error:
 	if run_state == null or not run_state.is_valid():
 		return _set_error(ERR_INVALID_DATA, "RunState is invalid and was not saved")
+	var registry: ContentRegistry = DefaultContent.registry()
+	if registry == null or registry.catalog == null:
+		return _set_error(ERR_INVALID_DATA, "Content catalog is unavailable")
 	var envelope: Dictionary = {
 		"format_id": FORMAT_ID,
 		"save_format_version": SAVE_FORMAT_VERSION,
+		"content_catalog_id": String(registry.catalog.catalog_id),
+		"content_version": registry.catalog.content_version,
 		"run_state": run_state.to_dictionary(),
 	}
 	var temporary_path: String = save_path + ".tmp"
@@ -88,6 +93,18 @@ func load_run() -> RunState:
 		return null
 	if int(envelope.get("save_format_version", -1)) != SAVE_FORMAT_VERSION:
 		_set_error(ERR_FILE_UNRECOGNIZED, "Active Run save format version is unsupported")
+		return null
+	var registry: ContentRegistry = DefaultContent.registry()
+	if registry == null or registry.catalog == null:
+		_set_error(ERR_INVALID_DATA, "Content catalog is unavailable")
+		return null
+	var stored_catalog_id: StringName = StringName(str(envelope.get("content_catalog_id", "")))
+	var stored_content_version: int = int(envelope.get("content_version", 0))
+	if not stored_catalog_id.is_empty() and stored_catalog_id != registry.catalog.catalog_id:
+		_set_error(ERR_FILE_UNRECOGNIZED, "Active Run content catalog is unsupported")
+		return null
+	if stored_content_version > registry.catalog.content_version:
+		_set_error(ERR_FILE_UNRECOGNIZED, "Active Run requires a newer content catalog")
 		return null
 	var state_value: Variant = envelope.get("run_state", null)
 	if not state_value is Dictionary:

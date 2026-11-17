@@ -21,6 +21,13 @@ func pending_count() -> int:
 func clear() -> void:
 	_pending.clear()
 
+func clone_runtime() -> BattleEffectQueue:
+	var copy: BattleEffectQueue = BattleEffectQueue.new()
+	copy._next_enqueue_order = _next_enqueue_order
+	for effect: BattleEffect in _pending:
+		copy._pending.append(effect.clone_runtime())
+	return copy
+
 func settle(current_side: int, apply_effect: Callable = Callable()) -> Dictionary:
 	var applied: Array[BattleEffect] = []
 	var repeats: Dictionary[String, int] = {}

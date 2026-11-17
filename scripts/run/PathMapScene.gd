@@ -23,9 +23,13 @@ func _ready() -> void:
 	if run_manager.current_run == null or not run_manager.opening_draft_complete():
 		_show_error(_text("MAP_NO_ACTIVE_RUN"))
 		return
-	var error: Error = run_manager.ensure_run_map()
-	if error != OK:
-		_show_error(_text("SAVE_ERROR"))
+	if run_manager.current_run.phase == RunPhase.MAP:
+		var error: Error = run_manager.ensure_run_map()
+		if error != OK:
+			_show_error(_text("SAVE_ERROR"))
+			return
+	elif run_manager.current_run.map_state == null:
+		_show_error(_text("MAP_NO_ACTIVE_RUN"))
 		return
 	_render()
 
@@ -66,6 +70,9 @@ func _scroll_to_progress() -> void:
 	map_scroll.scroll_vertical = maxi(0, int(center_y - map_scroll.size.y * 0.5))
 
 func _on_node_selected(node_id: StringName) -> void:
+	if run_manager.current_run.phase == RunPhase.NODE_SELECTED and node_id == run_manager.current_run.current_node_id:
+		_show_node_overlay(node_id)
+		return
 	var error: Error = run_manager.select_map_node(node_id)
 	if error != OK:
 		_show_error(_text("MAP_ROUTE_LOCKED"))
@@ -97,7 +104,7 @@ func _on_action_pressed() -> void:
 		if deployment_error != OK:
 			_show_error(_text("SAVE_ERROR"))
 			return
-		get_tree().change_scene_to_file("res://scenes/run/DeploymentScene.tscn")
+		get_tree().change_scene_to_file(AppSceneRoutes.DEPLOYMENT)
 		return
 	var error: Error = run_manager.begin_current_run_interaction()
 	if error != OK:
@@ -124,7 +131,7 @@ func _text(key: String) -> String:
 	return str(localization.call("text", key)) if localization != null else key
 
 func _open_roster() -> void:
-	get_tree().change_scene_to_file("res://scenes/run/RosterScene.tscn")
+	get_tree().change_scene_to_file(AppSceneRoutes.ROSTER)
 
 func _return_to_menu() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/MainMenu.tscn")
+	get_tree().change_scene_to_file(AppSceneRoutes.MAIN_MENU)

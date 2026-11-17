@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="EncounterDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/content/EncounterDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"elite_standard"
+board_size = 8
+enemy_placements = Array[Dictionary]([{"placement_id": "elite_gorgon", "piece_def_id": "gorgon", "position": {"x": 0, "y": 6}}, {"placement_id": "elite_unicorn", "piece_def_id": "unicorn_cavalry", "position": {"x": 2, "y": 7}}, {"placement_id": "elite_centaur", "piece_def_id": "centaur", "position": {"x": 3, "y": 7}}, {"placement_id": "elite_king", "piece_def_id": "king", "position": {"x": 4, "y": 7}}, {"placement_id": "elite_portal", "piece_def_id": "portal_mage", "position": {"x": 5, "y": 7}}, {"placement_id": "elite_manticore", "piece_def_id": "manticore", "position": {"x": 6, "y": 7}}, {"placement_id": "elite_gryphon", "piece_def_id": "gryphon", "position": {"x": 7, "y": 7}}])
+turn_limit = 0
+reward_tier = &"elite"
+is_boss = false

@@ -6,6 +6,7 @@ extends Control
 @onready var choices: VBoxContainer = $SafeArea/Layout/Choices
 @onready var leave_button: Button = $SafeArea/Layout/LeaveButton
 @onready var run_manager: AppRunManager = get_node("/root/RunManager") as AppRunManager
+@onready var localization: Node = get_node("/root/Localization")
 
 func _ready() -> void:
 	leave_button.pressed.connect(_on_leave)
@@ -21,8 +22,13 @@ func _render() -> void:
 		return
 	var pending: Dictionary = run_manager.current_run.pending_choice
 	var type: String = str(pending.get("type", "interaction"))
-	title_label.text = str(pending.get("title", type.replace("_", " ").capitalize()))
-	status_label.text = "%s\nGold: %d" % [str(pending.get("description", "Choose one option.")), run_manager.current_run.gold]
+	var title_key: String = str(pending.get("title_key", ""))
+	title_label.text = _localized(title_key) if not title_key.is_empty() else str(pending.get("title", type.replace("_", " ").capitalize()))
+	var description: String = str(pending.get("description", "Choose one option."))
+	var description_key: String = str(pending.get("description_key", ""))
+	if not description_key.is_empty():
+		description = "%s\n\n%s" % [_localized(description_key), description]
+	status_label.text = "%s\nGold: %d" % [description, run_manager.current_run.gold]
 	var option_values: Array = pending.get("options", []) as Array
 	for option_value: Variant in option_values:
 		if not option_value is Dictionary:
@@ -30,7 +36,8 @@ func _render() -> void:
 		var option: Dictionary = option_value as Dictionary
 		var button: Button = Button.new()
 		button.custom_minimum_size = Vector2(0, 52)
-		button.text = str(option.get("label", option.get("id", "Option")))
+		var label_key: String = str(option.get("label_key", ""))
+		button.text = _localized(label_key) if not label_key.is_empty() else str(option.get("label", option.get("id", "Option")))
 		button.set_meta("choice_id", str(option.get("id", "")))
 		button.disabled = not bool(option.get("enabled", true))
 		button.pressed.connect(_submit.bind(str(option.get("id", ""))))
@@ -47,8 +54,11 @@ func _submit(choice_id: String) -> void:
 
 func _on_leave() -> void:
 	if run_manager.current_run != null and str(run_manager.current_run.pending_choice.get("type", "")) == "run_summary":
-		run_manager.finish_run_summary()
-		get_tree().change_scene_to_file("res://scenes/ui/MainMenu.tscn")
+		var finish_error: Error = run_manager.finish_run_summary()
+		if finish_error != OK:
+			status_label.text = "Unable to finish the Run: %s" % error_string(finish_error)
+			return
+		get_tree().change_scene_to_file(AppSceneRoutes.MAIN_MENU)
 		return
 	if run_manager.current_run != null and not run_manager.current_run.pending_choice.is_empty():
 		var error: Error = run_manager.leave_run_interaction()
@@ -59,8 +69,11 @@ func _on_leave() -> void:
 
 func _route_after_commit() -> void:
 	if run_manager.current_run == null:
-		get_tree().change_scene_to_file("res://scenes/ui/MainMenu.tscn")
+		get_tree().change_scene_to_file(AppSceneRoutes.MAIN_MENU)
 	elif not run_manager.current_run.pending_choice.is_empty():
 		_render()
 	else:
 		get_tree().change_scene_to_file(run_manager.resume_scene_path())
+
+func _localized(key: String) -> String:
+	return str(localization.call("text", key)) if localization != null else key

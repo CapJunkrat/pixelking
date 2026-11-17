@@ -1,6 +1,9 @@
 class_name OpeningDraftScene
 extends Control
 
+signal fan_transition_completed
+signal candidate_info_opened
+
 const TOTAL_ROUNDS := 3
 const CARD_WIDTH := 148.0
 const CARD_HEIGHT := 282.0
@@ -132,6 +135,8 @@ func _layout_card_fan(animate: bool = false) -> void:
 	_apply_card_transform(left_index, Vector2(CARD_WIDTH * 0.5, center_y + FAN_SIDE_DROP + CARD_HEIGHT * 0.5), -FAN_ROTATION_DEGREES, Vector2.ONE * SIDE_CARD_SCALE, 1, animate)
 	_apply_card_transform(right_index, Vector2(available_width - CARD_WIDTH * 0.5, center_y + FAN_SIDE_DROP + CARD_HEIGHT * 0.5), FAN_ROTATION_DEGREES, Vector2.ONE * SIDE_CARD_SCALE, 2, animate)
 	_apply_card_transform(previewed_candidate_index, Vector2(center_x + CARD_WIDTH * 0.5, center_y + CARD_HEIGHT * 0.5), 0.0, Vector2.ONE, 10, animate)
+	if fan_tween != null:
+		fan_tween.finished.connect(func() -> void: fan_transition_completed.emit(), CONNECT_ONE_SHOT)
 	select_button.position = Vector2(center_x, center_y + CARD_HEIGHT + 6.0)
 	select_button.size = Vector2(CARD_WIDTH, 42.0)
 
@@ -225,11 +230,12 @@ func _on_info_timer_timeout() -> void:
 	if definition == null:
 		return
 	(info_popup.get_node("Content/NameLabel") as Label).text = Localization.text(String(definition.display_name_key))
-	(info_popup.get_node("Content/MovementLabel") as Label).text = Localization.text("DRAFT_MOVE_%s" % definition.id.to_upper())
-	(info_popup.get_node("Content/AttackLabel") as Label).text = Localization.text("DRAFT_ATTACK_%s" % definition.id.to_upper())
+	(info_popup.get_node("Content/MovementLabel") as Label).text = Localization.text(PieceRulePreview.move_key(definition))
+	(info_popup.get_node("Content/AttackLabel") as Label).text = Localization.text(PieceRulePreview.attack_key(definition))
 	(info_popup.get_node("Content/LegendLabel") as Label).text = Localization.text("DRAFT_INFO_LEGEND")
 	_render_move_diagram(String(definition.id))
 	info_popup.show()
+	candidate_info_opened.emit()
 
 func _render_move_diagram(piece_def_id: String) -> void:
 	for child: Node in info_diagram.get_children():
@@ -279,30 +285,7 @@ func _diagram_color(role: String) -> Color:
 			return INFO_EMPTY_COLOR
 
 func _movement_pattern(piece_def_id: String) -> Dictionary:
-	var pattern: Dictionary = {}
-	match piece_def_id:
-		"pawn":
-			pattern[Vector2i(0, -1)] = "move"
-			pattern[Vector2i(0, -2)] = "move"
-			pattern[Vector2i(-1, -1)] = "attack"
-			pattern[Vector2i(1, -1)] = "attack"
-		"knight", "lancer":
-			for offset: Vector2i in [Vector2i(-2, -1), Vector2i(-2, 1), Vector2i(-1, -2), Vector2i(-1, 2), Vector2i(1, -2), Vector2i(1, 2), Vector2i(2, -1), Vector2i(2, 1)]:
-				pattern[offset] = "both"
-		"bishop":
-			_add_pattern_rays(pattern, [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)])
-		"rook":
-			_add_pattern_rays(pattern, [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)])
-		"queen", "archmage":
-			_add_pattern_rays(pattern, [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1)])
-		_:
-			_add_pattern_rays(pattern, [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1)], 1)
-	return pattern
-
-func _add_pattern_rays(pattern: Dictionary, directions: Array[Vector2i], distance: int = 2) -> void:
-	for direction: Vector2i in directions:
-		for step: int in range(1, distance + 1):
-			pattern[direction * step] = "both"
+	return PieceRulePreview.pattern(piece_def_id, INFO_GRID_SIZE)
 
 func _set_cards_disabled(disabled_value: bool) -> void:
 	for button: Button in candidate_buttons:
@@ -352,14 +335,14 @@ func _on_skin_changed(_skin_id: StringName) -> void:
 	_render()
 
 func _open_roster() -> void:
-	get_tree().change_scene_to_file("res://scenes/run/RosterScene.tscn")
+	get_tree().change_scene_to_file(AppSceneRoutes.ROSTER)
 
 func _enter_route_map() -> void:
 	var error: Error = run_manager.ensure_run_map()
 	if error != OK:
 		_show_error(Localization.text("SAVE_ERROR"))
 		return
-	get_tree().change_scene_to_file("res://scenes/run/PathMapScene.tscn")
+	get_tree().change_scene_to_file(AppSceneRoutes.PATH_MAP)
 
 func _return_to_menu() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/MainMenu.tscn")
+	get_tree().change_scene_to_file(AppSceneRoutes.MAIN_MENU)

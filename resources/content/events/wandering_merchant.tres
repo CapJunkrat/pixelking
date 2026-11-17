@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="EventDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/content/EventDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"wandering_merchant"
+title = "Wandering Merchant"
+description = "A short risk-and-reward encounter."
+safe_gold = 12
+risky_gold = 25
+can_offer_relic = true

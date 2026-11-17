@@ -1,6 +1,7 @@
 extends Node
 
 signal battle_events_emitted(events: Array[BattleEvent])
+signal debug_mode_changed(enabled: bool)
 
 ## 全局游戏状态单例。
 ## 当前持有对局棋盘和挑战者物品；后续 Roguelike 阶段将在此扩展金币、遗物、招募棋子与波次等状态。
@@ -14,8 +15,25 @@ var challenger_items: Array[ChallengerItemDef] = []
 ## 玩家在 Roguelike 对局中控制的一方。
 var player_color: int = GameRules.PieceColor.WHITE
 
+## Developer access is intentionally session-only and resets on every launch.
+var debug_mode: bool = false
+
 func _ready() -> void:
 	start_new_game()
+
+func enable_debug_mode() -> void:
+	if not OS.is_debug_build():
+		return
+	if debug_mode:
+		return
+	debug_mode = true
+	debug_mode_changed.emit(true)
+
+func reset_debug_mode() -> void:
+	if not debug_mode:
+		return
+	debug_mode = false
+	debug_mode_changed.emit(false)
 
 func start_new_game() -> void:
 	board = BoardState.new()
@@ -24,7 +42,7 @@ func start_new_game() -> void:
 	last_command_result = null
 
 func start_run_battle(run_state: RunState) -> bool:
-	if run_state == null or run_state.deployment_state == null:
+	if run_state == null or run_state.phase != RunPhase.BATTLE_ACTIVE or run_state.deployment_state == null:
 		return false
 	var deployment: DeploymentState = run_state.deployment_state
 	if not deployment.confirmed or not deployment.is_valid(run_state):
@@ -46,16 +64,19 @@ func start_run_battle(run_state: RunState) -> bool:
 			return false
 	if not run_board.finalize_setup(player_color):
 		return false
-	board = run_board
 	challenger_items.clear()
 	for item_id: StringName in run_state.challenger_slots:
 		var item_definition: ChallengerItemDef = ChallengerItemDatabase.get_def(item_id)
-		if item_definition != null:
-			challenger_items.append(item_definition)
+		if item_definition == null:
+			return false
+		challenger_items.append(item_definition)
 	var turn_limit: int = 0
 	var current_node: MapNodeState = run_state.map_state.get_node(run_state.current_node_id) if run_state.map_state != null else null
-	if current_node != null and current_node.node_type_id == &"boss":
-		turn_limit = 30
+	var node_definition: MapNodeDef = MapNodeDefDatabase.get_def(current_node.node_type_id) if current_node != null else null
+	var encounter: EncounterDef = EncounterDefDatabase.get_def(node_definition.encounter_def_id) if node_definition != null else null
+	if encounter != null:
+		turn_limit = encounter.turn_limit
+	board = run_board
 	command_processor = BattleCommandProcessor.new(board, challenger_items, player_color, turn_limit)
 	last_command_result = null
 	return true
@@ -69,19 +90,70 @@ func execute_battle_action(action: BattleAction) -> BattleCommandResult:
 	if command_processor == null or command_processor.board != board:
 		command_processor = BattleCommandProcessor.new(board, challenger_items, player_color)
 	last_command_result = command_processor.execute(action)
-	battle_events_emitted.emit(last_command_result.events)
+	_publish_command_result(last_command_result)
 	return last_command_result
 
 func can_use_challenger_item(slot_index: int) -> bool:
 	return command_processor != null and command_processor.can_use_item(slot_index, player_color)
 
 func try_use_item(slot_index: int, target_position: Vector2i = Vector2i(-1, -1)) -> bool:
-	var item_id: StringName = challenger_items[slot_index].id if slot_index >= 0 and slot_index < challenger_items.size() else &""
-	var result: BattleCommandResult = execute_battle_action(UseItemAction.new(slot_index, player_color, target_position))
-	if result.success and not item_id.is_empty():
-		var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
-		if manager != null and manager.current_run != null:
-			manager.consume_challenger_item(slot_index, item_id)
+	var action: UseItemAction = UseItemAction.new(slot_index, player_color, target_position)
+	var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
+	if manager == null or manager.current_run == null:
+		return execute_battle_action(action).success
+	if command_processor == null or command_processor.board != board:
+		last_command_result = BattleCommandResult.rejected(&"missing_command_processor")
+		_publish_command_result(last_command_result)
+		return false
+	var plan: BattleItemUsePlan = command_processor.stage_item_use(action)
+	if plan == null or not plan.is_valid():
+		return execute_battle_action(action).success
+	var consume_error: Error = manager.consume_challenger_item(
+		plan.slot_index,
+		plan.expected_item_id,
+		_commit_staged_item_plan.bind(plan)
+	)
+	if consume_error != OK:
+		last_command_result = command_processor.reject_external(&"run_item_persistence_failed")
+		last_command_result.legacy_result = {
+			"success": false,
+			"error": "run_item_persistence_failed",
+			"run_error": consume_error,
+		}
+		_publish_command_result(last_command_result)
+		return false
+	_publish_command_result(last_command_result)
+	return true
+
+func _commit_staged_item_plan(plan: BattleItemUsePlan) -> void:
+	board = plan.staged_board
+	challenger_items = plan.staged_items
+	command_processor = plan.staged_processor
+	last_command_result = plan.result
+
+func _publish_command_result(result: BattleCommandResult) -> void:
+	if result != null:
+		battle_events_emitted.emit(result.events)
+
+func is_battle_finished() -> bool:
+	return command_processor != null and command_processor.status.is_finished()
+
+func evaluate_battle_terminal_state() -> bool:
+	if command_processor == null:
+		return false
+	var result: BattleCommandResult = command_processor.evaluate_terminal_state()
+	if result == null:
+		return false
+	last_command_result = result
+	_publish_command_result(result)
+	return result.success
+
+func force_debug_victory() -> bool:
+	if not OS.is_debug_build() or not debug_mode or command_processor == null:
+		return false
+	var result: BattleCommandResult = command_processor.force_finish(player_color, false, &"debug_victory")
+	last_command_result = result
+	_publish_command_result(result)
 	return result.success
 
 func try_move(from: Vector2i, to: Vector2i, promotion_id: String = "queen") -> bool:

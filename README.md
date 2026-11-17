@@ -21,9 +21,8 @@
 - 数据驱动的棋子定义系统(`PieceDef`):新增棋子只需要描述"滑动方向+跳跃偏移",
   不需要碰核心逻辑代码——这是专门为后面"千奇百怪的特殊棋子"打的地基
 - 全局信号总线(`EventBus`)+ 全局状态单例(`GameState`),为后续UI/AI层预留了干净的接入点
-- **两套自动化测试**,已经用真实 Godot 4.3 headless 引擎跑通,不是凭空写的代码:
-  - `scripts/tests/test_runner.gd`:29个纯逻辑断言(愚人将杀、易位、吃过路兵、升变、牵制等)
-  - `scripts/tests/test_autoload_smoke.gd`:验证 autoload 单例在真实运行环境下可用
+- 自动化测试按 `unit / integration / scenes / smoke / characterization / e2e` 分层，并由显式 Manifest 管理。
+- 统一入口：`scripts/tests/runner/run_all_tests.gd`，支持按 layer 或 domain 过滤。
 
 ## 如何打开 / 验证功能
 
@@ -42,14 +41,17 @@
 如果你更喜欢命令行,或者想在CI里跑:
 
 ```bash
-# 纯逻辑规则测试(29个断言)
-godot --headless --path . --script res://scripts/tests/test_runner.gd
+# 全量测试
+godot --headless --path . --script res://scripts/tests/runner/run_all_tests.gd
 
-# autoload/信号系统冒烟测试
-godot --headless --path . --script res://scripts/tests/test_autoload_smoke.gd
+# 只跑单元测试
+godot --headless --path . --script res://scripts/tests/runner/run_all_tests.gd -- --layer=unit
+
+# 只跑 battle 领域
+godot --headless --path . --script res://scripts/tests/runner/run_all_tests.gd -- --domain=battle
 ```
 
-看到 `结果: 29 通过 / 0 失败` 说明规则引擎是对的。
+Runner 会逐文件隔离执行，最后输出通过/失败文件数并返回可靠退出码。
 
 ## 目录结构
 
@@ -70,10 +72,13 @@ scripts/
 │   ├── EventBus.gd         # 全局信号总线
 │   └── GameState.gd        # 当前对局状态单例,UI/AI通过它调用 try_move()
 └── tests/
-	├── ChessRulesTestSuite.gd    # 测试断言的实际逻辑(被下面两个入口共用)
-	├── test_runner.gd            # 命令行入口(headless)
-	├── test_autoload_smoke.gd    # autoload/信号 冒烟测试(命令行入口)
-	└── TestRunnerNode.gd         # 编辑器内Play按钮入口,挂在 scenes/Main.tscn 上
+	├── runner/                   # Manifest、全量入口、Node 方法入口
+	├── unit/                     # 单对象、纯规则和确定性测试
+	├── integration/              # 跨服务、存档和事务边界测试
+	├── scenes/                   # 场景结构、信号连接和输入测试
+	├── smoke/                    # Autoload、素材、字体和本地化契约
+	├── characterization/         # 待移除旧接口的兼容行为锁定
+	└── e2e/                      # 玩家关键旅程
 ```
 
 ## 后续路线图

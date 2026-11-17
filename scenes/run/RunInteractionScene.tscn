@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/run/RunInteractionScene.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/ui/ResponsiveSafeArea.gd" id="2_safe_area"]
 
 [node name="RunInteractionScene" type="Control"]
 layout_mode = 3
@@ -21,6 +22,7 @@ grow_vertical = 2
 color = Color(0.035, 0.075, 0.11, 1)
 
 [node name="SafeArea" type="MarginContainer" parent="."]
+script = ExtResource("2_safe_area")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="MapNodeDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/MapNodeDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"elite_battle"
+display_name_key = &"MAP_NODE_ELITE_BATTLE"
+description_key = &"MAP_DESC_ELITE_BATTLE"
+enemy_hint_key = &"MAP_ENEMY_ELITE"
+reward_hint_key = &"MAP_REWARD_ELITE"
+icon_text = "★"
+is_battle = true
+encounter_def_id = &"elite_standard"
+generation_weight = 0

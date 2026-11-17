@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dkihqnyoraao5" path="res://scripts/run/RosterScene.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://cb57ojybrfvwt" path="res://assets/ui/main_menu_background_clean.png" id="2_bg"]
+[ext_resource type="Script" path="res://scripts/ui/ResponsiveSafeArea.gd" id="3_safe_area"]
 
 [sub_resource type="StyleBoxFlat" id="StylePanel"]
 content_margin_left = 6.0
@@ -76,6 +77,7 @@ mouse_filter = 2
 color = Color(0.005, 0.018, 0.035, 0.8)
 
 [node name="SafeArea" type="MarginContainer" parent="." unique_id=1305757608]
+script = ExtResource("3_safe_area")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0

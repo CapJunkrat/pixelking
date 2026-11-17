@@ -51,7 +51,12 @@ func _request_main_menu() -> void:
 	leave_confirmation.popup_centered()
 
 func _return_to_menu() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/MainMenu.tscn")
+	var run_manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
+	if run_manager != null and run_manager.current_run != null:
+		var return_error: Error = run_manager.return_to_deployment()
+		if return_error != OK:
+			return
+	get_tree().change_scene_to_file(AppSceneRoutes.MAIN_MENU)
 
 func _apply_locale() -> void:
 	$Center/Panel/Margin/Content/Title.text = _text("SETTINGS_TITLE")

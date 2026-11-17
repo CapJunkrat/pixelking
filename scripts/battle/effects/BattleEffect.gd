@@ -56,5 +56,18 @@ func assign_enqueue_order(value: int) -> void:
 	if _enqueue_order == 0:
 		_enqueue_order = value
 
+func clone_runtime() -> BattleEffect:
+	var copy: BattleEffect = BattleEffect.new(
+		_effect_id,
+		_effect_type,
+		_owner_color,
+		_priority,
+		_board_position,
+		_source_instance_id,
+		_payload
+	)
+	copy.assign_enqueue_order(_enqueue_order)
+	return copy
+
 func repetition_key() -> String:
 	return "%s:%d" % [String(_effect_id), _source_instance_id]

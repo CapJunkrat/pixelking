@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="EncounterDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/content/EncounterDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"boss_royal_guard"
+board_size = 8
+enemy_placements = Array[Dictionary]([{"placement_id": "boss_back_0", "piece_def_id": "catapult", "position": {"x": 0, "y": 7}}, {"placement_id": "boss_back_1", "piece_def_id": "gryphon", "position": {"x": 1, "y": 7}}, {"placement_id": "boss_back_2", "piece_def_id": "manticore", "position": {"x": 2, "y": 7}}, {"placement_id": "boss_back_3", "piece_def_id": "royal_guard", "position": {"x": 3, "y": 7}}, {"placement_id": "boss_back_4", "piece_def_id": "king", "position": {"x": 4, "y": 7}}, {"placement_id": "boss_back_5", "piece_def_id": "royal_guard", "position": {"x": 5, "y": 7}}, {"placement_id": "boss_back_6", "piece_def_id": "portal_mage", "position": {"x": 6, "y": 7}}, {"placement_id": "boss_back_7", "piece_def_id": "catapult", "position": {"x": 7, "y": 7}}, {"placement_id": "boss_guard_0", "piece_def_id": "pawn", "position": {"x": 0, "y": 6}}, {"placement_id": "boss_guard_2", "piece_def_id": "pawn", "position": {"x": 2, "y": 6}}, {"placement_id": "boss_guard_5", "piece_def_id": "pawn", "position": {"x": 5, "y": 6}}, {"placement_id": "boss_guard_7", "piece_def_id": "pawn", "position": {"x": 7, "y": 6}}])
+turn_limit = 30
+reward_tier = &"boss"
+is_boss = true

@@ -14,6 +14,8 @@ var move_history: Array = []
 var king_pos: Dictionary = {}
 var last_move_was_capture: bool = false
 var halfmove_clock: int = 0
+## Increments only when control passes to the opposing side. Bonus actions keep it stable.
+var turn_serial: int = 0
 
 func _init(p_board_size: int = DEFAULT_SIZE, setup_default: bool = true) -> void:
 	board_size = maxi(p_board_size, MIN_SIZE)
@@ -46,6 +48,9 @@ func setup_standard() -> void:
 	turn = GameRules.PieceColor.WHITE
 	en_passant_target = Vector2i(-1, -1)
 	move_history.clear()
+	last_move_was_capture = false
+	halfmove_clock = 0
+	turn_serial = 0
 
 func _default_back_rank() -> Array:
 	match board_size:
@@ -73,6 +78,7 @@ func clear_for_setup() -> void:
 	move_history.clear()
 	last_move_was_capture = false
 	halfmove_clock = 0
+	turn_serial = 0
 
 func place_piece_for_setup(pos: Vector2i, piece: ChessPiece) -> bool:
 	if piece == null or piece.def == null or not in_bounds(pos) or get_piece(pos) != null:
@@ -92,6 +98,7 @@ func finalize_setup(starting_color: int = GameRules.PieceColor.WHITE) -> bool:
 	move_history.clear()
 	last_move_was_capture = false
 	halfmove_clock = 0
+	turn_serial = 0
 	return true
 
 func remove_all_pawns() -> void:
@@ -138,8 +145,22 @@ func get_piece(pos: Vector2i) -> ChessPiece:
 	if not in_bounds(pos):
 		return null
 	return grid[pos.x][pos.y]
+func is_piece_immobilized(pos: Vector2i) -> bool:
+	var piece: ChessPiece = get_piece(pos)
+	if piece == null or piece.def.immune_to_immobilization:
+		return false
+	for offset: Vector2i in [
+		Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1),
+		Vector2i(-1, 0), Vector2i(1, 0),
+		Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1),
+	]:
+		var neighbor: ChessPiece = get_piece(pos + offset)
+		if neighbor != null and neighbor.def.immobilizes_adjacent:
+			return true
+	return false
 
 func set_piece(pos: Vector2i, piece: ChessPiece) -> void:
+
 	if in_bounds(pos):
 		grid[pos.x][pos.y] = piece
 
@@ -295,6 +316,7 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 		last_move_was_capture = bool(result["captured"])
 		move_history.append({"from": from, "to": to, "piece_id": piece.get_id(), "color": moving_color})
 		turn = GameRules.opposite(turn)
+		turn_serial += 1
 		if has_king(turn):
 			result["check"] = is_in_check(turn)
 			if bool(result["check"]):
@@ -302,6 +324,7 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 			else:
 				result["stalemate"] = is_stalemate(turn)
 	return result
+
 func _promotion_rank(color: int) -> int:
 	return board_size - 1 if color == GameRules.PieceColor.WHITE else 00
 
@@ -313,20 +336,28 @@ func _is_castling_move(from: Vector2i, to: Vector2i, piece: ChessPiece = null) -
 		return false
 	var castling_rule := moving_piece.def.movement_rule(&"castling") as CastlingMovementRule
 	return castling_rule != null and castling_rule.is_valid_partner(moving_piece, partner)
-
 func clone() -> BoardState:
-	var copy := BoardState.new(board_size, false)
-	for x in range(board_size):
-		for y in range(board_size):
+	return _clone_with_history(false)
+
+func clone_runtime() -> BoardState:
+	return _clone_with_history(true)
+
+func _clone_with_history(preserve_history: bool) -> BoardState:
+	var copy: BoardState = BoardState.new(board_size, false)
+	for x: int in range(board_size):
+		for y: int in range(board_size):
 			var piece: ChessPiece = grid[x][y]
 			copy.grid[x][y] = piece.clone_for_simulation() if piece != null else null
 	copy.turn = turn
 	copy.en_passant_target = en_passant_target
 	copy.king_pos = king_pos.duplicate()
-	copy.move_history = []
+	copy.move_history = move_history.duplicate(true) if preserve_history else []
 	copy.last_move_was_capture = last_move_was_capture
 	copy.halfmove_clock = halfmove_clock
+	copy.turn_serial = turn_serial
 	return copy
+
+
 
 func to_ascii() -> String:
 	var symbols := {

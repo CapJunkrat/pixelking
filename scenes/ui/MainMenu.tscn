@@ -16,6 +16,7 @@
 [ext_resource type="Texture2D" uid="uid://ct57h3b5gkicn" path="res://assets/ui/main_menu_flags.png" id="15_flags"]
 [ext_resource type="Shader" uid="uid://ciwkifb1dqo23" path="res://assets/shaders/main_menu_flags.gdshader" id="16_flag_shader"]
 [ext_resource type="Shader" uid="uid://cxt52q5majkau" path="res://assets/shaders/title_gem_glint.gdshader" id="17_title_shader"]
+[ext_resource type="Script" uid="uid://cin3npm83dvkb" path="res://scripts/ui/ResponsiveSafeArea.gd" id="18_safe_area"]
 
 [sub_resource type="ShaderMaterial" id="BackgroundMotionMaterial"]
 shader = ExtResource("13_bg_shader")
@@ -220,6 +221,7 @@ offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("18_safe_area")
 
 [node name="Layout" type="VBoxContainer" parent="SafeArea" unique_id=553224240]
 layout_mode = 2
@@ -481,19 +483,21 @@ theme_override_font_sizes/font_size = 12
 text = "SETTINGS_SKIN_PREVIEW"
 
 [node name="SkinPreview" type="VBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsContent" unique_id=1806369434]
-custom_minimum_size = Vector2(0, 80)
+custom_minimum_size = Vector2(0, 124)
 layout_mode = 2
-theme_override_constants/separation = 0
+theme_override_constants/separation = 2
 
-[node name="WhitePieces" type="HBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview" unique_id=1749901856]
+[node name="WhitePieces" type="GridContainer" parent="SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview" unique_id=1749901856]
 layout_mode = 2
-theme_override_constants/separation = 4
-alignment = 1
+theme_override_constants/h_separation = 2
+theme_override_constants/v_separation = 0
+columns = 8
 
-[node name="BlackPieces" type="HBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview" unique_id=557177737]
+[node name="BlackPieces" type="GridContainer" parent="SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview" unique_id=557177737]
 layout_mode = 2
-theme_override_constants/separation = 4
-alignment = 1
+theme_override_constants/h_separation = 2
+theme_override_constants/v_separation = 0
+columns = 8
 
 [node name="MusicLabel" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsContent" unique_id=2018349805]
 layout_mode = 2

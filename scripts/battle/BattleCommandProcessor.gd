@@ -11,6 +11,7 @@ const EVENT_PROMOTED: StringName = &"promoted"
 const EVENT_EFFECT_APPLIED: StringName = &"effect_applied"
 const EVENT_EFFECT_SETTLEMENT_ABORTED: StringName = &"effect_settlement_aborted"
 const EVENT_TURN_CHANGED: StringName = &"turn_changed"
+const EVENT_EXTRA_MOVE_GRANTED: StringName = &"extra_move_granted"
 const EVENT_CHECK_DECLARED: StringName = &"check_declared"
 const EVENT_BATTLE_ENDED: StringName = &"battle_ended"
 
@@ -19,6 +20,8 @@ var challenger_items: Array[ChallengerItemDef]
 var player_color: int = GameRules.PieceColor.WHITE
 var event_history: Array[BattleEvent] = []
 var effect_queue: BattleEffectQueue = BattleEffectQueue.new()
+var status: BattleStatus = BattleStatus.new()
+var outcome_evaluator: BattleOutcomeEvaluator = BattleOutcomeEvaluator.new()
 ## Optional generic objective: the player must win before this many plies.
 var turn_limit: int = 0
 var _next_action_id: int = 1
@@ -42,6 +45,8 @@ func queue_effect(effect: BattleEffect) -> bool:
 func execute(action: BattleAction) -> BattleCommandResult:
 	var action_id: int = _next_action_id
 	_next_action_id += 1
+	if status.is_finished():
+		return _rejected(action_id, &"battle_already_finished")
 	if board == null:
 		return _rejected(action_id, &"missing_board")
 	if action == null:
@@ -57,27 +62,71 @@ func execute(action: BattleAction) -> BattleCommandResult:
 			return _rejected(action_id, &"unsupported_action")
 
 func can_use_item(slot_index: int, actor_color: int) -> bool:
-	if board == null or actor_color != player_color or board.turn != player_color:
+	if status.is_finished() or board == null or actor_color != player_color or board.turn != player_color:
 		return false
-	if _item_used_turn_key == board.move_history.size():
+	if _item_used_turn_key == board.turn_serial:
 		return false
 	if slot_index < 0 or slot_index >= challenger_items.size():
 		return false
 	var item: ChallengerItemDef = challenger_items[slot_index]
 	return item != null and item.is_consumable()
 
+func stage_item_use(action: UseItemAction) -> BattleItemUsePlan:
+	var validation_error: StringName = _validate_item_action(action)
+	if not validation_error.is_empty():
+		return null
+	var staged_board: BoardState = board.clone_runtime()
+	var staged_items: Array[ChallengerItemDef] = []
+	staged_items.assign(challenger_items)
+	var staged_processor: BattleCommandProcessor = _clone_runtime(staged_board, staged_items)
+	var staged_action: UseItemAction = UseItemAction.new(action.slot_index, action.actor_color, action.target_position)
+	var staged_result: BattleCommandResult = staged_processor.execute(staged_action)
+	if not staged_result.success:
+		return null
+	return BattleItemUsePlan.new(
+		challenger_items[action.slot_index].id,
+		action.slot_index,
+		staged_board,
+		staged_items,
+		staged_processor,
+		staged_result
+	)
+
+func reject_external(error_code: StringName) -> BattleCommandResult:
+	var action_id: int = _next_action_id
+	_next_action_id += 1
+	return _rejected(action_id, error_code)
+
+func evaluate_terminal_state() -> BattleCommandResult:
+	if status.is_finished():
+		return null
+	var outcome: BattleOutcome = outcome_evaluator.evaluate(board, player_color, turn_limit)
+	if not outcome.finished:
+		return null
+	var action_id: int = _next_action_id
+	_next_action_id += 1
+	var result: BattleCommandResult = BattleCommandResult.new()
+	result.success = true
+	_complete_battle(result.events, action_id, outcome)
+	return result
+
+func force_finish(winner: int, draw: bool, reason: StringName = &"debug_forced") -> BattleCommandResult:
+	var action_id: int = _next_action_id
+	_next_action_id += 1
+	if status.is_finished():
+		return _rejected(action_id, &"battle_already_finished")
+	var outcome: BattleOutcome = BattleOutcome.completed(winner, draw, reason)
+	var result: BattleCommandResult = BattleCommandResult.new()
+	result.success = true
+	result.legacy_result = {"success": true, "forced_finish": true}
+	_complete_battle(result.events, action_id, outcome)
+	return result
+
 func _execute_use_item(action: UseItemAction, action_id: int) -> BattleCommandResult:
-	if action == null:
-		return _rejected(action_id, &"invalid_item_action")
-	if not can_use_item(action.slot_index, action.actor_color):
-		return _rejected(action_id, &"item_unavailable")
+	var validation_error: StringName = _validate_item_action(action)
+	if not validation_error.is_empty():
+		return _rejected(action_id, validation_error)
 	var item: ChallengerItemDef = challenger_items[action.slot_index]
-	if item.effect_type == &"remove_piece":
-		if not board.in_bounds(action.target_position):
-			return _rejected(action_id, &"item_target_required")
-		var target_piece: ChessPiece = board.get_piece(action.target_position)
-		if target_piece == null or target_piece.color == action.actor_color or target_piece.def.is_king:
-			return _rejected(action_id, &"invalid_item_target")
 	var effect_payload: Dictionary = item.effect_payload.duplicate(true)
 	if board.in_bounds(action.target_position):
 		effect_payload["position"] = action.target_position
@@ -90,7 +139,7 @@ func _execute_use_item(action: UseItemAction, action_id: int) -> BattleCommandRe
 		0,
 		effect_payload
 	))
-	_item_used_turn_key = board.move_history.size()
+	_item_used_turn_key = board.turn_serial
 	challenger_items.remove_at(action.slot_index)
 	var result: BattleCommandResult = BattleCommandResult.new()
 	result.success = true
@@ -106,6 +155,30 @@ func _execute_use_item(action: UseItemAction, action_id: int) -> BattleCommandRe
 	_settle_effects(result.events, action_id, action.actor_color)
 	_append_terminal_events(result.events, action_id)
 	return result
+
+func _validate_item_action(action: UseItemAction) -> StringName:
+	if action == null:
+		return &"invalid_item_action"
+	if not can_use_item(action.slot_index, action.actor_color):
+		return &"item_unavailable"
+	var item: ChallengerItemDef = challenger_items[action.slot_index]
+	if item.effect_type == &"remove_piece":
+		if not board.in_bounds(action.target_position):
+			return &"item_target_required"
+		var target_piece: ChessPiece = board.get_piece(action.target_position)
+		if target_piece == null or target_piece.color == action.actor_color or target_piece.def.is_king:
+			return &"invalid_item_target"
+	return &""
+
+func _clone_runtime(staged_board: BoardState, staged_items: Array[ChallengerItemDef]) -> BattleCommandProcessor:
+	var copy: BattleCommandProcessor = BattleCommandProcessor.new(staged_board, staged_items, player_color, turn_limit)
+	copy._next_action_id = _next_action_id
+	copy._next_sequence = _next_sequence
+	copy._item_used_turn_key = _item_used_turn_key
+	copy.event_history.assign(event_history)
+	copy.effect_queue = effect_queue.clone_runtime()
+	copy.status = status.clone_runtime()
+	return copy
 
 func _execute_move(action: MoveAction, action_id: int) -> BattleCommandResult:
 	if action == null:
@@ -156,8 +229,33 @@ func _execute_move(action: MoveAction, action_id: int) -> BattleCommandResult:
 		}))
 	_settle_effects(result.events, action_id, action.actor_color)
 	_refresh_legacy_terminal_flags(result.legacy_result)
-	result.events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
-	_append_terminal_events(result.events, action_id)
+	var bonus_candidate: bool = (
+		moving_piece != null
+		and moving_piece.def.extra_move_on_capture
+		and bool(move_result.get("captured", false))
+	)
+	if bonus_candidate:
+		# Terminal rules are evaluated while the captured side owns the response turn.
+		var outcome: BattleOutcome = outcome_evaluator.evaluate(board, player_color, turn_limit)
+		if outcome.finished:
+			result.events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
+			if outcome.reason == &"checkmate":
+				result.events.append(_event(EVENT_CHECK_DECLARED, action_id, {"color": board.turn, "checkmate": true}))
+			_complete_battle(result.events, action_id, outcome)
+		else:
+			if board.is_in_check(board.turn):
+				result.events.append(_event(EVENT_CHECK_DECLARED, action_id, {"color": board.turn, "checkmate": false}))
+			board.turn = action.actor_color
+			board.turn_serial = maxi(0, board.turn_serial - 1)
+			result.legacy_result["extra_move_granted"] = true
+			result.events.append(_event(EVENT_EXTRA_MOVE_GRANTED, action_id, {
+				"color": action.actor_color,
+				"instance_id": moving_piece.instance_id,
+			}))
+			result.events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
+	else:
+		result.events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
+		_append_terminal_events(result.events, action_id)
 	return result
 
 func _settle_effects(events: Array[BattleEvent], action_id: int, acting_color: int) -> void:
@@ -200,31 +298,18 @@ func _refresh_legacy_terminal_flags(move_result: Dictionary) -> void:
 	move_result["stalemate"] = board.is_stalemate(board.turn) if not bool(move_result["check"]) else false
 
 func _append_terminal_events(events: Array[BattleEvent], action_id: int) -> void:
-	if not board.has_king(GameRules.PieceColor.WHITE):
-		events.append(_battle_ended(action_id, GameRules.PieceColor.BLACK, false, &"king_captured"))
-		return
-	if not board.has_king(GameRules.PieceColor.BLACK):
-		events.append(_battle_ended(action_id, GameRules.PieceColor.WHITE, false, &"king_captured"))
-		return
-	if turn_limit > 0 and board.move_history.size() >= turn_limit:
-		events.append(_battle_ended(action_id, GameRules.opposite(player_color), false, &"objective_turn_limit"))
-		return
-	if board.is_checkmate(board.turn):
-		events.append(_event(EVENT_CHECK_DECLARED, action_id, {"color": board.turn, "checkmate": true}))
-		events.append(_battle_ended(action_id, GameRules.opposite(board.turn), false, &"checkmate"))
-		return
-	if board.has_only_king(GameRules.PieceColor.WHITE) and board.has_only_king(GameRules.PieceColor.BLACK):
-		events.append(_battle_ended(action_id, -1, true, &"two_lone_kings"))
-		return
-	var lone_king_loser: int = board.get_lone_king_loser()
-	if lone_king_loser >= 0:
-		events.append(_battle_ended(action_id, GameRules.opposite(lone_king_loser), false, &"lone_king"))
-		return
-	if board.is_stalemate(board.turn):
-		events.append(_battle_ended(action_id, -1, true, &"stalemate"))
+	var outcome: BattleOutcome = outcome_evaluator.evaluate(board, player_color, turn_limit)
+	if outcome.finished:
+		if outcome.reason == &"checkmate":
+			events.append(_event(EVENT_CHECK_DECLARED, action_id, {"color": board.turn, "checkmate": true}))
+		_complete_battle(events, action_id, outcome)
 		return
 	if board.is_in_check(board.turn):
 		events.append(_event(EVENT_CHECK_DECLARED, action_id, {"color": board.turn, "checkmate": false}))
+
+func _complete_battle(events: Array[BattleEvent], action_id: int, outcome: BattleOutcome) -> void:
+	if status.finish(outcome, action_id):
+		events.append(_battle_ended(action_id, outcome.winner, outcome.draw, outcome.reason))
 
 func _battle_ended(action_id: int, winner: int, draw: bool, reason: StringName) -> BattleEvent:
 	return _event(EVENT_BATTLE_ENDED, action_id, {

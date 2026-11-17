@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ShopPoolDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/content/ShopPoolDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"standard_shop"
+title = "Royal Market"
+description = "Purchase one offer or leave. Inventory is fixed for this visit."
+recruit_piece_ids = Array[StringName]([&"pawn", &"knight", &"bishop", &"rook", &"assassin", &"royal_guard", &"catapult", &"bowman", &"portal_mage"])
+consumable_id = &"royal_bomb"
+relic_price = 35
+piece_price = 25
+consumable_price = 20
+protection_price = 15
+fusion_price = 40

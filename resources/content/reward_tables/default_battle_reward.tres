@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="BattleRewardTableDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/content/BattleRewardTableDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"default_battle_reward"
+title = "Victory Reward"
+description = "Choose one reward. Offers are saved and cannot be rerolled."
+normal_gold_min = 10
+normal_gold_max = 20
+elite_gold_min = 18
+elite_gold_max = 30
+recruit_piece_ids = Array[StringName]([&"pawn", &"knight", &"bishop", &"rook", &"queen", &"assassin", &"royal_guard", &"catapult", &"bowman", &"portal_mage", &"unicorn_cavalry", &"centaur", &"manticore", &"gryphon", &"gorgon"])
+bonus_consumable_id = &"royal_bomb"
+consumable_roll_sides = 3
+consumable_roll_hit = 0
+fallback_gold = 8

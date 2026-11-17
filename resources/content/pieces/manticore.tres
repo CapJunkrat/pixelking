@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="PieceDef" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/PieceDef.gd" id="1_piece"]
+[ext_resource type="Script" path="res://scripts/core/movement/MovementProfile.gd" id="2_profile"]
+[ext_resource type="Script" path="res://scripts/core/movement/BentRayMovementRule.gd" id="3_bent"]
+[ext_resource type="Resource" path="res://resources/content/motion_profiles/queen.tres" id="4_motion"]
+
+[sub_resource type="Resource" id="BentRule"]
+script = ExtResource("3_bent")
+initial_directions = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)])
+ray_directions = Array[Vector2i]([Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)])
+max_distance = 8
+
+[sub_resource type="Resource" id="MovementProfile"]
+script = ExtResource("2_profile")
+rules = Array[Resource]([SubResource("BentRule")])
+
+[resource]
+script = ExtResource("1_piece")
+id = "manticore"
+display_name_key = &"PIECE_MANTICORE"
+movement_profile = SubResource("MovementProfile")
+motion_profile = ExtResource("4_motion")
+base_value = 8
+rarity = 2
+available_in_opening_draft = false
+opening_draft_weight = 0

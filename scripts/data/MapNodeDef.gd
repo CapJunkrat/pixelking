@@ -8,6 +8,7 @@ extends Resource
 @export var reward_hint_key: StringName = &""
 @export var icon_text: String = "?"
 @export var is_battle: bool = false
+@export var encounter_def_id: StringName = &""
 @export_range(0, 100, 1) var generation_weight: int = 0
 
 func is_valid() -> bool:
@@ -18,5 +19,7 @@ func is_valid() -> bool:
 		and not enemy_hint_key.is_empty()
 		and not reward_hint_key.is_empty()
 		and not icon_text.is_empty()
+		and (not is_battle or not encounter_def_id.is_empty())
+		and (is_battle or encounter_def_id.is_empty())
 		and generation_weight >= 0
 	)

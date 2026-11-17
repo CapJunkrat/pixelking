@@ -5,7 +5,7 @@ extends RefCounted
 ## existing rules in any combination without adding piece IDs to this class.
 static func generate_pseudo_legal(board: BoardState, pos: Vector2i) -> Array[Vector2i]:
 	var piece := board.get_piece(pos)
-	if piece == null:
+	if piece == null or board.is_piece_immobilized(pos):
 		return []
 
 	var moves: Array[Vector2i] = []
@@ -17,7 +17,7 @@ static func generate_pseudo_legal(board: BoardState, pos: Vector2i) -> Array[Vec
 
 static func get_attack_squares(board: BoardState, pos: Vector2i) -> Array[Vector2i]:
 	var piece := board.get_piece(pos)
-	if piece == null:
+	if piece == null or board.is_piece_immobilized(pos):
 		return []
 
 	var squares: Array[Vector2i] = []

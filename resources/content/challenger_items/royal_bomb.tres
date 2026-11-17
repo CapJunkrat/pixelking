@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ChallengerItemDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ChallengerItemDef.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/generated/consumable_royal_bomb_frame_0.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"royal_bomb"
+display_name_key = &"ITEM_ROYAL_BOMB_NAME"
+description_key = &"ITEM_ROYAL_BOMB_DESC"
+icon = ExtResource("2_icon")
+usage_mode = 1
+effect_type = &"remove_piece"
+effect_priority = 10

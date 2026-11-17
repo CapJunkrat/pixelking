@@ -9,6 +9,7 @@ const SLOT_COUNT := 6
 @onready var slot_row: HBoxContainer = $TreasureTray/Margin/Slots/SlotRow
 
 var challenger_slots: Array[Button] = []
+var input_enabled: bool = true
 
 func _ready() -> void:
 	for index: int in range(SLOT_COUNT):
@@ -40,11 +41,17 @@ func refresh(items: Array[ChallengerItemDef], usable_slots: Array[bool] = []) ->
 			slot.tooltip_text = "%s\n%s\n%s" % [item_name, description, usage]
 			var can_use: bool = usable_slots[index] if index < usable_slots.size() else item.is_consumable()
 			# Persistent relics stay hoverable because they are informative, not usable.
-			slot.disabled = item.is_consumable() and not can_use
+			slot.disabled = not input_enabled or (item.is_consumable() and not can_use)
 			slot.add_theme_color_override("icon_disabled_color", Color(0.65, 0.65, 0.65, 1.0))
 
+func set_input_enabled(enabled: bool) -> void:
+	input_enabled = enabled
+	for slot: Button in challenger_slots:
+		slot.disabled = not input_enabled
+
 func _on_slot_pressed(index: int) -> void:
-	item_requested.emit(index)
+	if input_enabled:
+		item_requested.emit(index)
 
 func _text(key: String) -> String:
 	var localization: Node = get_node_or_null("/root/Localization")

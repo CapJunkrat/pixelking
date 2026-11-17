@@ -3,6 +3,7 @@ extends Control
 
 signal move_requested(from: Vector2i, to: Vector2i)
 signal item_target_requested(position: Vector2i)
+signal presentations_completed
 
 const BOARD_PIXELS := 312.0
 const LIGHT := Color("#285064")
@@ -19,6 +20,7 @@ var board: BoardState = null
 var player_color: int = GameRules.PieceColor.WHITE
 var presentation_speed: float = 1.0
 var item_targeting: bool = false
+var input_enabled: bool = true
 var _presentation_tweens: Array[Tween] = []
 var _presentation_proxies: Array[TextureRect] = []
 
@@ -49,12 +51,17 @@ func refresh(board_value: BoardState = null) -> void:
 		var board_position: Vector2i = position_value
 		var button: Button = square_buttons[board_position] as Button
 		var piece: ChessPiece = board.get_piece(board_position)
-		(button.get_node("Piece") as TextureRect).texture = _piece_texture(piece)
+		var piece_image: TextureRect = button.get_node("Piece") as TextureRect
+		piece_image.texture = _piece_texture(piece)
+		var immobilized: bool = piece != null and board.is_piece_immobilized(board_position)
+		piece_image.modulate = Color(0.56, 0.92, 1.0, 0.72) if immobilized else Color.WHITE
 		var marker: TextureRect = button.get_node("MoveMarker") as TextureRect
 		var danger_marker: Label = button.get_node("DangerMarker") as Label
 		marker.texture = null
 		marker.hide()
-		danger_marker.visible = board_position in dangerous_targets
+		danger_marker.visible = immobilized or board_position in dangerous_targets
+		danger_marker.text = "◆" if immobilized else "!"
+		danger_marker.add_theme_color_override("font_color", Color("#6ef0f2") if immobilized else Color("#ff5a52"))
 		if board_position == selected_square:
 			marker.texture = load("res://assets/ui/battle/modern/selection_brackets.png") as Texture2D
 			marker.show()
@@ -97,15 +104,83 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 	var duration: float = (profile.capture_duration if captured else profile.move_duration) / maxf(speed, 0.1)
 	var tween: Tween = create_tween().bind_node(self).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_presentation_tweens.append(tween)
-	if profile.path_type == PieceMotionProfile.PathType.ARC:
-		var midpoint: Vector2 = (source_button.global_position + target_button.global_position) * 0.5 - Vector2(0.0, source_button.size.y * profile.arc_height_cells)
-		tween.tween_property(proxy, "global_position", midpoint, duration * 0.5)
-		tween.tween_property(proxy, "global_position", target_button.global_position, duration * 0.5)
-	else:
-		tween.tween_property(proxy, "global_position", target_button.global_position, duration)
-	if captured:
+	var presentation_kind: StringName = presentation_kind_for(definition, captured)
+	match presentation_kind:
+		&"teleport":
+			tween.tween_property(proxy, "modulate:a", 0.0, duration * 0.35)
+			tween.tween_callback(_place_proxy.bind(proxy, target_button.global_position))
+			tween.tween_property(proxy, "modulate:a", 1.0, duration * 0.35)
+		&"bent_ray":
+			var corner_position: Vector2 = _bent_corner_position(definition, from, to, source_button.global_position, target_button.global_position)
+			tween.tween_property(proxy, "global_position", corner_position, duration * 0.35)
+			tween.tween_property(proxy, "global_position", target_button.global_position, duration * 0.65)
+		&"lob":
+			var lob_midpoint: Vector2 = (source_button.global_position + target_button.global_position) * 0.5 - Vector2(0.0, source_button.size.y * 1.6)
+			tween.tween_property(proxy, "global_position", lob_midpoint, duration * 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			tween.tween_property(proxy, "global_position", target_button.global_position, duration * 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		_:
+			if profile.path_type == PieceMotionProfile.PathType.ARC:
+				var midpoint: Vector2 = (source_button.global_position + target_button.global_position) * 0.5 - Vector2(0.0, source_button.size.y * profile.arc_height_cells)
+				tween.tween_property(proxy, "global_position", midpoint, duration * 0.5)
+				tween.tween_property(proxy, "global_position", target_button.global_position, duration * 0.5)
+			else:
+				tween.tween_property(proxy, "global_position", target_button.global_position, duration)
+	if presentation_kind == &"petrify":
+		tween.parallel().tween_property(proxy, "modulate", Color(0.4, 1.25, 1.35, 1.0), duration * 0.6)
+	elif presentation_kind == &"chained_capture":
+		tween.tween_property(proxy, "scale", Vector2(1.18, 1.18), duration * 0.18)
+		tween.tween_property(proxy, "scale", Vector2.ONE, duration * 0.12)
+	elif captured:
 		tween.parallel().tween_property(proxy, "modulate", Color(1.35, 0.85, 0.65, 1.0), duration * 0.45)
 	tween.tween_callback(_finish_proxy.bind(proxy, tween))
+
+static func presentation_kind_for(definition: PieceDef, captured: bool = false) -> StringName:
+	if definition == null:
+		return &"standard"
+	for rule: MovementRule in definition.resolved_movement_rules():
+		if rule is TeleportMovementRule:
+			return &"teleport"
+		if rule is BentRayMovementRule:
+			return &"bent_ray"
+		if rule is SlideMovementRule and (rule as SlideMovementRule).jump_over_occupied:
+			return &"lob"
+	if definition.immobilizes_adjacent:
+		return &"petrify"
+	if captured and definition.extra_move_on_capture:
+		return &"chained_capture"
+	return &"standard"
+
+func _bent_corner_position(definition: PieceDef, from: Vector2i, to: Vector2i, fallback_from: Vector2, fallback_to: Vector2) -> Vector2:
+	for rule: MovementRule in definition.resolved_movement_rules():
+		var bent_rule: BentRayMovementRule = rule as BentRayMovementRule
+		if bent_rule == null:
+			continue
+		for initial_direction: Vector2i in bent_rule.initial_directions:
+			var corner: Vector2i = from + initial_direction
+			var delta: Vector2i = to - corner
+			for ray_direction: Vector2i in bent_rule.ray_directions:
+				if delta.x * ray_direction.x + delta.y * ray_direction.y > 0 and delta.x * ray_direction.y == delta.y * ray_direction.x and square_buttons.has(corner):
+					return (square_buttons[corner] as Button).global_position
+	return Vector2(fallback_to.x, fallback_from.y)
+
+func _place_proxy(proxy: TextureRect, target_position: Vector2) -> void:
+	if is_instance_valid(proxy):
+		proxy.global_position = target_position
+
+func is_presenting() -> bool:
+	return not _presentation_tweens.is_empty()
+
+func set_input_enabled(enabled: bool) -> void:
+	input_enabled = enabled
+	if not input_enabled:
+		item_targeting = false
+		selected_square = Vector2i(-1, -1)
+		legal_targets.clear()
+		dangerous_targets.clear()
+	for button_value: Variant in square_buttons.values():
+		var button: Button = button_value as Button
+		if button != null:
+			button.disabled = not input_enabled
 
 func skip_presentations() -> void:
 	for tween: Tween in _presentation_tweens:
@@ -116,12 +191,15 @@ func skip_presentations() -> void:
 			proxy.queue_free()
 	_presentation_tweens.clear()
 	_presentation_proxies.clear()
+	presentations_completed.emit()
 
 func _finish_proxy(proxy: TextureRect, tween: Tween) -> void:
 	_presentation_tweens.erase(tween)
 	_presentation_proxies.erase(proxy)
 	if is_instance_valid(proxy):
 		proxy.queue_free()
+	if _presentation_tweens.is_empty():
+		presentations_completed.emit()
 
 func begin_item_targeting() -> void:
 	item_targeting = true
@@ -165,6 +243,7 @@ func _build_squares() -> void:
 			button.name = "Square_%d_%d" % [x_position, y_position]
 			button.custom_minimum_size = Vector2(cell_size, cell_size)
 			button.focus_mode = Control.FOCUS_NONE
+			button.disabled = not input_enabled
 			button.clip_contents = true
 			button.pressed.connect(_on_square_pressed.bind(board_position))
 			var image: TextureRect = TextureRect.new()
@@ -203,7 +282,7 @@ func _build_squares() -> void:
 			square_buttons[board_position] = button
 
 func _on_square_pressed(board_position: Vector2i) -> void:
-	if board == null:
+	if board == null or not input_enabled:
 		return
 	if item_targeting:
 		item_targeting = false

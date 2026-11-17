@@ -1,155 +1,123 @@
-extends Node
 class_name BattleFlowController
+extends Node
 
-enum Phase { PLAYER_TURN, ENEMY_TURN, FINISHED }
+## Thin scene coordinator. Turn scheduling, Run integration, and result rendering
+## are delegated to focused collaborators under scripts/battle/flow.
+enum Phase { PLAYER_TURN, ENEMY_TURN, PRESENTING, FINISHED }
 
-var phase := Phase.PLAYER_TURN
-var enemy_selector := EnemyMoveSelector.new()
-var enemy_pending := false
-var result_panel: BattleResultPanel
-var result_overlay: ColorRect
-var result_title: Label
-var result_detail: Label
-var retry_button: Button
-var exit_button: Button
-var battle: Control
+var phase: Phase = Phase.PLAYER_TURN
+var result_panel: BattleResultPanel = null
+var result_overlay: ColorRect = null
+var result_title: Label = null
+var result_detail: Label = null
+var retry_button: Button = null
+var exit_button: Button = null
+var battle: Node = null
+var game_state: Node = null
+var turn_coordinator: BattleTurnCoordinator = null
+var run_result_coordinator: BattleRunResultCoordinator = BattleRunResultCoordinator.new()
+var result_presenter: BattleResultPresenter = BattleResultPresenter.new()
+var _pending_terminal: Dictionary = {}
+var _result_presented: bool = false
 
 func _ready() -> void:
-	battle = get_parent() as Control
+	battle = get_parent()
+	game_state = get_node("/root/GameState")
 	call_deferred("_finish_ready")
 
 func _finish_ready() -> void:
 	_bind_result_panel()
-	GameState.battle_events_emitted.connect(_on_battle_events_emitted)
-	call_deferred("_advance_flow")
+	turn_coordinator = BattleTurnCoordinator.new()
+	add_child(turn_coordinator)
+	turn_coordinator.configure(game_state, Callable(battle, "is_settings_open"), Callable(battle, "clear_board_selection"))
+	turn_coordinator.input_enabled_changed.connect(Callable(battle, "set_battle_input_enabled"))
+	battle.connect("presentation_started", turn_coordinator.begin_presentation)
+	battle.connect("presentation_completed", _on_presentation_completed)
+	game_state.connect("battle_events_emitted", _on_battle_events_emitted)
+	turn_coordinator.start()
+	_sync_phase()
 
 func _exit_tree() -> void:
-	if GameState.battle_events_emitted.is_connected(_on_battle_events_emitted):
-		GameState.battle_events_emitted.disconnect(_on_battle_events_emitted)
+	if game_state != null and game_state.is_connected("battle_events_emitted", _on_battle_events_emitted):
+		game_state.disconnect("battle_events_emitted", _on_battle_events_emitted)
 
 func _on_battle_events_emitted(events: Array[BattleEvent]) -> void:
 	for event: BattleEvent in events:
 		if event.event_type != BattleCommandProcessor.EVENT_BATTLE_ENDED:
 			continue
 		var data: Dictionary = event.payload
-		var draw: bool = bool(data.get("draw", false))
-		var winner: int = int(data.get("winner", -1))
-		_show_result.call_deferred(winner == GameState.player_color, draw)
+		_pending_terminal = {
+			"player_won": int(data.get("winner", -1)) == int(game_state.get("player_color")),
+			"draw": bool(data.get("draw", false)),
+		}
+		phase = Phase.FINISHED
+		turn_coordinator.finish()
 		return
-	call_deferred("_advance_flow")
+	phase = Phase.PRESENTING
 
-func _advance_flow() -> void:
-	var board := GameState.board
-	if board == null or phase == Phase.FINISHED:
+func _on_presentation_completed() -> void:
+	if not _pending_terminal.is_empty():
+		_show_result(bool(_pending_terminal.get("player_won", false)), bool(_pending_terminal.get("draw", false)))
+		_pending_terminal.clear()
 		return
-	if not board.has_king(GameRules.PieceColor.WHITE):
-		_show_result(GameState.player_color == GameRules.PieceColor.BLACK, false)
+	turn_coordinator.complete_presentation()
+	_sync_phase()
+
+func force_debug_victory() -> void:
+	if not bool(game_state.get("debug_mode")) or phase == Phase.FINISHED:
 		return
-	if not board.has_king(GameRules.PieceColor.BLACK):
-		_show_result(GameState.player_color == GameRules.PieceColor.WHITE, false)
+	game_state.call("force_debug_victory")
+
+func _show_result(player_won: bool, draw: bool) -> void:
+	if _result_presented:
 		return
-	if board.is_checkmate(board.turn):
-		_show_result(board.turn != GameState.player_color, false)
-		return
-	if board.has_only_king(GameRules.PieceColor.WHITE) and board.has_only_king(GameRules.PieceColor.BLACK):
-		_show_result(false, true)
-		return
-	var lone_king_loser: int = board.get_lone_king_loser()
-	if lone_king_loser >= 0:
-		_show_result(lone_king_loser != GameState.player_color, false)
-		return
-	if board.is_stalemate(board.turn):
-		_show_result(false, true)
-		return
-	phase = Phase.PLAYER_TURN if board.turn == GameState.player_color else Phase.ENEMY_TURN
-	if phase == Phase.ENEMY_TURN and not enemy_pending:
-		enemy_pending = true
-		_play_enemy_turn.call_deferred()
-func _play_enemy_turn() -> void:
-	await get_tree().create_timer(0.45).timeout
-	if phase != Phase.ENEMY_TURN or GameState.board == null:
-		enemy_pending = false
-		return
-	if bool(battle.call("is_settings_open")):
-		enemy_pending = false
-		_advance_flow.call_deferred()
-		return
-	var action: MoveAction = enemy_selector.choose_action(GameState.board, GameState.board.turn)
-	enemy_pending = false
-	if action == null:
-		_advance_flow()
-		return
-	GameState.try_move(action.from, action.to, action.promotion_id)
-	battle.call("clear_board_selection")
-	battle.call("_refresh_board")
+	_result_presented = true
+	phase = Phase.FINISHED
+	turn_coordinator.finish()
+	var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
+	var run_result: BattleRunResult = run_result_coordinator.integrate(manager, player_won and not draw)
+	result_presenter.present(player_won, draw, run_result)
+
 func _bind_result_panel() -> void:
 	result_panel = battle.get_node("ResultOverlay") as BattleResultPanel
 	result_overlay = result_panel
-	result_title = result_panel.title_label
-	result_detail = result_panel.detail_label
-	retry_button = result_panel.retry_button
-	exit_button = result_panel.exit_button
-	retry_button.text = Localization.text("BATTLE_RETRY")
-	exit_button.text = Localization.text("BATTLE_RESULT_MAIN_MENU")
+	result_presenter.bind(result_panel, get_node("/root/Localization"))
+	result_title = result_presenter.title_label
+	result_detail = result_presenter.detail_label
+	retry_button = result_presenter.retry_button
+	exit_button = result_presenter.exit_button
 	result_panel.retry_requested.connect(_restart)
 	result_panel.exit_requested.connect(_return_after_result)
 
-func _show_result(player_won: bool, draw: bool) -> void:
-	phase = Phase.FINISHED
-	if draw:
-		result_title.text = Localization.text("BATTLE_DRAW")
-		result_detail.text = Localization.text("BATTLE_DRAW_DETAIL")
-	elif player_won:
-		result_title.text = Localization.text("BATTLE_VICTORY")
-		result_detail.text = Localization.text("BATTLE_VICTORY_DETAIL")
-	else:
-		result_title.text = Localization.text("BATTLE_DEFEAT")
-		result_detail.text = Localization.text("BATTLE_DEFEAT_DETAIL")
-	_integrate_run_result(player_won and not draw)
-	result_panel.present(result_title.text, result_detail.text)
-func _integrate_run_result(player_won: bool) -> void:
-	var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
-	if manager == null or manager.current_run == null:
-		retry_button.show()
-		exit_button.text = Localization.text("BATTLE_RESULT_MAIN_MENU")
+func _sync_phase() -> void:
+	if turn_coordinator == null:
 		return
-	var current: MapNodeState = manager.current_map_node()
-	var definition: MapNodeDef = MapNodeDefDatabase.get_def(current.node_type_id) if current != null else null
-	if definition == null or not definition.is_battle:
-		retry_button.show()
-		exit_button.text = Localization.text("BATTLE_RESULT_MAIN_MENU")
-		return
-	var error: Error = manager.apply_battle_outcome(player_won)
-	if error != OK:
-		result_detail.text = "%s\nRun save error: %s" % [result_detail.text, error_string(error)]
-		return
-	retry_button.hide()
-	var pending_type: String = str(manager.current_run.pending_choice.get("type", ""))
-	if pending_type == "battle_reward":
-		exit_button.text = "Choose Reward"
-	elif pending_type == "sacrifice":
-		exit_button.text = "Choose Sacrifice"
-	elif pending_type == "run_summary":
-		exit_button.text = "Run Summary"
-	else:
-		exit_button.text = Localization.text("BATTLE_RESULT_MAP")
+	match turn_coordinator.state:
+		BattleTurnCoordinator.State.PLAYER_TURN:
+			phase = Phase.PLAYER_TURN
+		BattleTurnCoordinator.State.ENEMY_TURN:
+			phase = Phase.ENEMY_TURN
+		BattleTurnCoordinator.State.FINISHED:
+			phase = Phase.FINISHED
+		_:
+			phase = Phase.PRESENTING
 
 func _return_after_result() -> void:
-	GameState.start_new_game()
+	game_state.call("start_new_game")
 	var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
 	if manager != null and manager.current_run != null:
 		get_tree().change_scene_to_file(manager.resume_scene_path())
 	else:
-		get_tree().change_scene_to_file("res://scenes/ui/MainMenu.tscn")
+		get_tree().change_scene_to_file(AppSceneRoutes.MAIN_MENU)
 
 func _restart() -> void:
 	var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
 	if manager != null and manager.current_run != null and manager.current_run.deployment_state != null:
-		GameState.start_run_battle(manager.current_run)
+		game_state.call("start_run_battle", manager.current_run)
 	else:
-		GameState.start_new_game()
+		game_state.call("start_new_game")
 	get_tree().reload_current_scene()
 
 func _return_to_menu() -> void:
-	GameState.start_new_game()
-	get_tree().change_scene_to_file("res://scenes/ui/MainMenu.tscn")
+	game_state.call("start_new_game")
+	get_tree().change_scene_to_file(AppSceneRoutes.MAIN_MENU)

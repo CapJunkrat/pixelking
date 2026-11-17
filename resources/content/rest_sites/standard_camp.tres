@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="RestSiteDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/content/RestSiteDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"standard_camp"
+title = "Camp"
+description = "Choose one preparation before continuing."
+supplies_gold = 10

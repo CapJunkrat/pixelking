@@ -1,14 +1,19 @@
 class_name RunState
 extends RefCounted
 
-const CURRENT_RUN_VERSION := 3
+const CURRENT_RUN_VERSION := 4
+const LEGACY_RUN_VERSION := 3
 const MODE_STANDARD := "standard"
 const MODE_ENDLESS := "endless"
 const MAX_ACTIVE_NON_KING_PIECES := 5
 const MAX_RESERVE_PIECES := 5
 const MAX_FAILURES := 3
+const FusionPlanType = preload("res://scripts/run/FusionPlan.gd")
+const RunPhaseType = preload("res://scripts/run/RunPhase.gd")
 
 var run_version: int = CURRENT_RUN_VERSION
+var phase: StringName = RunPhaseType.OPENING_DRAFT
+var was_migrated_from_legacy: bool = false
 var mode: String = MODE_STANDARD
 var run_seed: int = 0
 var rng_stream_states: Dictionary = {}
@@ -35,6 +40,8 @@ var next_piece_instance_id: int = 1
 
 func initialize_new(seed_value: int, mode_value: String = MODE_STANDARD) -> void:
 	run_version = CURRENT_RUN_VERSION
+	phase = RunPhaseType.OPENING_DRAFT
+	was_migrated_from_legacy = false
 	mode = mode_value
 	run_seed = seed_value
 	rng_stream_states.clear()
@@ -103,7 +110,7 @@ func move_piece_to_reserve(instance_id: int) -> bool:
 	return true
 
 func is_valid() -> bool:
-	if run_version != CURRENT_RUN_VERSION or mode not in [MODE_STANDARD, MODE_ENDLESS]:
+	if run_version != CURRENT_RUN_VERSION or not RunPhaseType.is_valid(phase) or mode not in [MODE_STANDARD, MODE_ENDLESS]:
 		return false
 	if failed_battles < 0 or failed_battles > MAX_FAILURES:
 		return false
@@ -111,6 +118,9 @@ func is_valid() -> bool:
 		return false
 	if gold < 0 or challenger_slots.size() > 6:
 		return false
+	for item_id: StringName in challenger_slots:
+		if ChallengerItemDatabase.get_def(item_id) == null:
+			return false
 	if not _pending_choice_is_valid() or not _map_progress_is_valid():
 		return false
 	if _king_count() != 1 or _active_non_king_count() > MAX_ACTIVE_NON_KING_PIECES or reserve_piece_ids.size() > MAX_RESERVE_PIECES:
@@ -142,7 +152,7 @@ func is_valid() -> bool:
 			return false
 		if resolved_node_payloads.has(String(current_node_id)):
 			return false
-	return true
+	return is_phase_consistent()
 
 func to_dictionary() -> Dictionary:
 	var roster_data: Array[Dictionary] = []
@@ -150,6 +160,7 @@ func to_dictionary() -> Dictionary:
 		roster_data.append(piece.to_dictionary())
 	return {
 		"run_version": run_version,
+		"phase": String(phase),
 		"mode": mode,
 		"seed": run_seed,
 		"rng_stream_states": rng_stream_states.duplicate(true),
@@ -175,13 +186,16 @@ func to_dictionary() -> Dictionary:
 		"next_piece_instance_id": next_piece_instance_id,
 	}
 
-func load_from_dictionary(data: Dictionary) -> bool:
-	if int(data.get("run_version", -1)) != CURRENT_RUN_VERSION:
+func load_from_dictionary(data: Dictionary, normalize_active_battle: bool = true) -> bool:
+	var loaded_version: int = int(data.get("run_version", -1))
+	if loaded_version not in [LEGACY_RUN_VERSION, CURRENT_RUN_VERSION]:
 		return false
 	var loaded_mode: String = str(data.get("mode", ""))
 	if loaded_mode not in [MODE_STANDARD, MODE_ENDLESS]:
 		return false
 	run_version = CURRENT_RUN_VERSION
+	phase = &""
+	was_migrated_from_legacy = loaded_version == LEGACY_RUN_VERSION
 	mode = loaded_mode
 	run_seed = int(data.get("seed", 0))
 	rng_stream_states = _dictionary_value(data, "rng_stream_states")
@@ -227,7 +241,105 @@ func load_from_dictionary(data: Dictionary) -> bool:
 	pending_choice = _dictionary_value(data, "pending_choice")
 	run_statistics = _dictionary_value(data, "run_statistics")
 	next_piece_instance_id = int(data.get("next_piece_instance_id", 1))
+	if data.has("phase") and loaded_version == CURRENT_RUN_VERSION:
+		phase = StringName(str(data.get("phase", "")))
+		if not RunPhaseType.is_valid(phase):
+			return false
+	else:
+		phase = infer_phase_from_state()
+		was_migrated_from_legacy = true
+	if phase == RunPhaseType.BATTLE_ACTIVE and normalize_active_battle:
+		phase = RunPhaseType.BATTLE_READY
+		was_migrated_from_legacy = true
 	return is_valid()
+
+func infer_phase_from_state() -> StringName:
+	if not pending_choice.is_empty():
+		match str(pending_choice.get("type", "")):
+			"opening_draft":
+				return RunPhaseType.OPENING_DRAFT
+			"shop", "event", "rest":
+				return RunPhaseType.NODE_INTERACTION
+			"battle_reward":
+				return RunPhaseType.POST_BATTLE_CHOICE
+			"roster_overflow":
+				return RunPhaseType.ROSTER_OVERFLOW
+			"fusion_confirmation":
+				return RunPhaseType.FUSION_CONFIRMATION
+			"sacrifice":
+				return RunPhaseType.SACRIFICE
+			"run_summary":
+				return RunPhaseType.RUN_SUMMARY
+			_:
+				return &""
+	if deployment_state != null:
+		return RunPhaseType.BATTLE_READY if deployment_state.confirmed else RunPhaseType.DEPLOYMENT
+	if not bool(run_statistics.get("opening_draft_complete", false)):
+		return RunPhaseType.OPENING_DRAFT
+	if map_state == null or current_node_id.is_empty() or _current_node_is_resolved():
+		return RunPhaseType.MAP
+	return RunPhaseType.NODE_SELECTED
+
+func is_phase_consistent() -> bool:
+	var draft_complete: bool = bool(run_statistics.get("opening_draft_complete", false))
+	var pending_type: String = str(pending_choice.get("type", ""))
+	match phase:
+		RunPhaseType.OPENING_DRAFT:
+			return not draft_complete and map_state == null and deployment_state == null and (pending_choice.is_empty() or pending_type == "opening_draft")
+		RunPhaseType.MAP:
+			return draft_complete and pending_choice.is_empty() and deployment_state == null and (map_state == null or current_node_id.is_empty() or _current_node_is_resolved())
+		RunPhaseType.NODE_SELECTED:
+			return draft_complete and pending_choice.is_empty() and deployment_state == null and _has_unresolved_current_node()
+		RunPhaseType.NODE_INTERACTION:
+			return (
+				draft_complete
+				and deployment_state == null
+				and pending_type in ["shop", "event", "rest"]
+				and _has_unresolved_current_node()
+				and _current_node_type() == StringName(pending_type)
+			)
+		RunPhaseType.DEPLOYMENT:
+			return pending_choice.is_empty() and deployment_state != null and not deployment_state.confirmed and _current_node_is_unresolved_battle()
+		RunPhaseType.BATTLE_READY, RunPhaseType.BATTLE_ACTIVE:
+			return pending_choice.is_empty() and deployment_state != null and deployment_state.confirmed and _current_node_is_unresolved_battle()
+		RunPhaseType.POST_BATTLE_CHOICE:
+			return pending_type == "battle_reward" and deployment_state == null and _current_node_is_resolved_battle()
+		RunPhaseType.ROSTER_OVERFLOW:
+			return pending_type == "roster_overflow" and deployment_state == null and _current_node_is_resolved_battle()
+		RunPhaseType.FUSION_CONFIRMATION:
+			if pending_type != "fusion_confirmation" or deployment_state != null:
+				return false
+			var plan_value: Variant = pending_choice.get("plan", {})
+			if not plan_value is Dictionary:
+				return false
+			var source_type: String = str((plan_value as Dictionary).get("source_type", ""))
+			return _current_node_is_resolved_battle() if source_type == "battle_reward" else source_type == "shop" and _has_unresolved_current_node() and _current_node_type() == &"shop"
+		RunPhaseType.SACRIFICE:
+			return pending_type == "sacrifice" and deployment_state == null and _current_node_is_unresolved_battle()
+		RunPhaseType.RUN_SUMMARY:
+			return pending_type == "run_summary" and deployment_state == null
+	return false
+
+func _current_node() -> MapNodeState:
+	return map_state.get_node(current_node_id) if map_state != null and not current_node_id.is_empty() else null
+
+func _current_node_type() -> StringName:
+	var node: MapNodeState = _current_node()
+	return node.node_type_id if node != null else &""
+
+func _current_node_is_resolved() -> bool:
+	return not current_node_id.is_empty() and resolved_node_payloads.has(String(current_node_id))
+
+func _has_unresolved_current_node() -> bool:
+	return _current_node() != null and not _current_node_is_resolved()
+
+func _current_node_is_unresolved_battle() -> bool:
+	var definition: MapNodeDef = MapNodeDefDatabase.get_def(_current_node_type())
+	return _has_unresolved_current_node() and definition != null and definition.is_battle
+
+func _current_node_is_resolved_battle() -> bool:
+	var definition: MapNodeDef = MapNodeDefDatabase.get_def(_current_node_type())
+	return _current_node_is_resolved() and definition != null and definition.is_battle
 
 func _pending_choice_is_valid() -> bool:
 	if pending_choice.is_empty():
@@ -237,6 +349,8 @@ func _pending_choice_is_valid() -> bool:
 	var type: String = str(pending_choice.get("type", ""))
 	if type == "opening_draft":
 		return _opening_choice_is_valid()
+	if type == "fusion_confirmation":
+		return _fusion_confirmation_is_valid()
 	if type not in ["battle_reward", "roster_overflow", "shop", "event", "rest", "sacrifice", "run_summary"]:
 		return false
 	var options_value: Variant = pending_choice.get("options", [])
@@ -254,6 +368,53 @@ func _pending_choice_is_valid() -> bool:
 	if type == "run_summary":
 		return (options_value as Array).is_empty()
 	return not (options_value as Array).is_empty()
+
+func _fusion_confirmation_is_valid() -> bool:
+	var plan_value: Variant = pending_choice.get("plan", {})
+	if not plan_value is Dictionary:
+		return false
+	var plan: FusionPlanType = FusionPlanType.new()
+	if not plan.load_from_dictionary(plan_value as Dictionary):
+		return false
+	var recipe: FusionRecipeDef = FusionRecipeDatabase.get_def(plan.recipe_id)
+	if recipe == null or recipe.result_piece_def_id != plan.result_piece_def_id:
+		return false
+	for instance_id: int in plan.ingredient_instance_ids:
+		if get_piece_state(instance_id) == null:
+			return false
+	var source: Dictionary = plan.original_pending_choice
+	if int(source.get("choice_version", -1)) != 1 or str(source.get("type", "")) != String(plan.source_type):
+		return false
+	var source_options_value: Variant = source.get("options", [])
+	if not source_options_value is Array:
+		return false
+	var source_match: bool = false
+	for source_value: Variant in source_options_value as Array:
+		if not source_value is Dictionary:
+			return false
+		var source_option: Dictionary = source_value as Dictionary
+		if str(source_option.get("id", "")) != plan.source_choice_id:
+			continue
+		var source_payload: Dictionary = source_option.get("payload", {}) as Dictionary
+		source_match = (
+			str(source_payload.get("kind", "")) == "fusion"
+			and StringName(str(source_payload.get("recipe_id", ""))) == plan.recipe_id
+			and int(source_payload.get("price", 0)) == plan.price
+		)
+	if not source_match:
+		return false
+	var options_value: Variant = pending_choice.get("options", [])
+	if not options_value is Array or (options_value as Array).size() != 2:
+		return false
+	var option_ids: Array[String] = []
+	for value: Variant in options_value as Array:
+		if not value is Dictionary:
+			return false
+		var option_id: String = str((value as Dictionary).get("id", ""))
+		if option_id.is_empty() or option_id in option_ids:
+			return false
+		option_ids.append(option_id)
+	return "confirm_fusion" in option_ids and "cancel_fusion" in option_ids
 
 func _opening_choice_is_valid() -> bool:
 	var round_index: int = int(pending_choice.get("round_index", -1))

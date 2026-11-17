@@ -157,17 +157,16 @@ func _confirm_deployment() -> void:
 	if error != OK:
 		status_label.text = _text("DEPLOY_CONFIRM_ERROR")
 		return
-	var game_state: Node = get_node("/root/GameState")
-	if not bool(game_state.call("start_run_battle", run_manager.current_run)):
+	if run_manager.start_current_battle() != OK:
 		status_label.text = _text("DEPLOY_CONFIRM_ERROR")
 		return
-	get_tree().change_scene_to_file("res://scenes/battle/BattleScene.tscn")
+	get_tree().change_scene_to_file(AppSceneRoutes.BATTLE)
 
 func _open_roster() -> void:
-	get_tree().change_scene_to_file("res://scenes/run/RosterScene.tscn")
+	get_tree().change_scene_to_file(AppSceneRoutes.ROSTER)
 
 func _return_to_map() -> void:
-	get_tree().change_scene_to_file("res://scenes/run/PathMapScene.tscn")
+	get_tree().change_scene_to_file(AppSceneRoutes.PATH_MAP)
 
 func _apply_locale() -> void:
 	$SafeArea/Layout/Header/Title.text = _text("DEPLOY_TITLE")

@@ -1,11 +1,6 @@
 extends RefCounted
 class_name EnemyMoveSelector
 
-const PIECE_VALUES := {
-	"pawn": 100, "knight": 320, "bishop": 330,
-	"rook": 500, "queen": 900, "king": 20000,
-}
-
 ## Intentionally uses a shallow greedy policy so the opponent stays approachable.
 ## Chooses a legal action intent without owning UI, timing, or execution state.
 func choose_action(board: BoardState, color: int) -> MoveAction:
@@ -37,7 +32,7 @@ func _score_move(board: BoardState, from: Vector2i, to: Vector2i, color: int) ->
 	var score := 0
 	var captured := board.get_piece(to)
 	if captured != null:
-		score += int(PIECE_VALUES.get(captured.def.id, 0)) * 10
+		score += _piece_value(captured) * 10
 	var simulation := board.clone()
 	var result := simulation.make_move(from, to)
 	if not result.get("success", false):
@@ -51,5 +46,14 @@ func _score_move(board: BoardState, from: Vector2i, to: Vector2i, color: int) ->
 	if simulation.is_square_attacked(to, GameRules.opposite(color)):
 		var moved_piece := simulation.get_piece(to)
 		if moved_piece != null:
-			score -= int(PIECE_VALUES.get(moved_piece.def.id, 0)) * 2
+			score -= _piece_value(moved_piece) * 2
+	var source_piece: ChessPiece = board.get_piece(from)
+	if captured != null and source_piece != null and source_piece.def.extra_move_on_capture:
+		score += 250
 	return score
+
+func _piece_value(piece: ChessPiece) -> int:
+	if piece == null or piece.def == null:
+		return 0
+	return 20000 if piece.def.is_king else maxi(1, piece.def.base_value) * 100
+

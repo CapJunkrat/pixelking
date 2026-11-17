@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="FusionRecipeDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/FusionRecipeDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"pawn_knight_lancer"
+ingredient_piece_def_ids = Array[StringName]([&"pawn", &"knight"])
+result_piece_def_id = &"lancer"
+display_name_key = &"FUSION_LANCER_NAME"
+description_key = &"FUSION_LANCER_DESC"
+display_name = "Lancer Blueprint"

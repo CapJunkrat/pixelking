@@ -1,0 +1,67 @@
+[gd_resource type="Resource" script_class="ContentCatalog" load_steps=51 format=3]
+
+[ext_resource type="Script" path="res://scripts/content/ContentCatalog.gd" id="1_catalog"]
+[ext_resource type="Resource" path="res://resources/content/motion_profiles/pawn.tres" id="2_motion_pawn"]
+[ext_resource type="Resource" path="res://resources/content/motion_profiles/knight.tres" id="3_motion_knight"]
+[ext_resource type="Resource" path="res://resources/content/motion_profiles/bishop.tres" id="4_motion_bishop"]
+[ext_resource type="Resource" path="res://resources/content/motion_profiles/rook.tres" id="5_motion_rook"]
+[ext_resource type="Resource" path="res://resources/content/motion_profiles/queen.tres" id="6_motion_queen"]
+[ext_resource type="Resource" path="res://resources/content/motion_profiles/king.tres" id="7_motion_king"]
+[ext_resource type="Resource" path="res://resources/content/pieces/pawn.tres" id="8_piece_pawn"]
+[ext_resource type="Resource" path="res://resources/content/pieces/knight.tres" id="9_piece_knight"]
+[ext_resource type="Resource" path="res://resources/content/pieces/bishop.tres" id="10_piece_bishop"]
+[ext_resource type="Resource" path="res://resources/content/pieces/rook.tres" id="11_piece_rook"]
+[ext_resource type="Resource" path="res://resources/content/pieces/queen.tres" id="12_piece_queen"]
+[ext_resource type="Resource" path="res://resources/content/pieces/king.tres" id="13_piece_king"]
+[ext_resource type="Resource" path="res://resources/content/pieces/lancer.tres" id="14_piece_lancer"]
+[ext_resource type="Resource" path="res://resources/content/pieces/archmage.tres" id="15_piece_archmage"]
+[ext_resource type="Resource" path="res://resources/content/pieces/assassin.tres" id="40_piece_assassin"]
+[ext_resource type="Resource" path="res://resources/content/pieces/royal_guard.tres" id="41_piece_royal_guard"]
+[ext_resource type="Resource" path="res://resources/content/pieces/catapult.tres" id="42_piece_catapult"]
+[ext_resource type="Resource" path="res://resources/content/pieces/bowman.tres" id="43_piece_bowman"]
+[ext_resource type="Resource" path="res://resources/content/pieces/portal_mage.tres" id="44_piece_portal_mage"]
+[ext_resource type="Resource" path="res://resources/content/pieces/unicorn_cavalry.tres" id="45_piece_unicorn"]
+[ext_resource type="Resource" path="res://resources/content/pieces/centaur.tres" id="46_piece_centaur"]
+[ext_resource type="Resource" path="res://resources/content/pieces/manticore.tres" id="47_piece_manticore"]
+[ext_resource type="Resource" path="res://resources/content/pieces/gryphon.tres" id="48_piece_gryphon"]
+[ext_resource type="Resource" path="res://resources/content/pieces/gorgon.tres" id="49_piece_gorgon"]
+[ext_resource type="Resource" path="res://resources/content/fusion_recipes/pawn_knight_lancer.tres" id="16_recipe_lancer"]
+[ext_resource type="Resource" path="res://resources/content/fusion_recipes/bishop_rook_archmage.tres" id="17_recipe_archmage"]
+[ext_resource type="Resource" path="res://resources/content/challenger_items/iron_crown.tres" id="18_item_crown"]
+[ext_resource type="Resource" path="res://resources/content/challenger_items/lucky_coin.tres" id="19_item_coin"]
+[ext_resource type="Resource" path="res://resources/content/challenger_items/war_banner.tres" id="20_item_banner"]
+[ext_resource type="Resource" path="res://resources/content/challenger_items/glass_feather.tres" id="21_item_feather"]
+[ext_resource type="Resource" path="res://resources/content/challenger_items/royal_bomb.tres" id="22_item_bomb"]
+[ext_resource type="Resource" path="res://resources/content/reward_tables/default_battle_reward.tres" id="23_reward"]
+[ext_resource type="Resource" path="res://resources/content/shop_pools/standard_shop.tres" id="24_shop"]
+[ext_resource type="Resource" path="res://resources/content/events/wandering_merchant.tres" id="25_event_merchant"]
+[ext_resource type="Resource" path="res://resources/content/events/ancient_shrine.tres" id="26_event_shrine"]
+[ext_resource type="Resource" path="res://resources/content/events/lost_patrol.tres" id="27_event_patrol"]
+[ext_resource type="Resource" path="res://resources/content/events/golden_fork.tres" id="28_event_fork"]
+[ext_resource type="Resource" path="res://resources/content/rest_sites/standard_camp.tres" id="29_rest"]
+[ext_resource type="Resource" path="res://resources/content/maps/nodes/normal_battle.tres" id="30_node_normal"]
+[ext_resource type="Resource" path="res://resources/content/maps/nodes/elite_battle.tres" id="31_node_elite"]
+[ext_resource type="Resource" path="res://resources/content/maps/nodes/shop.tres" id="32_node_shop"]
+[ext_resource type="Resource" path="res://resources/content/maps/nodes/event.tres" id="33_node_event"]
+[ext_resource type="Resource" path="res://resources/content/maps/nodes/rest.tres" id="34_node_rest"]
+[ext_resource type="Resource" path="res://resources/content/maps/nodes/boss.tres" id="35_node_boss"]
+[ext_resource type="Resource" path="res://resources/content/maps/templates/standard_region.tres" id="36_map_standard"]
+[ext_resource type="Resource" path="res://resources/content/encounters/normal_standard.tres" id="37_encounter_normal"]
+[ext_resource type="Resource" path="res://resources/content/encounters/elite_standard.tres" id="38_encounter_elite"]
+[ext_resource type="Resource" path="res://resources/content/encounters/boss_royal_guard.tres" id="39_encounter_boss"]
+
+[resource]
+script = ExtResource("1_catalog")
+catalog_id = &"pixelking.default"
+content_version = 3
+motion_profiles = Array[Resource]([ExtResource("2_motion_pawn"), ExtResource("3_motion_knight"), ExtResource("4_motion_bishop"), ExtResource("5_motion_rook"), ExtResource("6_motion_queen"), ExtResource("7_motion_king")])
+pieces = Array[Resource]([ExtResource("8_piece_pawn"), ExtResource("9_piece_knight"), ExtResource("10_piece_bishop"), ExtResource("11_piece_rook"), ExtResource("12_piece_queen"), ExtResource("13_piece_king"), ExtResource("14_piece_lancer"), ExtResource("15_piece_archmage"), ExtResource("40_piece_assassin"), ExtResource("41_piece_royal_guard"), ExtResource("42_piece_catapult"), ExtResource("43_piece_bowman"), ExtResource("44_piece_portal_mage"), ExtResource("45_piece_unicorn"), ExtResource("46_piece_centaur"), ExtResource("47_piece_manticore"), ExtResource("48_piece_gryphon"), ExtResource("49_piece_gorgon")])
+fusion_recipes = Array[Resource]([ExtResource("16_recipe_lancer"), ExtResource("17_recipe_archmage")])
+challenger_items = Array[Resource]([ExtResource("18_item_crown"), ExtResource("19_item_coin"), ExtResource("20_item_banner"), ExtResource("21_item_feather"), ExtResource("22_item_bomb")])
+battle_reward_table = ExtResource("23_reward")
+shop_pool = ExtResource("24_shop")
+events = Array[Resource]([ExtResource("25_event_merchant"), ExtResource("26_event_shrine"), ExtResource("27_event_patrol"), ExtResource("28_event_fork")])
+rest_site = ExtResource("29_rest")
+map_node_defs = Array[Resource]([ExtResource("30_node_normal"), ExtResource("31_node_elite"), ExtResource("32_node_shop"), ExtResource("33_node_event"), ExtResource("34_node_rest"), ExtResource("35_node_boss")])
+map_templates = Array[Resource]([ExtResource("36_map_standard")])
+encounters = Array[Resource]([ExtResource("37_encounter_normal"), ExtResource("38_encounter_elite"), ExtResource("39_encounter_boss")])

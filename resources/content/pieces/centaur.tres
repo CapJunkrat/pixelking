@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="PieceDef" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/PieceDef.gd" id="1_piece"]
+[ext_resource type="Script" path="res://scripts/core/movement/MovementProfile.gd" id="2_profile"]
+[ext_resource type="Script" path="res://scripts/core/movement/SlideMovementRule.gd" id="3_slide"]
+[ext_resource type="Script" path="res://scripts/core/movement/JumpMovementRule.gd" id="4_jump"]
+[ext_resource type="Resource" path="res://resources/content/motion_profiles/knight.tres" id="5_motion"]
+
+[sub_resource type="Resource" id="SlideRule"]
+script = ExtResource("3_slide")
+directions = Array[Vector2i]([Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)])
+max_distance = 8
+
+[sub_resource type="Resource" id="JumpRule"]
+script = ExtResource("4_jump")
+offsets = Array[Vector2i]([Vector2i(1, 2), Vector2i(2, 1), Vector2i(2, -1), Vector2i(1, -2), Vector2i(-1, -2), Vector2i(-2, -1), Vector2i(-2, 1), Vector2i(-1, 2)])
+
+[sub_resource type="Resource" id="MovementProfile"]
+script = ExtResource("2_profile")
+rules = Array[Resource]([SubResource("SlideRule"), SubResource("JumpRule")])
+
+[resource]
+script = ExtResource("1_piece")
+id = "centaur"
+display_name_key = &"PIECE_CENTAUR"
+movement_profile = SubResource("MovementProfile")
+motion_profile = ExtResource("5_motion")
+base_value = 8
+rarity = 2
+available_in_opening_draft = false
+opening_draft_weight = 0

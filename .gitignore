@@ -1,6 +1,8 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+/builds/
+/export/
 
 # Generated imports, translations, temporary files, and export secrets
 .import/

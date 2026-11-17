@@ -1075,3 +1075,9 @@ scenes/run/RunSummaryScene.tscn
 - **反馈深化：融合确认演出、遗物的丰富战斗触发器、更多 Boss 目标和事件文本。**
 - **发布候选扩充：从闭环基线扩展到 12 棋子、5 融合、10 遗物和 8 事件。**
 - **完整人工试玩反馈修订：当前自动化已打通完整 Run，但正式平衡、交互手感和内容质量仍以玩家整轮试玩意见为准。**
+
+### 内容资源架构修订
+
+现有棋子、MotionProfile、融合配方、遗物、消耗品、奖励表、商店池、事件和休息点已迁移到 `res://resources/content/`，由 `default_catalog.tres` 显式聚合并通过 `ContentRegistry` 校验。`scripts/data/*Database.gd` 只保留兼容查询职责，不再构造具体内容；`RunContentService` 从 Resource 读取有序池和参数，并保持稳定 ID、候选存档及 RNG 消费顺序。后续内容生产必须遵循 `res://docs/CONTENT_ARCHITECTURE.md`，不得重新引入目录扫描或服务内具体内容池。
+
+融合已进一步迁移为 `FusionPlan + FusionService`：奖励与商店共用精确实例计划、容量预检、事务式预览/确认/取消；商店仅出售当前可立即执行的配方并在确认成功后扣款；普通多级融合已受支持，王融合接口会保留唯一 King 实例 ID、active 身份与部署位置。`fusion_confirmation` 作为可保存 pending choice 使用独立 plan version，不提升 Run v3 存档版本。
