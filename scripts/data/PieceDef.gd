@@ -8,6 +8,24 @@ enum Rarity {
 	LEGENDARY,
 }
 
+## How this piece's attack lands. Presentation-only: it selects the victim's hit reaction.
+## NONE means the piece has no bespoke strike animation and uses the simple move tween.
+enum StrikeType {
+	NONE,
+	SLASH,
+	BLUNT,
+	PIERCE,
+	CRUSH,
+}
+
+## Visual mass. Presentation-only: together with the attacker's StrikeType it decides
+## how a captured piece breaks, flies or topples.
+enum WeightClass {
+	LIGHT,
+	MEDIUM,
+	HEAVY,
+}
+
 ## Immutable definition shared by every runtime instance of this piece type.
 @export var id: String = ""
 @export var display_name_key: StringName
@@ -18,6 +36,9 @@ enum Rarity {
 ## Presentation-only motion. It never participates in legal move generation.
 @export var motion_profile: PieceMotionProfile
 @export var special_move_rules: Array[MovementRule] = []
+## Presentation-only strike data. Never read by move generation or battle resolution.
+@export var strike_type: StrikeType = StrikeType.NONE
+@export var weight_class: WeightClass = WeightClass.MEDIUM
 
 ## Royal is a content/category tag. Only is_king participates in check,
 ## checkmate, king-position tracking, and the loss condition.

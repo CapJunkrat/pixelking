@@ -18,9 +18,19 @@ func _run() -> void:
 	await process_frame
 
 	_expect(battle.get_node("Margin/Layout/BoardFrame") is BattleBoardView, "battle board is extracted into a static scene component")
-	var grid := battle.get_node("Margin/Layout/BoardFrame/BoardCenter/BoardGrid") as GridContainer
-	_expect(grid.columns == 8, "battle grid follows the standard 8 x 8 board size")
-	_expect(grid.get_child_count() == 64, "battle grid creates one control per square")
+	var board_view := battle.get_node("Margin/Layout/BoardFrame") as BattleBoardView
+	_expect(board_view.projection.board_size == 8, "battle board follows the standard 8 x 8 board size")
+	_expect(board_view.square_count() == 64, "battle board exposes one square per board cell")
+	var round_trip := true
+	for y: int in range(8):
+		for x: int in range(8):
+			if board_view.projection.screen_to_square(board_view.square_center(Vector2i(x, y))) != Vector2i(x, y):
+				round_trip = false
+	_expect(round_trip, "every square centre maps back to its own square on the tilted board")
+	_expect(board_view.projection.screen_to_square(Vector2(-50, -50)) == Vector2i(-1, -1), "points off the board select no square")
+	_expect(board_view.square_center(Vector2i(0, 0)).y > board_view.square_center(Vector2i(0, 7)).y, "the player's home rank is drawn nearest the viewer")
+	_expect(board_view.projection.square_scale(Vector2i(0, 0)) > board_view.projection.square_scale(Vector2i(0, 7)), "nearer squares are drawn larger than far squares")
+	_expect(board_view.get_node("PieceLayer").get_child_count() == 32, "battle board shows one standing sprite per piece")
 	_expect(battle.get_node("Margin/Layout/TopBar") is BattleHUD, "battle HUD is extracted into a static scene component")
 	_expect(battle.get_node("Margin/Layout/TopBar/SettingsButton") != null, "top bar owns the settings button")
 	_expect(battle.get_node("SettingsOverlay") is BattleSettingsPanel, "battle settings are extracted into a static scene component")
@@ -34,15 +44,19 @@ func _run() -> void:
 	_expect(battle.settings_overlay.visible, "settings icon opens the battle settings overlay")
 	battle.settings_overlay.hide()
 
-	var pawn := battle.get_node("Margin/Layout/BoardFrame/BoardCenter/BoardGrid/Square_1_0") as Button
-	pawn.pressed.emit()
+	var knight_sprite := board_view.get_node("PieceLayer/Piece_1_0") as Sprite2D
+	var tap := InputEventMouseButton.new()
+	tap.button_index = MOUSE_BUTTON_LEFT
+	tap.pressed = true
+	tap.position = knight_sprite.position + Vector2(0, -12)
+	board_view._gui_input(tap)
 	await process_frame
 	_expect(battle.selected_square == Vector2i(1, 0), "clicking the current player's knight selects it")
 	_expect(Vector2i(0, 2) in battle.legal_targets, "selected knight exposes its legal move")
 
 	battle.animation_player.playback_speed = 0.1
-	var target := battle.get_node("Margin/Layout/BoardFrame/BoardCenter/BoardGrid/Square_0_2") as Button
-	target.pressed.emit()
+	_expect(board_view.square_at(board_view.square_center(Vector2i(0, 2))) == Vector2i(0, 2), "a legal destination wins the tap even when a piece stands in front of it")
+	board_view.press_square(Vector2i(0, 2))
 	await process_frame
 	_expect(game_state.board.get_piece(Vector2i(0, 2)) != null, "board click dispatches the selected legal move")
 	_expect(not battle.board_view.input_enabled, "battle input locks while presentation is active")

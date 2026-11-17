@@ -19,6 +19,7 @@ id = "knight"
 display_name_key = &"PIECE_KNIGHT"
 movement_profile = SubResource("MovementProfile")
 motion_profile = ExtResource("4_motion")
+strike_type = 4
 base_value = 3
 rarity = 0
 available_in_opening_draft = true

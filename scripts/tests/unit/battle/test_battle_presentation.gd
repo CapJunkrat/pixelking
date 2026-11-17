@@ -33,6 +33,18 @@ func _run() -> void:
 	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("catapult")) == &"lob", "jumping slide rules select a lob presentation")
 	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("gorgon")) == &"petrify", "immobilizing traits select a petrify presentation")
 	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("assassin"), true) == &"chained_capture", "capture-action traits select a chained strike presentation")
+	var strike_expectations: Dictionary = {
+		"pawn": [PieceDef.StrikeType.BLUNT, PieceDef.WeightClass.LIGHT],
+		"knight": [PieceDef.StrikeType.CRUSH, PieceDef.WeightClass.MEDIUM],
+		"bishop": [PieceDef.StrikeType.SLASH, PieceDef.WeightClass.MEDIUM],
+		"rook": [PieceDef.StrikeType.BLUNT, PieceDef.WeightClass.HEAVY],
+		"queen": [PieceDef.StrikeType.PIERCE, PieceDef.WeightClass.HEAVY],
+		"king": [PieceDef.StrikeType.CRUSH, PieceDef.WeightClass.HEAVY],
+	}
+	for piece_id: String in strike_expectations:
+		var strike_def: PieceDef = PieceDefDatabase.get_def(piece_id)
+		_expect(strike_def.strike_type == strike_expectations[piece_id][0] and strike_def.weight_class == strike_expectations[piece_id][1], "%s carries its strike type and weight class" % piece_id)
+	_expect(PieceDefDatabase.get_def("gorgon").strike_type == PieceDef.StrikeType.NONE, "special pieces have no bespoke strike animation yet")
 	var portal_pattern: Dictionary = PieceRulePreview.pattern("portal_mage", 5)
 	_expect(portal_pattern.get(Vector2i(2, 2)) == "move" and portal_pattern.get(Vector2i(1, 0)) == "both", "rule preview derives teleport and adjacent attacks from live MovementRules")
 	var gorgon_pattern: Dictionary = PieceRulePreview.pattern("gorgon", 5)

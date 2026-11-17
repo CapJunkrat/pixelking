@@ -20,6 +20,7 @@ id = "bishop"
 display_name_key = &"PIECE_BISHOP"
 movement_profile = SubResource("MovementProfile")
 motion_profile = ExtResource("4_motion")
+strike_type = 1
 base_value = 3
 rarity = 0
 available_in_opening_draft = true

@@ -1,0 +1,791 @@
+<title>PixelKing 视角样机</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap">
+<style>
+/* Layout: one column; game screen, attacker/victim pickers, a card explaining the resolved reaction, then the rule table. Single dark look on purpose (game screen). */
+:root {
+  --bg: #12101a;
+  --panel: #1c1928;
+  --line: #34304a;
+  --fg: #ece6d6;
+  --muted: #9d97b2;
+  --gold: #e0b45c;
+  --hl: #2c2740;
+  --display: "Silkscreen", ui-monospace, "SF Mono", Menlo, monospace;
+  --body: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  color-scheme: dark;
+}
+html, body { background: var(--bg); color: var(--fg); }
+body { font-family: var(--body); font-size: 15px; line-height: 1.6; }
+.wrap {
+  max-width: 620px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+h1 { font-family: var(--display); font-weight: 400; font-size: 20px; letter-spacing: .04em; margin: 0; color: var(--gold); }
+.sub { color: var(--muted); margin: 0; font-size: 14px; }
+.screen { position: relative; background: #0b0a11; border: 2px solid var(--line); border-radius: 6px; overflow: hidden; cursor: pointer; }
+canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; }
+.hint { position: absolute; right: 8px; bottom: 6px; font-size: 11px; color: var(--muted); pointer-events: none; }
+.controls { display: flex; flex-direction: column; gap: 10px; }
+.group { display: flex; flex-direction: column; gap: 6px; }
+.group .label { color: var(--muted); font-size: 13px; }
+.seg { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; gap: 1px; background: var(--line); }
+.seg button { padding: 9px 6px; background: var(--panel); color: var(--muted); border: 0; font: inherit; font-size: 14px; cursor: pointer; min-width: 0; }
+.seg button small { display: block; font-size: 11px; opacity: .8; }
+.seg button[aria-pressed="true"] { background: var(--gold); color: #1a1408; font-weight: 600; }
+.seg button:focus-visible, .replay:focus-visible { outline: 2px solid var(--fg); outline-offset: -3px; }
+.row { display: flex; gap: 8px; align-items: stretch; }
+.row .seg { flex: 1; }
+.replay { padding: 9px 14px; background: transparent; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 14px; cursor: pointer; }
+.notes { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; }
+.notes h2 { font-size: 16px; margin: 0 0 8px; }
+.notes dl { margin: 0; display: grid; grid-template-columns: 4.5em 1fr; gap: 6px 10px; }
+.notes dt { color: var(--muted); font-size: 13px; padding-top: 1px; }
+.notes dd { margin: 0; min-width: 0; }
+.chip { display: inline-block; font-size: 12px; padding: 0 6px; border-radius: 4px; background: var(--hl); color: var(--gold); margin-right: 4px; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 420px; }
+th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+th { color: var(--muted); font-weight: 500; background: var(--panel); }
+td.on { background: var(--hl); color: var(--gold); font-weight: 600; }
+.rules h2 { font-size: 16px; margin: 0 0 8px; }
+.rules p { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>PIXELKING · STRIKE LAB</h1>
+    <p class="sub">受击动画由“攻击的打击类型 × 受击方体型”决定。任意组合，点画面重播。</p>
+  </header>
+
+  <div class="screen" id="screen">
+    <canvas id="cv" width="192" height="208" aria-label="棋子攻击与受击动画演示"></canvas>
+    <span class="hint">点击重播</span>
+  </div>
+
+  <div class="controls">
+    <div class="group"><span class="label">攻击方（白）</span>
+      <div class="seg" id="segAtk">
+        <button type="button" id="a-pawn" data-k="pawn" aria-pressed="false">兵 · 头槌<small>冲击 · 轻</small></button>
+        <button type="button" id="a-knight" data-k="knight" aria-pressed="true">马 · L形踏击<small>重压 · 中</small></button>
+        <button type="button" id="a-bishop" data-k="bishop" aria-pressed="false">象 · 居合斩<small>斩击 · 中</small></button>
+        <button type="button" id="a-rook" data-k="rook" aria-pressed="false">车 · 冲撞<small>冲击 · 重</small></button>
+        <button type="button" id="a-queen" data-k="queen" aria-pressed="false">后 · 光枪贯穿<small>穿刺 · 重</small></button>
+        <button type="button" id="a-king" data-k="king" aria-pressed="false">王 · 王权裁决<small>重压 · 重</small></button>
+      </div>
+    </div>
+    <div class="group"><span class="label">受击方（黑）</span>
+      <div class="seg" id="segVic">
+        <button type="button" id="v-pawn" data-k="pawn" aria-pressed="false">兵<small>轻</small></button>
+        <button type="button" id="v-knight" data-k="knight" aria-pressed="false">马<small>中</small></button>
+        <button type="button" id="v-bishop" data-k="bishop" aria-pressed="false">象<small>中</small></button>
+        <button type="button" id="v-rook" data-k="rook" aria-pressed="true">车<small>重</small></button>
+        <button type="button" id="v-queen" data-k="queen" aria-pressed="false">后<small>重</small></button>
+        <button type="button" id="v-king" data-k="king" aria-pressed="false">王<small>重</small></button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="seg" id="segSpeed">
+        <button type="button" id="sp-1" data-k="1" aria-pressed="true">正常速度</button>
+        <button type="button" id="sp-03" data-k="0.3" aria-pressed="false">慢放 ×0.3</button>
+      </div>
+      <button type="button" class="replay" id="replay">重播</button>
+    </div>
+  </div>
+
+  <section class="notes" id="notes" aria-live="polite"></section>
+
+  <section class="rules">
+    <h2>受击规则表</h2>
+    <div class="table-wrap">
+      <table id="ruleTable">
+        <thead><tr><th>打击类型</th><th>轻（兵）</th><th>中（马、象）</th><th>重（车、后、王）</th></tr></thead>
+        <tbody>
+          <tr><th>斩击（象）</th><td data-c="slash-0">粉碎</td><td data-c="slash-1">顺刀光斜切两半</td><td data-c="slash-2">斜切两半（更沉）</td></tr>
+          <tr><th>冲击（车撞）</th><td data-c="bluntH-0">高飞击飞</td><td data-c="bluntH-1">低平撞飞</td><td data-c="bluntH-2">拦腰碎裂</td></tr>
+          <tr><th>冲击（兵撞）</th><td data-c="bluntL-0">击飞</td><td data-c="bluntL-1">快速翻倒</td><td data-c="bluntL-2">先撬根基，再撞倒</td></tr>
+          <tr><th>穿刺（后）</th><td data-c="pierce-0">贯穿击退</td><td data-c="pierce-1">穿孔碎裂</td><td data-c="pierce-2">穿孔碎裂（更慢）</td></tr>
+          <tr><th>重压（马、王）</th><td data-c="crush-0">压扁</td><td data-c="crush-1">自上而下压塌</td><td data-c="crush-2">沉入棋盘</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>冲击类按“攻击方和受击方的体型差”决定：力量越占优，飞得越远；兵撞车这种以小打大，动画要交代兵是怎么赢的。马踩车同样属于以小打大，所以沉得更慢、更吃力。</p>
+  </section>
+</div>
+
+<script>
+(() => {
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const W = cv.width, H = cv.height;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------------- sprites ----------------
+  const SPR = {
+    knight: ["....oooo....","...obbhbo...","..obbbbhbo..",".obobbbbbbo.","obbbbbbbbbo.","obbbbsbbbbo.",".ooobsbbbbo.","....obbbbbo.","...obbbbbo..","...obbbbbo..","..obbbbbbbo.","..ossssssso.","..ooooooooo.",".obbbbbbbbbo",".ossssssssso",".ooooooooooo"],
+    rook: ["ooo.oooo.ooo","obo.obbo.obo","obooobboooho","obbbbbbbbbho","osssssssssso",".obbbbbbbho.",".obbbbbbbho.",".obbbbbbbho.",".obbbbbbbho.",".obbbbbbbho.",".osssssssso.","oobbbbbbbboo","obbbbbbbbbho","osssssssssso","oooooooooooo"],
+    bishop: ["....oo....","...obho...","..obbbho..","..obobho..","..obbobo..","..obbbbo..","...obbo...","..oooooo..","...obbo...","...obbo...","..obbbho..",".obbbbbho.",".osssssso.","oooooooooo"],
+    pawn: ["...oooo...","..obbhbo..","..obbbbo..","...obbo...","..obbbbo..","...obbo...","...obbo...","..obbbho..",".obbbbbho.",".osssssso.","oooooooooo"],
+    queen: ["o..o.oo.o..o","obobobbobobo","obbbbbbbbbho",".obbbbbbbho.",".osssssssso.","..obbbbbho..","..obbbbbho..","...obbbho...","...obbbho...","...obbbho...","..obbbbbho..",".obbbbbbbho.",".osssssssso.","oooooooooooo"],
+    king: [".....oo.....","....obho....","...oobbooo..","....obho....","..oooooooo..",".obbbbbbbho.",".obbbbbbbho.","..obbbbbho..","..obbbbbho..","...obbbho...","..obbbbbho..",".obbbbbbbho.",".osssssssso.","oooooooooooo"]
+  };
+  const PAL = {
+    w: { o: "#2a1e2e", b: "#eadfc4", h: "#fff8e6", s: "#b39b76" },
+    k: { o: "#0d0a14", b: "#4c4062", h: "#8a7aa8", s: "#2c2440" }
+  };
+  function buildSprite(rows, pal, solid) {
+    const w = Math.max(...rows.map(r => r.length)), h = rows.length;
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'); const pixels = [], set = new Set();
+    rows.forEach((r, y) => { for (let x = 0; x < w; x++) {
+      const ch = r[x] || '.'; if (ch === '.' || ch === ' ') continue;
+      const key = pal[ch] ? ch : 'o';
+      g.fillStyle = solid || pal[key]; g.fillRect(x, y, 1, 1);
+      pixels.push({ x, y, col: pal[key] }); set.add(x + ',' + y);
+    } });
+    return { c, w, h, pixels, set };
+  }
+  const S = {};
+  for (const n in SPR) for (const side of ['w', 'k']) { S[n + side] = buildSprite(SPR[n], PAL[side]); S[n + side + '!'] = buildSprite(SPR[n], PAL[side], '#ffffff'); }
+  function masked(base, keep) {
+    const c = document.createElement('canvas'); c.width = base.w; c.height = base.h;
+    const g = c.getContext('2d'); const pixels = []; let sx = 0, sy = 0;
+    for (const p of base.pixels) if (keep(p.x, p.y)) { g.fillStyle = p.col; g.fillRect(p.x, p.y, 1, 1); pixels.push(p); sx += p.x; sy += p.y; }
+    const n = Math.max(1, pixels.length);
+    return { c, w: base.w, h: base.h, pixels, cx: Math.round(sx / n), cy: Math.round(sy / n) };
+  }
+
+  // ---------------- projection (2.5D tilt) ----------------
+  const V = { cell: 18, pitch: 58 * Math.PI / 180, D: 320, cy: 120, side: 6 };
+  const SP = Math.sin(V.pitch), CP = Math.cos(V.pitch);
+  function project(X, Y, Z) { const k = V.D / (V.D - (Z * CP + Y * SP)); return { x: W / 2 + X * k, y: V.cy + (Z * SP - Y * CP) * k, k }; }
+  const pxToY = px => px / CP;
+  const cellW = (gx, gy) => ({ X: (gx - 3.5) * V.cell, Z: (gy - 3.5) * V.cell });
+
+  const clamp01 = u => Math.max(0, Math.min(1, u));
+  const lerp = (a, b, u) => a + (b - a) * u;
+  const smooth = u => u * u * (3 - 2 * u);
+  const easeOut = u => 1 - (1 - u) * (1 - u);
+  const easeIn = u => u * u;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const sgn = v => v < 0 ? -1 : 1;
+
+  // ---------------- scene ----------------
+  const TARGET = { x: 3, y: 3 };
+  const STARTS = { knight: { x: 2, y: 5 }, bishop: { x: 0, y: 6 }, rook: { x: 3, y: 6 }, pawn: { x: 2, y: 4 }, queen: { x: 7, y: 3 }, king: { x: 4, y: 4 } };
+  const STATIC = [
+    { t: 'pawn', s: 'w', x: 1, y: 6 }, { t: 'pawn', s: 'w', x: 5, y: 6 }, { t: 'pawn', s: 'w', x: 6, y: 6 },
+    { t: 'pawn', s: 'w', x: 7, y: 6 }, { t: 'king', s: 'w', x: 4, y: 7 },
+    { t: 'pawn', s: 'k', x: 1, y: 1 }, { t: 'pawn', s: 'k', x: 2, y: 1 }, { t: 'pawn', s: 'k', x: 5, y: 1 },
+    { t: 'pawn', s: 'k', x: 6, y: 2 }, { t: 'pawn', s: 'k', x: 5, y: 4 }, { t: 'king', s: 'k', x: 4, y: 0 },
+  ];
+  const WEIGHT = { pawn: 0, knight: 1, bishop: 1, rook: 2, queen: 2, king: 2 };
+  const WNAME = ['轻', '中', '重'];
+  const VNAME = { pawn: '兵', knight: '马', bishop: '象', rook: '车', queen: '后', king: '王' };
+  const HITNAME = { slash: '斩击', blunt: '冲击', crush: '重压', pierce: '穿刺' };
+  let atkKey = 'knight', vicKey = 'rook', speed = 1;
+  const pawnVar = () => atkKey === 'pawn' && WEIGHT[vicKey] === 2 ? 'U' : 'N';
+
+  // ---------------- runtime state ----------------
+  const PRE = 0.45;
+  let t, hs, rt, impacted, endHold, shake, punch, flash, parts, sparks, rings, smoke, bodies, trail, fired, R, slash, decals, G, RX, power;
+
+  function geo() {
+    const sg = STARTS[atkKey], a = cellW(sg.x, sg.y), b = cellW(TARGET.x, TARGET.y);
+    let dx = b.X - a.X, dz = b.Z - a.Z; const L = Math.hypot(dx, dz);
+    const pa = project(a.X, 0, a.Z), pb = project(b.X, 0, b.Z);
+    const face = Math.abs(pb.x - pa.x) < 2 ? 1 : Math.sign(pb.x - pa.x);
+    const cg = Math.abs(TARGET.y - sg.y) === 2 ? { x: sg.x, y: TARGET.y } : { x: TARGET.x, y: sg.y };
+    let c = (pb.x - pa.x), s = (pb.y - pa.y); const n = Math.hypot(c, s) || 1; c /= n; s /= n;
+    if (Math.abs(s) < .42) s = sgn(s || -1) * .42; if (Math.abs(c) < .42) c = sgn(c || 1) * .42;
+    return { a, b, dx: dx / L, dz: dz / L, face, corner: cellW(cg.x, cg.y), slashAng: Math.atan2(s, c) };
+  }
+
+  function reset() {
+    G = geo();
+    t = 0; hs = 0; rt = -1; impacted = false; endHold = 0; shake = 0; punch = 0; flash = 0;
+    parts = []; sparks = []; rings = []; smoke = []; bodies = []; trail = []; fired = new Set(); slash = null; decals = [];
+    power = WEIGHT[atkKey] >= WEIGHT[vicKey] ? 1 : .45;
+    RX = pickReact();
+    const base = S[vicKey + 'k'];
+    const crack = []; let y = Math.round(base.h * .42);
+    for (let x = 0; x < base.w; x++) { crack.push(y); if (Math.random() < .5) y += Math.random() < .5 ? -1 : 1; y = Math.max(4, Math.min(Math.round(base.h * .6), y)); }
+    // spider-web cracks spreading from the pierced hole
+    const web = [], ox = Math.round(base.w / 2), oy = Math.round(base.h * .5);
+    for (let i = 0; i < 7; i++) {
+      let a = (i / 7) * Math.PI * 2 + rnd(-.3, .3), x = ox, yy = oy;
+      for (let s = 0; s < 16; s++) { a += rnd(-.5, .5); x += Math.cos(a); yy += Math.sin(a); web.push({ x: Math.round(x), y: Math.round(yy), d: s + rnd(0, 2) }); }
+    }
+    web.sort((p, q) => p.d - q.d);
+    R = { split: false, crack, rows: 0, web, wobbleT: -9, rest: null, holed: null };
+    renderNotes();
+  }
+
+  // ---------------- FX spawners ----------------
+  function puff(X, Y, Z, n = 8, big = 1) {
+    for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2;
+      smoke.push({ X: X + Math.cos(a) * 3, Y: Y + rnd(0, 6), Z: Z + Math.sin(a) * 3, vx: Math.cos(a) * rnd(10, 30) * big, vy: rnd(5, 25), vz: Math.sin(a) * rnd(10, 30) * big, r: rnd(1.5, 3) * big, age: 0, life: rnd(.3, .55) }); }
+  }
+  function sparkBurst(X, Y, Z, n, dirX = 0, dirZ = 0, bias = 0, spd = 1) {
+    for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, s = rnd(70, 160) * spd;
+      sparks.push({ X, Y, Z, vx: Math.cos(a) * s + dirX * bias, vy: rnd(20, 110) * spd, vz: Math.sin(a) * s + dirZ * bias, age: 0, life: rnd(.18, .34) }); }
+  }
+  function ring(X, Z, maxR, life = .38, col = '230,215,180') { rings.push({ X, Z, maxR, age: 0, life, col }); }
+  function debris(pixels, ox, oy, X, Y, Z, o = {}) {
+    const { vx = 0, vy = 0, vz = 0, rot = 0, spread = 30, every = 1, grav = 260, life = [1, 1.6], radial = 2 } = o;
+    pixels.forEach((p, i) => { if (i % every) return;
+      const lx = p.x - ox, ly = p.y - oy, c = Math.cos(rot), s = Math.sin(rot), dx = lx * c - ly * s, dy = lx * s + ly * c;
+      parts.push({ X: X + dx, Y: Math.max(0, Y - pxToY(dy)), Z, vx: vx + rnd(-spread, spread) + dx * radial, vy: vy + rnd(0, spread * 1.2), vz: vz + rnd(-spread, spread) * .6,
+                   col: p.col, life: rnd(life[0], life[1]), age: 0, sz: Math.random() < .25 ? 2 : 1, bounced: 0, g: grav }); });
+  }
+  function bodyFrom(m, X, Z, opts) {
+    return Object.assign({ m, X: X + (m.cx - m.w / 2), Y: pxToY(m.h - 1 - m.cy), Z, vx: 0, vy: 0, vz: 0, rot: 0, vr: 0, grav: 0, age: 0, ox: 0, oy: 0,
+                           shatterGround: false, shatterAt: Infinity, jitter: 0, dead: false }, opts);
+  }
+  function shatterBody(b, pw = 1) {
+    debris(b.m.pixels, b.m.cx, b.m.cy, b.X + b.ox, Math.max(0, b.Y - pxToY(b.oy)), b.Z, { vx: b.vx * .4, vy: Math.max(20, b.vy * .2) * pw, vz: b.vz * .4, rot: b.rot, spread: 30 * pw });
+    b.dead = true;
+  }
+  function crackDecal(X, Z, n, len) {
+    for (let i = 0; i < n; i++) {
+      let a = i / n * Math.PI * 2 + rnd(-.3, .3), x = X, z = Z; const pts = [];
+      const L = len * rnd(.55, 1);
+      for (let d = 0; d < L; d += 1.5) { a += rnd(-.35, .35); x += Math.cos(a) * 1.5; z += Math.sin(a) * 1.5; pts.push([x, z]); }
+      decals.push(pts);
+    }
+  }
+
+  // ---------------- attackers ----------------
+  function vicTopY() {
+    const h = S[vicKey + 'k'].h;
+    if (!impacted) return pxToY(h);
+    return RX.topPx ? pxToY(Math.max(0, RX.topPx(rt))) : 0;
+  }
+  const ATK = {
+    knight: {
+      name: "KNIGHT L-STOMP", hit: 'crush', impact: .84, end: 2.6, hitstop: .1, shake: 1.35,
+      title: "马 · L形腾跃踏击",
+      desc: "原地人立蓄力，跃起后在空中先沿长边飞两格，再折向一格，画出一个“L”；在目标正上方顿一下，马头朝下重重踩落。棋盘被踩出裂纹，扬起一圈尘浪。",
+      events: [{ at: .24, fn: () => puff(G.a.X, 2, G.a.Z, 6, .8) },
+               { at: .5, fn: () => { const k = G.corner; sparkBurst(k.X, V.cell * 1.9, k.Z, 5, 0, 0, 0, .35); ring(k.X, k.Z, V.cell * .4, .25, '224,180,92'); } }],
+      pose(u) {
+        const { a, b, face, corner: K } = G, c = V.cell, H1 = c * 1.9, H2 = c * 2.2;
+        const o = { X: a.X, Y: 0, Z: a.Z, sp: 'knightw', sx: 1, sy: 1, rot: 0, white: 0, trail: false };
+        if (u < 0) return o;
+        if (u < .24) { const s = Math.sin(u / .24 * Math.PI / 2); o.rot = -.32 * s * face; o.sx = 1 + .14 * s; o.sy = 1 - .18 * s; return o; }
+        if (u < .5) { const q = (u - .24) / .26, st = Math.sin(q * Math.PI); o.X = lerp(a.X, K.X, q); o.Z = lerp(a.Z, K.Z, q); o.Y = H1 * easeOut(q); o.rot = lerp(-.32, -.1, q) * face; o.sy = 1 + .12 * st; o.sx = 1 - .08 * st; o.trail = true; return o; }
+        if (u < .66) { const q = (u - .5) / .16, e = smooth(q); o.X = lerp(K.X, b.X, e); o.Z = lerp(K.Z, b.Z, e); o.Y = lerp(H1, H2, q); o.rot = lerp(-.1, .38, e) * face; o.trail = true; return o; }
+        o.X = b.X; o.Z = b.Z;
+        if (u < .74) { const q = (u - .66) / .08; o.Y = H2 + 2 * Math.sin(q * Math.PI); o.rot = .42 * face; o.sx = 1.08; o.sy = .94; return o; }
+        if (u < .84) { const q = (u - .74) / .1; o.Y = lerp(H2, vicTopY(), easeIn(q)); o.rot = .42 * face; o.sx = .86; o.sy = 1.22; o.trail = true; return o; }
+        const q = clamp01((u - .84) / .2), sq = Math.sin(clamp01((u - .84) / .16) * Math.PI) * (1 - q * .3);
+        o.Y = vicTopY(); o.rot = lerp(.42, 0, easeOut(q)) * face; o.sx = 1 + .25 * sq; o.sy = 1 - .22 * sq; return o;
+      },
+      hitFx() { const b = G.b; ring(b.X, b.Z, V.cell * 1.3, .5); ring(b.X, b.Z, V.cell * .7, .3); puff(b.X, 2, b.Z, 12, 1.3); crackDecal(b.X, b.Z, 7, V.cell * .95); sparkBurst(b.X, 4, b.Z, 6, 0, 0, 0, .6); }
+    },
+    bishop: {
+      name: "BISHOP IAI", hit: 'slash', impact: .36, end: 2.2, hitstop: .12, shake: .8,
+      title: "象 · 居合斩",
+      desc: "后仰蓄力、身体发亮，一瞬间斜线闪身穿过目标，留下一串残影，停在目标侧后方（不挡视线）。刀光在目标身上出现。",
+      events: [],
+      pose(u) {
+        const { a, b, dx, dz, face } = G, c = V.cell, past = { X: b.X + dx * c * .7, Z: b.Z + dz * c * .7 };
+        const o = { X: a.X, Y: 0, Z: a.Z, sp: 'bishopw', sx: 1, sy: 1, rot: 0, white: 0, trail: false };
+        if (u < 0) return o;
+        if (u < .28) { const s = Math.sin(u / .28 * Math.PI / 2); o.rot = -.22 * s * face; o.sx = 1 + .1 * s; o.sy = 1 - .12 * s; o.X -= dx * 2 * s; o.Z -= dz * 2 * s; o.white = .55 * s * (.7 + .3 * Math.sin(u * 60)); return o; }
+        if (u < .36) { const q = (u - .28) / .08; o.X = lerp(a.X - dx * 2, past.X, q); o.Z = lerp(a.Z - dz * 2, past.Z, q); o.sx = 1.25; o.sy = .82; o.white = .8; o.trail = true; o.rot = .1 * face; return o; }
+        if (u < .9) { const q = (u - .36) / .54; o.X = past.X; o.Z = past.Z; o.rot = lerp(.18, 0, smooth(q)) * face; o.white = .8 * (1 - clamp01(q * 2)); return o; }
+        const q = clamp01((u - .9) / .22); o.X = lerp(past.X, b.X, smooth(q)); o.Z = lerp(past.Z, b.Z, smooth(q)); o.Y = 4 * q * (1 - q) * 4; return o;
+      },
+      hitFx() { slash = { age: 0, life: .5 }; sparkBurst(G.b.X, 9, G.b.Z, 10, G.dx, G.dz, 60, .8); }
+    },
+    rook: {
+      name: "ROOK RAM", hit: 'blunt', impact: .56, end: 2.3, hitstop: .1, shake: 1.5,
+      title: "车 · 冲撞",
+      desc: "后退蓄力、塔身轰隆震动冒烟，然后加速直冲，正面撞上目标；屏幕重震，大圈尘浪。",
+      events: [{ at: .1, fn: () => puff(G.a.X, 2, G.a.Z, 4, .6) }, { at: .25, fn: () => puff(G.a.X - G.dx * 4, 2, G.a.Z - G.dz * 4, 5, .7) }],
+      pose(u) {
+        const { a, b, dx, dz } = G, c = V.cell, back = { X: a.X - dx * c * .28, Z: a.Z - dz * c * .28 }, C = { X: b.X - dx * c * .55, Z: b.Z - dz * c * .55 };
+        const o = { X: a.X, Y: 0, Z: a.Z, sp: 'rookw', sx: 1, sy: 1, rot: 0, white: 0, trail: false };
+        if (u < 0) return o;
+        if (u < .38) { const q = u / .38, e = easeOut(q); o.X = lerp(a.X, back.X, e) + (Math.random() - .5) * 2 * q; o.Z = lerp(a.Z, back.Z, e); o.sy = 1 - .1 * q; o.sx = 1 + .06 * q; return o; }
+        if (u < .56) { const q = (u - .38) / .18, e = easeIn(q); o.X = lerp(back.X, C.X, e); o.Z = lerp(back.Z, C.Z, e); o.sx = .9; o.sy = 1.12; o.trail = true; return o; }
+        if (u < .64) { const q = (u - .56) / .08; o.X = C.X; o.Z = C.Z; o.sx = 1 + .22 * Math.sin(q * Math.PI); o.sy = 1 - .2 * Math.sin(q * Math.PI); return o; }
+        const q = clamp01((u - .64) / .3); o.X = lerp(C.X, b.X, smooth(q)); o.Z = lerp(C.Z, b.Z, smooth(q)); return o;
+      },
+      hitFx() { const b = G.b; ring(b.X, b.Z, V.cell * 1.4, .5); ring(b.X, b.Z, V.cell * .8, .32); puff(b.X, 2, b.Z, 10, 1.4); sparkBurst(b.X, 6, b.Z, 8, G.dx, G.dz, 40, .7); }
+    },
+    pawn: {
+      name: "PAWN HEADBUTT", hit: 'blunt', hitstop: .07, shake: .55,
+      get impact() { return pawnVar() === 'U' ? 1.2 : .38; },
+      get end() { return this.impact + (pawnVar() === 'U' ? 2.0 : 1.7); },
+      get settleAt() { return this.impact + (pawnVar() === 'U' ? .75 : .14); },
+      title: "兵 · 头槌",
+      get desc() {
+        return pawnVar() === 'U'
+          ? "第一下：压低身子贴地冲过去，撞掉对方底座的一块砖，自己被弹回来、头上冒星星。第二下：后退两步助跑，跳起来一头撞在塔身上。"
+          : "缩身蓄力，斜跳过去，身体前倾一头撞上。动作小、节奏快。";
+      },
+      get events() { return pawnVar() === 'U' ? this._first : []; },
+      _first: [{ at: .38, fn: () => {
+        const bs = base(), b = G.b, f = G.face, far = x => f > 0 ? x >= bs.w - 5 : x <= 4, isBrick = (x, y) => far(x) && y >= bs.h - 6 && y <= bs.h - 3;
+        R.rest = masked(bs, (x, y) => !isBrick(x, y));
+        bodies.push(bodyFrom(masked(bs, isBrick), b.X, b.Z, { vx: G.dx * 50 + f * 50, vz: G.dz * 50, vy: 55, vr: 10 * f, grav: 300, shatterGround: true }));
+        sparkBurst(b.X, 3, b.Z, 8, G.dx, G.dz, 40, .6); puff(b.X + f * 6, 2, b.Z, 5, .7); ring(b.X, b.Z, V.cell * .45, .25);
+        R.wobbleT = t; hs = .06; shake = .45;
+      } }],
+      pose(u) {
+        const { a, b, dx, dz, face } = G, c = V.cell, U = pawnVar() === 'U';
+        const C = { X: b.X - dx * c * .38, Z: b.Z - dz * c * .38 }, C1 = { X: b.X - dx * c * .42, Z: b.Z - dz * c * .42 };
+        const o = { X: a.X, Y: 0, Z: a.Z, sp: 'pawnw', sx: 1, sy: 1, rot: 0, white: 0, trail: false };
+        if (u < 0) return o;
+        if (u < .14) { const s = Math.sin(u / .14 * Math.PI / 2); o.sx = 1 + .2 * s; o.sy = 1 - .22 * s; return o; }
+        if (u < .38) {
+          const q = (u - .14) / .24;
+          if (U) { o.X = lerp(a.X, C1.X, q); o.Z = lerp(a.Z, C1.Z, q); o.Y = c * .35 * 4 * q * (1 - q); o.rot = .6 * smooth(q) * face; o.sy = .85; o.sx = 1.1; o.trail = true; }
+          else { o.X = lerp(a.X, C.X, q); o.Z = lerp(a.Z, C.Z, q); o.Y = c * .75 * 4 * q * (1 - q) + c * .25 * q; o.rot = .4 * smooth(q) * face; o.sy = 1 + .1 * Math.sin(q * Math.PI); }
+          return o;
+        }
+        if (U && u < 1.2) {
+          const a2 = { X: lerp(C1.X, a.X, .7), Z: lerp(C1.Z, a.Z, .7) }, a3 = { X: a2.X - dx * c * .3, Z: a2.Z - dz * c * .3 };
+          if (u < .6) { const q = (u - .38) / .22; o.X = lerp(C1.X, a2.X, easeOut(q)); o.Z = lerp(C1.Z, a2.Z, easeOut(q)); o.Y = c * .6 * 4 * q * (1 - q); o.rot = lerp(.6, -.5, q) * face; return o; }
+          o.X = a2.X; o.Z = a2.Z;
+          if (u < .84) { const q = (u - .6) / .24, w = Math.sin(clamp01(q * 3) * Math.PI); o.rot = Math.sin(q * Math.PI * 3) * .18 * (1 - q); o.sy = 1 - .15 * w; o.sx = 1 + .12 * w; o.dizzy = true; return o; }
+          if (u < .96) { const q = (u - .84) / .12; o.X = lerp(a2.X, a3.X, smooth(q)); o.Z = lerp(a2.Z, a3.Z, smooth(q)); o.sy = 1 - .15 * q; o.sx = 1 + .1 * q; o.rot = -.15 * q * face; return o; }
+          const q = (u - .96) / .24, e = easeIn(q); o.X = lerp(a3.X, C.X, e); o.Z = lerp(a3.Z, C.Z, e);
+          o.Y = q < .55 ? Math.abs(Math.sin(q / .55 * Math.PI * 2)) * 3 : c * .55 * Math.sin((q - .55) / .45 * Math.PI * .75); o.rot = .45 * face; o.trail = q > .35; return o;
+        }
+        const I = this.impact, S2 = this.settleAt, back = { X: C.X - dx * 3, Z: C.Z - dz * 3 };
+        if (u < I + .14) { const q = (u - I) / .14; o.X = lerp(C.X, back.X, easeOut(q)); o.Z = lerp(C.Z, back.Z, easeOut(q)); o.Y = c * .25 * (1 - q); o.rot = lerp(.4, -.1, q) * face; return o; }
+        if (u < S2) { o.X = back.X; o.Z = back.Z; o.rot = -.1 * face; return o; }
+        const q = clamp01((u - S2) / .2); o.X = lerp(back.X, b.X, smooth(q)); o.Z = lerp(back.Z, b.Z, smooth(q)); o.Y = 4 * q * (1 - q) * 3; o.rot = lerp(-.1, 0, q) * face; return o;
+      },
+      hitFx() { const b = G.b; sparkBurst(b.X, 10, b.Z, pawnVar() === 'U' ? 10 : 7, G.dx, G.dz, 30, .6); ring(b.X, b.Z, V.cell * .55, .28); }
+    },
+    queen: {
+      name: "QUEEN LIGHT LANCE", hit: 'pierce', impact: .62, end: 2.4, hitstop: .12, shake: .9,
+      title: "后 · 光枪贯穿",
+      desc: "后不靠近对手。她原地浮起、身体发光，身前凝出一支光枪；光枪略微后拉蓄力，然后沿直线射出，贯穿目标。等目标倒下后，她才从容地滑进格子。",
+      events: [],
+      pose(u) {
+        const { a, b, dx, dz } = G, c = V.cell;
+        const o = { X: a.X, Y: 0, Z: a.Z, sp: 'queenw', sx: 1, sy: 1, rot: 0, white: 0, trail: false };
+        if (u < 0) return o;
+        const hover = c * .45;
+        if (u < .3) { const q = u / .3; o.Y = hover * easeOut(q); o.white = .35 * q; o.sy = 1 + .06 * q; return o; }
+        if (u < .62) { o.Y = hover + Math.sin(u * 18) * .8; o.white = .35 + .15 * Math.sin(u * 50); if (u > .5) { const q = (u - .5) / .12; o.X -= dx * 2 * q; o.Z -= dz * 2 * q; } return o; }
+        if (u < 1.05) { const q = (u - .62) / .43; o.X -= dx * 2 * (1 - q); o.Z -= dz * 2 * (1 - q); o.Y = hover + Math.sin(u * 18) * .8; o.white = .4 * (1 - q); return o; }
+        const q = clamp01((u - 1.05) / .42), e = smooth(q); o.X = lerp(a.X, b.X, e); o.Z = lerp(a.Z, b.Z, e); o.Y = hover * (1 - easeIn(q)); o.trail = q > .05 && q < .9; return o;
+      },
+      fx(o, u) {
+        if (u < .08 || (impacted && rt > .4)) return;
+        const P0 = project(o.X, o.Y + pxToY(8), o.Z), T = project(G.b.X, pxToY(7), G.b.Z);
+        let dx = T.x - P0.x, dy = T.y - P0.y; const L = Math.hypot(dx, dy); dx /= L; dy /= L;
+        const LEN = 18; let tail, len = LEN, alpha = 1;
+        if (u < .3) { len = LEN * easeOut((u - .08) / .22); tail = 7; alpha = (u - .08) / .22; }
+        else if (u < .5) tail = 7 - 4 * smooth((u - .3) / .2);
+        else if (!impacted) tail = lerp(3, L - LEN + 9, easeIn(clamp01((u - .5) / .12)));
+        else { tail = L - LEN + 9; alpha = 1 - rt / .4; }
+        const x0 = P0.x + dx * tail, y0 = P0.y + dy * tail, x1 = x0 + dx * len, y1 = y0 + dy * len;
+        ctx.strokeStyle = `rgba(255,220,130,${.3 * alpha})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+        if (u > .5 && !impacted) { ctx.strokeStyle = 'rgba(255,240,190,.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(P0.x, P0.y); ctx.lineTo(x0, y0); ctx.stroke(); }
+        pixLine(x0 - dy, y0 + dx, x1 - dx * 3 - dy, y1 - dy * 3 + dx, `rgba(224,180,92,${alpha})`);
+        pixLine(x0 + dy, y0 - dx, x1 - dx * 3 + dy, y1 - dy * 3 - dx, `rgba(224,180,92,${alpha})`);
+        pixLine(x0, y0, x1, y1, `rgba(255,255,255,${alpha})`);
+      },
+      hitFx() { const b = G.b; sparkBurst(b.X, 9, b.Z, 14, G.dx, G.dz, 120, .8); ring(b.X, b.Z, V.cell * .7, .3, '255,226,150'); }
+    },
+    king: {
+      name: "KING JUDGMENT", hit: 'crush', impact: .72, end: 2.7, hitstop: .13, shake: 1.4,
+      title: "王 · 王权裁决",
+      desc: "王不亲自动手。他原地挺身、身上亮起金光，目标头顶出现一道细细的瞄准光线；随后一道金色光柱从天而降，把目标砸进棋盘。结束后，王迈着沉重的两步走进格子。",
+      events: [{ at: 1.52, fn: () => { const m = { X: (G.a.X + G.b.X) / 2, Z: (G.a.Z + G.b.Z) / 2 }; puff(m.X, 1, m.Z, 4, .6); shake = Math.max(shake, .3); } },
+               { at: 1.86, fn: () => { puff(G.b.X, 1, G.b.Z, 5, .7); shake = Math.max(shake, .35); } }],
+      pose(u) {
+        const { a, b } = G, c = V.cell, m = { X: (a.X + b.X) / 2, Z: (a.Z + b.Z) / 2 };
+        const o = { X: a.X, Y: 0, Z: a.Z, sp: 'kingw', sx: 1, sy: 1, rot: 0, white: 0, trail: false };
+        if (u < 0) return o;
+        if (u < .72) { const q = clamp01(u / .35); o.sy = 1 + .08 * q; o.sx = 1 - .03 * q; o.white = .45 * q * (.75 + .25 * Math.sin(u * 40)); return o; }
+        if (u < 1.3) { const q = (u - .72) / .58; o.sy = 1 + .08 * (1 - q); o.white = .45 * (1 - q); return o; }
+        const hop = (p0, p1, q) => { o.X = lerp(p0.X, p1.X, smooth(q)); o.Z = lerp(p0.Z, p1.Z, smooth(q)); o.Y = c * .35 * 4 * q * (1 - q); };
+        if (u < 1.52) { hop(a, m, (u - 1.3) / .22); return o; }
+        if (u < 1.64) { const q = (u - 1.52) / .12, w = Math.sin(q * Math.PI); o.X = m.X; o.Z = m.Z; o.sx = 1 + .12 * w; o.sy = 1 - .12 * w; return o; }
+        if (u < 1.86) { hop(m, b, (u - 1.64) / .22); return o; }
+        const q = clamp01((u - 1.86) / .12), w = Math.sin(q * Math.PI); o.X = b.X; o.Z = b.Z; o.sx = 1 + .12 * w; o.sy = 1 - .12 * w; return o;
+      },
+      fx(o, u) {
+        const foot = project(G.b.X, 0, G.b.Z), x = Math.round(foot.x), yb = Math.round(foot.y), top = -30;
+        if (u > .15 && u < .6) { ctx.fillStyle = `rgba(224,180,92,${.35 + .3 * Math.sin(u * 60)})`; ctx.fillRect(x, top, 1, yb - top);
+          const r = V.cell * .5 * (1.4 - .4 * clamp01((u - .15) / .4)); for (let i = 0; i < 20; i++) { const an = i / 20 * Math.PI * 2 + u * 4, p = project(G.b.X + Math.cos(an) * r, 0, G.b.Z + Math.sin(an) * r); ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); } }
+        if (u >= .6 && !impacted) { const q = (u - .6) / .12, yh = lerp(top, yb, easeIn(clamp01(q))); ctx.fillStyle = 'rgba(224,180,92,.85)'; ctx.fillRect(x - 4, top, 9, yh - top); ctx.fillStyle = '#fffbe8'; ctx.fillRect(x - 2, top, 5, yh - top); }
+        if (impacted && rt < .45) { const k = 1 - rt / .45, w = Math.max(1, Math.round(6 * k));
+          ctx.fillStyle = `rgba(224,180,92,${.75 * k})`; ctx.fillRect(x - w - 2, top, w * 2 + 5, yb - top); ctx.fillStyle = `rgba(255,251,232,${k})`; ctx.fillRect(x - w, top, w * 2 + 1, yb - top); }
+      },
+      hitFx() { const b = G.b; ring(b.X, b.Z, V.cell * 1.4, .5, '255,226,150'); ring(b.X, b.Z, V.cell * .8, .32, '255,226,150'); puff(b.X, 2, b.Z, 12, 1.3); crackDecal(b.X, b.Z, 8, V.cell * 1.05); sparkBurst(b.X, 4, b.Z, 12, 0, 0, 0, .8); }
+    }
+  };
+
+  // ---------------- reactions: REACT[hit][weight] ----------------
+  const base = () => S[vicKey + 'k'];
+  function footXY() { const p = project(G.b.X, 0, G.b.Z); const bs = base(); return { x0: Math.round(p.x) - Math.round(bs.w / 2), y0: Math.round(p.y) - bs.h + 1 }; }
+
+  function slashSplit(heavy) {
+    return {
+      name: heavy ? '斜切两半（更沉）' : '顺刀光斜切两半',
+      desc: '刀光闪过的角度就是切口角度。闪白后沿切口切开，两半先往两侧拉开、切口发光并定格一瞬，然后上半截顺着切口滑落、摔碎，下半截往反方向歪倒后碎掉。' + (heavy ? '重型棋子滑得更慢、碎得更响。' : ''),
+      split: .1,
+      overlay() {},
+      onSplit() {
+        const bs = base(), th = G.slashAng, c = Math.cos(th), s = Math.sin(th), x0 = bs.w / 2, y0 = bs.h * .55;
+        const side = (x, y) => (x + .5 - x0) * s - (y + .5 - y0) * c;
+        let A = masked(bs, (x, y) => side(x, y) < -.6), B = masked(bs, (x, y) => side(x, y) > .6);
+        let U = A, L = B; if (A.cy > B.cy) { U = B; L = A; }
+        U.edge = U.pixels.filter(p => Math.abs(side(p.x, p.y)) < 2.2); L.edge = L.pixels.filter(p => Math.abs(side(p.x, p.y)) < 2.2);
+        let nx = -s, ny = c; if (nx * (U.cx - L.cx) + ny * (U.cy - L.cy) < 0) { nx = -nx; ny = -ny; }
+        let tx = c, ty = s; if (ty < 0) { tx = -tx; ty = -ty; }
+        const hold = heavy ? .32 : .24, acc = heavy ? 110 : 190, fall = heavy ? .5 : .38;
+        bodies.push(bodyFrom(U, G.b.X, G.b.Z, { glow: true, script(b) {
+          const a = b.age, sep = easeOut(clamp01(a / .08)); let ox = nx * 3 * sep, oy = ny * 3 * sep;
+          if (a > hold) { const tt = a - hold; ox += tx * .5 * acc * tt * tt; oy += ty * .5 * acc * tt * tt; b.rot = sgn(tx) * 1.3 * tt;
+            if (tt > fall) { b.ox = ox; b.oy = oy; shatterBody(b, heavy ? 1 : .8); ring(b.X + ox, b.Z, V.cell * (heavy ? .7 : .45), .3); if (heavy) shake = Math.max(shake, .7); return; } }
+          b.ox = ox; b.oy = oy; } }));
+        bodies.push(bodyFrom(L, G.b.X, G.b.Z, { glow: true, script(b) {
+          const a = b.age, sep = easeOut(clamp01(a / .08)); b.ox = -nx * 1.5 * sep; b.oy = -ny * 1.5 * sep;
+          if (a > hold) b.rot = sgn(-nx) * .35 * smooth(clamp01((a - hold) / .4));
+          if (a > hold + fall + .1) shatterBody(b, .6); } }));
+      }
+    };
+  }
+
+  const REACT = {
+    slash: [
+      { name: '粉碎', desc: '刀光闪过后定格，棋子身上的像素一闪一闪地“松动”，接着整个碎成细小的碎片，慢慢飘落四散。',
+        split: .2,
+        overlay() { if (rt < .06 || rt > .2) return; const bs = base(), { x0, y0 } = footXY(); ctx.fillStyle = '#fff6dc';
+          for (const p of bs.pixels) if (Math.random() < (rt - .06) * 4) ctx.fillRect(x0 + p.x, y0 + p.y, 1, 1); },
+        onSplit() { const bs = base(); const th = G.slashAng;
+          debris(bs.pixels, bs.w / 2, bs.h - 1, G.b.X, 0, G.b.Z, { vx: -Math.sin(th) * 10, vy: 15, spread: 22, grav: 70, life: [1.1, 1.8], radial: 1.2 });
+          sparkBurst(G.b.X, 8, G.b.Z, 6, 0, 0, 0, .4); } },
+      slashSplit(false),
+      slashSplit(true)
+    ],
+    blunt: [
+      { name: '高飞击飞', desc: '闪白后被打得旋转着飞出去，在空中划一道高弧，落地“噗”一声碎成碎屑和烟。',
+        split: .06, overlay() {},
+        onSplit() { const bs = base(); bodies.push(bodyFrom(masked(bs, () => true), G.b.X, G.b.Z, { vx: (G.dx * 70 + G.face * 25) * power, vz: G.dz * 70 * power, vy: 130 * power, vr: 15 * G.face, grav: 300, shatterGround: true, poof: true })); } },
+      null, // medium: chosen in pickReact()
+      { name: '拦腰碎裂', desc: '闪白后，一道裂缝从挨打的一侧沿着中间蔓延过去；裂透后上半截被打飞、翻滚落地摔碎，下半截原地晃两下坍塌成碎石。', underdog: '攻击方更轻，所以裂得更慢，上半截只是滑落下来，不会被打飞。',
+        get split() { return power < 1 ? .38 : .22; },
+        overlay() { const dur = power < 1 ? .32 : .16, pr = clamp01((rt - .04) / dur); if (pr <= 0) return;
+          const bs = base(), { x0, y0 } = footXY(), n = Math.ceil(pr * bs.w);
+          for (let i = 0; i < n; i++) { const x = G.face > 0 ? i : bs.w - 1 - i, y = R.crack[x]; if (!bs.set.has(x + ',' + y)) continue;
+            ctx.fillStyle = '#0b0710'; ctx.fillRect(x0 + x, y0 + y, 1, 1); ctx.fillStyle = 'rgba(255,236,190,.9)'; ctx.fillRect(x0 + x, y0 + y - 1, 1, 1); } },
+        onSplit() {
+          const bs = base(), cr = R.crack, f = G.face, top = masked(bs, (x, y) => y < cr[x]), bot = masked(bs, (x, y) => y > cr[x]);
+          if (power >= 1) bodies.push(bodyFrom(top, G.b.X, G.b.Z, { vx: G.dx * 50, vz: G.dz * 50, vy: 70, vr: 7 * f, grav: 260, shatterGround: true }));
+          else bodies.push(bodyFrom(top, G.b.X, G.b.Z, { vx: G.dx * 10 + f * 10, vz: G.dz * 6, vy: 12, vr: 2.4 * f, grav: 240, shatterGround: true }));
+          bodies.push(bodyFrom(bot, G.b.X, G.b.Z, { jitter: 1, shatterAt: rt + (power < 1 ? .5 : .3), crumble: true }));
+          debris(bs.pixels.filter(p => Math.abs(p.y - cr[p.x]) <= 1), bs.w / 2, bs.h - 1, G.b.X, 0, G.b.Z, { vx: G.dx * 30 * power, vy: 40 * power, vz: G.dz * 30 * power, spread: 25, every: 2 });
+          puff(G.b.X, pxToY(6), G.b.Z, 4, .6);
+        } }
+    ],
+    crush: [
+      { name: '压扁', desc: '被从上方砸中，整个棋子被压成一张薄片，然后“噗”一声化成烟尘和碎屑向四周溅开。',
+        split: .26,
+        prog: () => easeOut(clamp01(rt / .22)),
+        topPx(r) { return R.split ? 0 : base().h * (1 - .82 * this.prog()); },
+        draw(white) { const bs = base(), p = this.prog(); drawSprite(white ? S[vicKey + 'k!'] : bs, G.b.X, 0, G.b.Z, 1 + .7 * p, 1 - .82 * p); },
+        onSplit() { const bs = base(); debris(bs.pixels, bs.w / 2, bs.h - 1, G.b.X, 0, G.b.Z, { vy: 15, spread: 45, every: 2, radial: 3 }); puff(G.b.X, 1, G.b.Z, 12, 1.1); } },
+      { name: '自上而下压塌', desc: '力量压在头顶，棋子从上往下一层一层被压碎，每一层都向两侧崩出碎块。马踩的时候，马会随着压塌一起往下沉，最后落在棋盘上。', underdog: '',
+        split: .36,
+        rowsAt() { return Math.min(base().h, Math.floor(clamp01(rt / .32) * base().h)); },
+        topPx() { return base().h - this.rowsAt(); },
+        tick() { const bs = base(), k = this.rowsAt(); while (R.rows < k) { const row = R.rows++;
+          debris(bs.pixels.filter(p => p.y === row), bs.w / 2, bs.h - 1, G.b.X, 0, G.b.Z, { vy: 25, spread: 40, radial: 4 }); } },
+        draw(white) { const bs = base(), k = this.rowsAt(), { x0, y0 } = footXY(), sp = white ? S[vicKey + 'k!'] : bs; if (k >= bs.h) return;
+          ctx.drawImage(sp.c, 0, k, bs.w, bs.h - k, x0, y0 + k, bs.w, bs.h - k); },
+        onSplit() { puff(G.b.X, 1, G.b.Z, 8, 1); } },
+      { name: '沉入棋盘', desc: '重型棋子被压得一点点沉进棋盘，周围格子裂开、不断崩出碎石；沉到一半时剩下的部分整个碎掉。', underdog: '攻击方比它轻，所以沉得更慢、更吃力。',
+        get split() { return (power < 1 ? .68 : .48) + .02; },
+        sinkAt() { const dur = power < 1 ? .68 : .48; return base().h * .65 * easeOut(clamp01(rt / dur)); },
+        topPx() { return R.split ? 0 : base().h - this.sinkAt(); },
+        tick() { if (rt > 0 && !R.split && Math.random() < .5) { const bs = base(); debris([bs.pixels[(Math.random() * bs.pixels.length) | 0]], bs.w / 2, bs.h - 1, G.b.X + rnd(-6, 6), 0, G.b.Z, { vy: 30, spread: 30 }); } },
+        draw(white) { const bs = base(), s = Math.round(this.sinkAt()), { x0, y0 } = footXY(), sp = white ? S[vicKey + 'k!'] : bs, j = rt > 0 ? Math.round(rnd(-1, 1)) : 0;
+          if (bs.h - s <= 0) return; ctx.drawImage(sp.c, 0, 0, bs.w, bs.h - s, x0 + j, y0 + s, bs.w, bs.h - s); },
+        onSplit() { const bs = base(), s = Math.round(this.sinkAt());
+          debris(bs.pixels.filter(p => p.y < bs.h - s), bs.w / 2, bs.h - 1 - s, G.b.X, 0, G.b.Z, { vy: 50, spread: 40, radial: 3 });
+          puff(G.b.X, 2, G.b.Z, 12, 1.3); ring(G.b.X, G.b.Z, V.cell * 1.1, .45); shake = Math.max(shake, .8); crackDecal(G.b.X, G.b.Z, 5, V.cell * 1.3); } }
+    ]
+  };
+
+  // ---- tipping body: pivots on the base corner away from the attacker ----
+  function tipBody(m, { vr0, acc, wobble = 0, slide = 0, landShake = .5, onLand }) {
+    const bs = base(), f = G.face; m.cx = f > 0 ? bs.w - 1 : 0; m.cy = bs.h - 1;
+    let ang = 0, vr = vr0, landed = -1;
+    return bodyFrom(m, G.b.X, G.b.Z, { script(b, dt) {
+      if (slide && b.age < .15) { const k = 1 - b.age / .15; b.X += G.dx * slide * dt * k; b.Z += G.dz * slide * dt * k; }
+      if (b.age < wobble) { b.rot = f * .07 * Math.sin(b.age * 45) * (1 - b.age / wobble); return; }
+      if (landed < 0) {
+        vr += acc * dt; ang += vr * dt;
+        if (ang >= 1.5) { ang = 1.5; landed = b.age; shake = Math.max(shake, landShake); onLand && onLand(b); }
+      }
+      b.rot = f * ang;
+      if (landed >= 0 && b.age - landed > .08) shatterBody(b, .8);
+    } });
+  }
+  function landFx(big) { return b => { const tip = G.face * (V.cell * .55); ring(b.X + tip, b.Z, V.cell * (big ? 1.2 : .6), big ? .45 : .3); puff(b.X + tip, 2, b.Z, big ? 14 : 6, big ? 1.3 : .8); if (big) crackDecal(b.X + tip, b.Z, 4, V.cell * .8); }; }
+
+  const LOW_FLY = { name: '低平撞飞', desc: '被撞得贴着棋盘平飞出去、在空中翻滚，落地弹一下后横躺着滑行一段，一路拖出尘土，停下后碎开。比兵被撞时飞得低、冲得远，显得更沉。',
+    split: .05, overlay() {},
+    onSplit() {
+      const bs = base(), f = G.face;
+      bodies.push(bodyFrom(masked(bs, () => true), G.b.X, G.b.Z, { vx: G.dx * 115 + f * 20, vz: G.dz * 115, vy: 38, vr: 10 * f, bounce: 0, phase: 0, script(b, dt) {
+        if (b.phase === 0) {
+          b.vy -= 320 * dt; b.X += b.vx * dt; b.Y += b.vy * dt; b.Z += b.vz * dt; b.rot += b.vr * dt;
+          if (b.vy < 0 && b.Y < pxToY(4)) {
+            b.bounce++; puff(b.X, 1, b.Z, 3, .6);
+            if (b.bounce < 2) { b.vy = 42; b.vx *= .72; b.vz *= .72; b.vr *= .6; }
+            else { b.phase = 1; b.Y = pxToY(4); b.lie = Math.round(b.rot / (Math.PI / 2)) * (Math.PI / 2) || f * Math.PI / 2; }
+          }
+        } else {
+          const fr = Math.pow(.03, dt); b.vx *= fr; b.vz *= fr; b.X += b.vx * dt; b.Z += b.vz * dt;
+          b.rot += (b.lie - b.rot) * Math.min(1, dt * 14);
+          if (Math.random() < .5) puff(b.X, 1, b.Z, 1, .45);
+          if (Math.hypot(b.vx, b.vz) < 14) { shatterBody(b, .8); ring(b.X, b.Z, V.cell * .45, .3); }
+        }
+      } }));
+    } };
+
+  const QUICK_TIP = { name: '快速翻倒', desc: '被撞中的那一刻就立刻歪向另一侧，约 0.2 秒内倒地，砸起尘土后碎开。没有“慢慢开始倒”的过程。',
+    split: .03, overlay() {},
+    onSplit() { bodies.push(tipBody(masked(base(), () => true), { vr0: 6, acc: 30, slide: 26, landShake: .35, onLand: landFx(false) })); } };
+
+  const UNDERDOG = { name: '先撬根基，再撞倒', desc: '第一下，底座远侧的一块砖被撞飞，塔身晃了几下但还立着。第二下撞在塔身上，缺了一角的塔立刻失去平衡，被自身重量拉着越倒越快，“轰”地砸在棋盘上碎开，屏幕重震。',
+    split: .04, overlay() {},
+    onSplit() { bodies.push(tipBody(R.rest || masked(base(), () => true), { vr0: 1.3, acc: 13, landShake: 1.15, onLand: landFx(true) })); } };
+
+  function drawWeb(pr, x0, y0) {
+    const bs = base(), n = Math.floor(clamp01(pr) * R.web.length);
+    for (let i = 0; i < n; i++) { const p = R.web[i]; if (!bs.set.has(p.x + ',' + p.y)) continue;
+      ctx.fillStyle = '#0b0710'; ctx.fillRect(x0 + p.x, y0 + p.y, 1, 1); ctx.fillStyle = 'rgba(255,236,190,.8)'; ctx.fillRect(x0 + p.x + 1, y0 + p.y, 1, 1); }
+  }
+  function holeReact(heavy) {
+    const T = heavy ? .75 : .48;
+    return { name: heavy ? '穿孔碎裂（更慢）' : '穿孔碎裂', desc: '光枪从身体正中穿过，留下一个发光的洞。裂纹从洞口向四周蔓延，棋子越抖越厉害，最后朝光枪飞去的方向整个炸碎。' + (heavy ? '重型棋子裂得更慢、撑得更久。' : ''),
+      split: T,
+      draw(white) {
+        const bs = base(), cx = bs.w / 2, cy = bs.h * .5;
+        if (!R.holed) R.holed = masked(bs, (x, y) => Math.hypot(x + .5 - cx, y + .5 - cy) > 1.7);
+        const j = rt > .1 ? Math.round(rnd(-1, 1) * (.4 + clamp01(rt / T))) : 0;
+        drawSprite(white ? S[vicKey + 'k!'] : R.holed, G.b.X + j, 0, G.b.Z);
+        const { x0, y0 } = footXY(); ctx.fillStyle = `rgba(255,226,150,${.9 * (1 - clamp01(rt / T) * .6)})`;
+        for (const [ex, ey] of [[-2, 0], [2, 0], [0, -2], [0, 2], [-1, -1], [1, 1], [-1, 1], [1, -1]].map(([p, q]) => [Math.floor(cx) + p * (Math.abs(p) + Math.abs(q) > 1 && p && q ? 1.6 : 1), Math.floor(cy) + q * (p && q ? 1.6 : 1)])) { const X = Math.round(ex), Y = Math.round(ey); if (bs.set.has(X + ',' + Y)) ctx.fillRect(x0 + j + X, y0 + Y, 1, 1); }
+        drawWeb((rt - .12) / (T - .2), x0 + j, y0);
+      },
+      onSplit() { const bs = base(); debris(bs.pixels, bs.w / 2, bs.h - 1, G.b.X, 0, G.b.Z, { vx: G.dx * 55, vz: G.dz * 55, vy: 30, spread: 35, radial: 2.5 });
+        puff(G.b.X, 4, G.b.Z, 10, 1.1); ring(G.b.X, G.b.Z, V.cell * (heavy ? 1 : .7), .4, '255,226,150'); shake = Math.max(shake, heavy ? .9 : .6); } };
+  }
+  REACT.pierce = [
+    { name: '贯穿击退', desc: '被光枪串住，直挺挺地沿着枪飞去的方向平飞出去，几乎不翻滚，落地后碎成碎屑和烟。',
+      split: .05, overlay() {},
+      onSplit() { bodies.push(bodyFrom(masked(base(), () => true), G.b.X, G.b.Z, { vx: G.dx * 150, vz: G.dz * 150, vy: 28, vr: 1.5 * G.face, grav: 240, shatterGround: true, poof: true })); } },
+    holeReact(false), holeReact(true)
+  ];
+
+  function pickReact() {
+    const A = ATK[atkKey], wv = WEIGHT[vicKey], wa = WEIGHT[atkKey];
+    if (A.hit !== 'blunt') return REACT[A.hit][wv];
+    if (wv === 0) return REACT.blunt[0];
+    if (wv === 1) return wa > wv ? LOW_FLY : QUICK_TIP;
+    return wa >= wv ? REACT.blunt[2] : UNDERDOG;
+  }
+
+  // ---------------- update ----------------
+  function step(dt) {
+    const sdt = dt * speed, A = ATK[atkKey];
+    if (hs > 0) hs -= sdt; else t += sdt;
+    const u = t - PRE;
+    for (const ev of A.events) if (!fired.has(ev) && u >= ev.at) { fired.add(ev); ev.fn(); }
+    if (!impacted && u >= A.impact) {
+      impacted = true; t = PRE + A.impact; rt = 0;
+      hs = reduceMotion ? 0 : A.hitstop; shake = reduceMotion ? 0 : A.shake; punch = 1; flash = 1;
+      A.hitFx();
+    }
+    if (impacted) {
+      rt += sdt;
+      if (RX.tick) RX.tick();
+      if (!R.split && rt >= RX.split) { R.split = true; RX.onSplit(); }
+    }
+    if (hs <= 0) physics(sdt);
+    const ds = Math.max(speed, .3);
+    shake = Math.max(0, shake - dt * 3 * ds); punch = Math.max(0, punch - dt * 3.5 * ds); flash = Math.max(0, flash - dt * 9 * ds);
+    if (u > A.end) { endHold += dt; if (endHold > 1.0) reset(); }
+  }
+
+  function physics(dt) {
+    for (const b of bodies) {
+      if (b.dead) continue;
+      b.age += dt;
+      if (b.script) { b.script(b, dt); continue; }
+      b.vy -= b.grav * dt; b.X += b.vx * dt; b.Y += b.vy * dt; b.Z += b.vz * dt; b.rot += b.vr * dt;
+      if (b.shatterGround && b.vy < 0 && b.Y < pxToY(3)) { shatterBody(b, .9); ring(b.X, b.Z, V.cell * .5, .3); if (b.poof) puff(b.X, 3, b.Z, 10, 1); }
+      else if (rt >= b.shatterAt) { shatterBody(b, b.crumble ? .35 : .7); if (b.crumble) puff(b.X, 2, b.Z, 7, .8); }
+    }
+    bodies = bodies.filter(b => !b.dead);
+    for (const p of parts) {
+      p.age += dt; p.vy -= p.g * dt; p.X += p.vx * dt; p.Y += p.vy * dt; p.Z += p.vz * dt;
+      if (p.Y < 0) { p.Y = 0; if (p.bounced < 2) { p.vy *= -.32; p.vx *= .55; p.vz *= .55; p.bounced++; } else { p.vy = 0; p.vx *= .8; p.vz *= .8; } }
+    }
+    parts = parts.filter(p => p.age < p.life);
+    for (const s of sparks) { s.age += dt; s.vy -= 200 * dt; s.pX = s.X; s.pY = s.Y; s.pZ = s.Z; s.X += s.vx * dt; s.Y += s.vy * dt; s.Z += s.vz * dt; }
+    sparks = sparks.filter(s => s.age < s.life);
+    for (const r of rings) r.age += dt; rings = rings.filter(r => r.age < r.life);
+    for (const m of smoke) { m.age += dt; m.X += m.vx * dt; m.Y += m.vy * dt; m.Z += m.vz * dt; m.vx *= .9; m.vz *= .9; m.vy *= .92; }
+    smoke = smoke.filter(m => m.age < m.life);
+    if (slash) { slash.age += dt; if (slash.age > slash.life) slash = null; }
+  }
+
+  // ---------------- draw ----------------
+  const COL = { light: "#b89b68", dark: "#2a4458", frame: "#3b2a20", sideA: "#2a1c14", sideB: "#1d130d" };
+  function poly(pts, fill) { ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); }
+  function cellPoly(gx, gy, inset = 0) { const c = V.cell, X0 = (gx - 4) * c + inset, Z0 = (gy - 4) * c + inset, X1 = X0 + c - 2 * inset, Z1 = Z0 + c - 2 * inset; return [project(X0, 0, Z0), project(X1, 0, Z0), project(X1, 0, Z1), project(X0, 0, Z1)]; }
+  function drawBoard() {
+    const B = 4 * V.cell + 5, T = V.side, cs = [[-B, -B], [B, -B], [B, B], [-B, B]];
+    for (let i = 0; i < 4; i++) { const [x0, z0] = cs[i], [x1, z1] = cs[(i + 1) % 4]; poly([project(x0, 0, z0), project(x1, 0, z1), project(x1, -T, z1), project(x0, -T, z0)], i % 2 ? COL.sideB : COL.sideA); }
+    poly(cs.map(([x, z]) => project(x, 0, z)), COL.frame);
+    for (let gy = 0; gy < 8; gy++) for (let gx = 0; gx < 8; gx++) poly(cellPoly(gx, gy), (gx + gy) % 2 ? COL.dark : COL.light);
+  }
+  function shadow(X, Z, Y, w) { const p = project(X, 0, Z), s = Math.max(.35, 1 - Y / 45); ctx.fillStyle = `rgba(0,0,0,${.38 * s})`; ctx.beginPath(); ctx.ellipse(Math.round(p.x), Math.round(p.y), w * .42 * s * p.k, w * .18 * s * p.k, 0, 0, Math.PI * 2); ctx.fill(); }
+  function drawSprite(sp, X, Y, Z, sx = 1, sy = 1, rot = 0, alpha = 1) {
+    const p = project(X, Y, Z);
+    ctx.save(); ctx.translate(Math.round(p.x), Math.round(p.y)); ctx.rotate(rot); ctx.scale(sx, sy); ctx.globalAlpha *= alpha;
+    ctx.drawImage(sp.c, -Math.round(sp.w / 2), -sp.h + 1); ctx.restore(); return p;
+  }
+  function pixLine(x0, y0, x1, y1, col) {
+    x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+    const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let err = dx + dy; ctx.fillStyle = col;
+    for (let i = 0; i < 400; i++) { ctx.fillRect(x0, y0, 1, 1); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } }
+  }
+
+  function render() {
+    const A = ATK[atkKey];
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#1b1828"); g.addColorStop(1, "#0b0a11"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    const u = t - PRE, o = A.pose(u), b = G.b, imp = project(b.X, 8, b.Z);
+    const focus = impacted ? Math.min(1, rt / .08) * (rt < .8 ? 1 : Math.max(0, 1 - (rt - .8) / .35)) : 0;
+    const sh = shake * shake * 3.4, ox = Math.round(rnd(-1, 1) * sh), oy = Math.round(rnd(-1, 1) * sh), z = 1 + .1 * smooth(focus) + .07 * punch;
+    ctx.setTransform(z, 0, 0, z, imp.x * (1 - z) + ox, imp.y * (1 - z) + oy);
+
+    drawBoard();
+    if (u < A.impact) {
+      const pulse = .55 + .45 * Math.sin(performance.now() / 90);
+      poly(cellPoly(STARTS[atkKey].x, STARTS[atkKey].y, 1), 'rgba(224,180,92,.5)');
+      poly(cellPoly(TARGET.x, TARGET.y, 1), `rgba(224,103,90,${.3 + .35 * pulse})`);
+    }
+    for (const d of decals) for (const [x, zz] of d) { const p = project(x, 0, zz); ctx.fillStyle = 'rgba(14,9,6,.85)'; ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }
+    for (const r of rings) { const q = r.age / r.life, rad = 3 + easeOut(q) * r.maxR; ctx.fillStyle = `rgba(${r.col},${.75 * (1 - q)})`;
+      for (let i = 0; i < 32; i++) { const a = i / 32 * Math.PI * 2, p = project(r.X + Math.cos(a) * rad, 0, r.Z + Math.sin(a) * rad); ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); } }
+    for (const p of parts) if (p.Y <= .01) { const q = project(p.X, 0, p.Z); ctx.globalAlpha = clamp01((p.life - p.age) / .35); ctx.fillStyle = p.col; ctx.fillRect(Math.round(q.x), Math.round(q.y), p.sz, p.sz); }
+    ctx.globalAlpha = 1;
+
+    // static pieces (dimmed + see-through while focusing)
+    const statics = STATIC.filter(s => !(s.t === 'king' && ((s.s === 'w' && atkKey === 'king') || (s.s === 'k' && vicKey === 'king')))).map(s => ({ s, w: cellW(s.x, s.y) }));
+    const attacker = { z: o.Z + .5, f: () => {
+      shadow(o.X, o.Z, o.Y, 12);
+      ctx.globalCompositeOperation = 'lighter';
+      trail.forEach((tr, i) => drawSprite(S[tr.sp + '!'], tr.X, tr.Y, tr.Z, tr.sx, tr.sy, tr.rot, .06 + i * (atkKey === 'bishop' ? .03 : .05)));
+      ctx.globalCompositeOperation = 'source-over';
+      const lift = u < 0 ? Math.round(1 + Math.sin(performance.now() / 160)) : 0;
+      drawSprite(S[o.sp], o.X, o.Y + lift, o.Z, o.sx, o.sy, o.rot);
+      if (o.white > 0) drawSprite(S[o.sp + '!'], o.X, o.Y + lift, o.Z, o.sx, o.sy, o.rot, o.white);
+      if (o.dizzy) { const hp = project(o.X, pxToY(14), o.Z), tm = performance.now() / 1000 * speed;
+        for (let i = 0; i < 3; i++) { const a = tm * 7 + i * 2.1; ctx.fillStyle = i % 2 ? '#fff3b0' : '#e0b45c';
+          const sx = Math.round(hp.x + Math.cos(a) * 6), sy = Math.round(hp.y + Math.sin(a) * 2);
+          ctx.fillRect(sx, sy - 1, 1, 3); ctx.fillRect(sx - 1, sy, 3, 1); } }
+    } };
+    if (o.trail && hs <= 0) { trail.push({ ...o }); if (trail.length > (atkKey === 'bishop' ? 12 : 7)) trail.shift(); }
+    else if (!o.trail && trail.length) trail.shift();
+
+    const victim = { z: b.Z, f: () => {
+      if (!R.split || RX.draw) {
+        const white = impacted && rt < .07;
+        if (!R.split) shadow(b.X, b.Z, 0, 12);
+        if (RX.draw) { if (!R.split) RX.draw(white); }
+        else {
+          const wob = t - R.wobbleT < .28 ? Math.round(Math.sin((t - R.wobbleT) * 70) * 1.5) : 0;
+          const jit = RX.jitter ? Math.round(rnd(-1, 1) * RX.jitter()) : impacted ? Math.round(rnd(-1, 1)) : wob;
+          drawSprite(white ? S[vicKey + 'k!'] : (R.rest || base()), b.X + jit, 0, b.Z); RX.overlay();
+        }
+      }
+      for (const bd of bodies) {
+        if (bd.Y > pxToY(2)) shadow(bd.X + bd.ox, bd.Z, bd.Y, 9);
+        const p = project(bd.X, bd.Y, bd.Z), j = bd.jitter && rt < bd.shatterAt ? Math.round(rnd(-1, 1)) : 0;
+        ctx.save(); ctx.translate(Math.round(p.x + bd.ox) + j, Math.round(p.y + bd.oy)); ctx.rotate(bd.rot); ctx.drawImage(bd.m.c, -bd.m.cx, -bd.m.cy);
+        if (bd.glow && bd.m.edge) { const a = clamp01(1 - bd.age / .55); ctx.fillStyle = `rgba(255,244,210,${a})`; for (const e of bd.m.edge) ctx.fillRect(e.x - bd.m.cx, e.y - bd.m.cy, 1, 1); }
+        ctx.restore();
+      }
+    } };
+
+    if (!impacted) {
+      const items = statics.map(({ s, w }) => ({ z: w.Z, f: () => { shadow(w.X, w.Z, 0, 10); drawSprite(S[s.t + s.s], w.X, 0, w.Z); } }));
+      items.push(attacker, victim); items.sort((a, c) => a.z - c.z).forEach(it => it.f());
+    } else {
+      statics.sort((a, c) => a.w.Z - c.w.Z).forEach(({ s, w }) => { ctx.globalAlpha = 1 - .62 * focus; shadow(w.X, w.Z, 0, 10); drawSprite(S[s.t + s.s], w.X, 0, w.Z); ctx.globalAlpha = 1; });
+      if (A.hit === 'crush') { victim.f(); attacker.f(); } else { attacker.f(); victim.f(); }
+    }
+
+    for (const p of parts) if (p.Y > .01) { const q = project(p.X, p.Y, p.Z); ctx.globalAlpha = clamp01((p.life - p.age) / .35); ctx.fillStyle = p.col; ctx.fillRect(Math.round(q.x), Math.round(q.y), p.sz, p.sz); }
+    ctx.globalAlpha = 1;
+    for (const m of smoke) { const q = project(m.X, m.Y, m.Z), a = 1 - m.age / m.life; ctx.fillStyle = `rgba(232,224,204,${.55 * a})`; ctx.beginPath(); ctx.arc(Math.round(q.x), Math.round(q.y), m.r * (1 + m.age / m.life * 1.4), 0, Math.PI * 2); ctx.fill(); }
+    for (const s of sparks) { const a = project(s.pX ?? s.X, s.pY ?? s.Y, s.pZ ?? s.Z), c = project(s.X, s.Y, s.Z); pixLine(a.x, a.y, c.x, c.y, `rgba(255,${200 + (Math.random() * 55 | 0)},120,${1 - s.age / s.life})`); }
+    if (A.fx) A.fx(o, u);
+    if (slash) {
+      const q = slash.age / slash.life, bs = base(), c = project(b.X, pxToY(bs.h * .45), b.Z), L = 28 * Math.min(1, slash.age / .06), dx = Math.cos(G.slashAng), dy = Math.sin(G.slashAng);
+      ctx.strokeStyle = `rgba(255,255,255,${(1 - q) * .35})`; ctx.lineWidth = 5 * (1 - q) + 1;
+      ctx.beginPath(); ctx.moveTo(c.x - dx * L, c.y - dy * L); ctx.lineTo(c.x + dx * L, c.y + dy * L); ctx.stroke();
+      pixLine(c.x - dx * L, c.y - dy * L, c.x + dx * L, c.y + dy * L, `rgba(255,255,255,${1 - q})`);
+    }
+    if (flash > 0) {
+      ctx.fillStyle = `rgba(255,250,230,${flash * .9})`; ctx.beginPath(); ctx.arc(imp.x, imp.y, (1 - flash) * 18 + 4, 0, Math.PI * 2); ctx.fill();
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = `rgba(255,255,255,${flash * .16})`; ctx.fillRect(0, 0, W, H);
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.font = "8px Silkscreen, monospace"; ctx.fillStyle = "rgba(236,230,214,.75)";
+    ctx.fillText(`${A.name} > ${vicKey.toUpperCase()}`, 6, 12);
+    if (hs > 0) { ctx.fillStyle = "rgba(224,180,92,.95)"; ctx.fillText("HIT-STOP", W - 52, 24); }
+  }
+
+  // ---------------- UI ----------------
+  const notesEl = document.getElementById('notes');
+  function renderNotes() {
+    const A = ATK[atkKey], wv = WEIGHT[vicKey], rx = RX;
+    const under = WEIGHT[atkKey] < wv && rx.underdog && A.hit !== 'blunt' ? `<dt>以小打大</dt><dd>${rx.underdog}</dd>` : '';
+    const rowKey = A.hit === 'blunt' ? (WEIGHT[atkKey] === 2 ? 'bluntH' : 'bluntL') : A.hit;
+    notesEl.innerHTML = `<h2>${A.title} → ${VNAME[vicKey]}</h2><dl>
+      <dt>攻击</dt><dd>${A.desc}</dd>
+      <dt>判定</dt><dd><span class="chip">${HITNAME[A.hit]}</span><span class="chip">受击方${WNAME[wv]}</span>→ <b>${rx.name}</b></dd>
+      <dt>受击</dt><dd>${rx.desc}</dd>${under}</dl>`;
+    document.querySelectorAll('#ruleTable td').forEach(td => td.classList.toggle('on', td.dataset.c === `${rowKey}-${wv}`));
+  }
+  function bindSeg(id, apply) {
+    const seg = document.getElementById(id);
+    seg.addEventListener('click', e => { const btn = e.target.closest('button'); if (!btn) return;
+      seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === btn))); apply(btn.dataset.k); reset(); });
+  }
+  bindSeg('segAtk', k => { atkKey = k; });
+  bindSeg('segVic', k => { vicKey = k; });
+  bindSeg('segSpeed', k => { speed = parseFloat(k); });
+  document.getElementById('replay').addEventListener('click', reset);
+  document.getElementById('screen').addEventListener('click', reset);
+
+  let last = performance.now();
+  function frame(now) { const dt = Math.min(.05, (now - last) / 1000); last = now; step(dt); render(); requestAnimationFrame(frame); }
+  reset(); requestAnimationFrame(frame);
+})();
+</script>

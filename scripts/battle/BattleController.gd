@@ -22,9 +22,6 @@ var legal_targets: Array[Vector2i]:
 		return board_view.legal_targets
 	set(value):
 		board_view.legal_targets = value
-var square_buttons: Dictionary:
-	get:
-		return board_view.square_buttons
 var challenger_slots: Array[Button] = []
 var pending_item_slot: int = -1
 var _presentation_generation: int = 0
