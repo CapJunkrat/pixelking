@@ -106,6 +106,7 @@ var _unit: float = 2.0
 var _stand: float = 0.0
 var _a: Vector3 = Vector3.ZERO
 var _b: Vector3 = Vector3.ZERO
+var _dest: Vector3 = Vector3.ZERO
 var _corner: Vector3 = Vector3.ZERO
 var _dir: Vector2 = Vector2.RIGHT
 var _face: float = 1.0
@@ -160,8 +161,9 @@ static func can_play(attacker_id: StringName, strike_type: int) -> bool:
 func is_playing() -> bool:
 	return _phase == Phase.PLAYING
 
-## Starts a strike. The board is expected to already hold the post-capture position.
-func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: Texture2D, from: Vector2i, to: Vector2i, strike_type: int, attacker_weight: int, victim_weight: int, speed: float) -> void:
+## Starts a strike. `victim_square` differs from `to` only for en passant.
+## The board is expected to already hold the post-capture position.
+func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: Texture2D, from: Vector2i, to: Vector2i, strike_type: int, attacker_weight: int, victim_weight: int, speed: float, victim_square: Vector2i = Vector2i(-1, -1)) -> void:
 	_clear_actors()
 	_reset_camera()
 	_proj = _view.projection
@@ -182,7 +184,9 @@ func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: 
 	_underdog = _reaction == &"underdog"
 
 	_a = _proj.square_world(from)
-	_b = _proj.square_world(to)
+	# The strike aims at the victim; the attacker then settles on its destination.
+	_dest = _proj.square_world(to)
+	_b = _proj.square_world(victim_square if victim_square.x >= 0 else to)
 	_dir = Vector2(_b.x - _a.x, _b.z - _a.z).normalized()
 	var screen_a: Vector2 = _proj.project(_a)
 	var screen_b: Vector2 = _proj.project(_b)
@@ -626,7 +630,7 @@ func _pose_pawn(u: float, o: Pose) -> void:
 		o.rot = -0.1 * _face
 		return
 	var q: float = clampf((u - _settle_time) / 0.2, 0.0, 1.0)
-	o.at(recoil.lerp(_b, _smooth(q)))
+	o.at(recoil.lerp(_dest, _smooth(q)))
 	o.y = 4.0 * q * (1.0 - q) * 3.0 * _unit
 	o.rot = lerpf(-0.1, 0.0, q) * _face
 
@@ -1219,7 +1223,7 @@ func _dim_bystanders(alpha: float) -> void:
 			sprite.self_modulate.a = 1.0 if square == _to_square else alpha
 
 func _draw_ground() -> void:
-	if _proj == null:
+	if fx.projection == null:
 		return
 	var canvas: Node2D = _view.ground_canvas()
 	fx.draw_ground(canvas)
@@ -1242,7 +1246,7 @@ func _draw_shadow(canvas: CanvasItem, x: float, z: float, height: float, size: f
 	canvas.draw_colored_polygon(points, Color(0.0, 0.0, 0.0, 0.36 * shrink))
 
 func _draw_air() -> void:
-	if _proj == null:
+	if fx.projection == null:
 		return
 	var canvas: Node2D = _view.air_canvas()
 	fx.draw_air(canvas)

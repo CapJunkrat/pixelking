@@ -4,6 +4,7 @@ extends Node
 signal music_volume_changed(value: float)
 signal sfx_volume_changed(value: float)
 signal locale_setting_changed(locale: String)
+signal short_battle_animations_changed(enabled: bool)
 
 const DEFAULT_SETTINGS_PATH := "user://settings.cfg"
 const DEFAULT_MUSIC_VOLUME := 0.75
@@ -14,6 +15,8 @@ var settings_path: String = DEFAULT_SETTINGS_PATH
 var music_volume: float = DEFAULT_MUSIC_VOLUME
 var sfx_volume: float = DEFAULT_SFX_VOLUME
 var locale: String = DEFAULT_LOCALE
+## When on, battle animations play at a faster pace.
+var short_battle_animations: bool = false
 
 func _ready() -> void:
 	load_settings()
@@ -30,6 +33,7 @@ func load_settings() -> void:
 	sfx_volume = clampf(float(config.get_value("audio", "sfx_volume", DEFAULT_SFX_VOLUME)), 0.0, 1.0)
 	var saved_locale: String = str(config.get_value("general", "locale", DEFAULT_LOCALE))
 	locale = saved_locale if not saved_locale.is_empty() else DEFAULT_LOCALE
+	short_battle_animations = bool(config.get_value("battle", "short_animations", false))
 	_apply_audio_buses()
 
 func set_music_volume(value: float, persist: bool = true) -> void:
@@ -55,6 +59,12 @@ func set_locale(locale_code: String, persist: bool = true) -> void:
 	if persist:
 		_save_value("general", "locale", locale_code)
 	locale_setting_changed.emit(locale_code)
+
+func set_short_battle_animations(enabled: bool, persist: bool = true) -> void:
+	short_battle_animations = enabled
+	if persist:
+		_save_value("battle", "short_animations", enabled)
+	short_battle_animations_changed.emit(enabled)
 
 func _apply_audio_buses() -> void:
 	_apply_bus_volume(&"Music", music_volume)

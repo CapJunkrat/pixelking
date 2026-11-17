@@ -182,6 +182,7 @@ const LOCALES := {
 			"SETTINGS_SKIN_PREVIEW": "Preview",
 			"SETTINGS_MUSIC": "Music Volume",
 			"SETTINGS_SOUND": "SFX Volume",
+			"SETTINGS_SHORT_ANIMATIONS": "Short Battle Animations",
 			"COMMON_BACK": "Back",
 			"JOURNEY_TITLE": "The Journey Awaits",
 			"JOURNEY_DESCRIPTION": "Begin a new royal chess roguelike journey.",

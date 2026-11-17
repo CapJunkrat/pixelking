@@ -23,6 +23,12 @@ const FRAME_SIDE_DARK := Color("#1d130d")
 const SELECTED_TINT := Color(0.88, 0.71, 0.36, 0.55)
 const CAPTURE_TINT := Color(0.88, 0.40, 0.35, 0.50)
 const MOVE_DOT := Color(1.0, 0.94, 0.78, 0.72)
+const CHECK_TINT := Color(0.95, 0.2, 0.2, 0.42)
+const CHECK_GLOW := Color(1.0, 0.32, 0.28)
+const PROMOTION_GLOW := Color(1.0, 0.886, 0.588)
+## Speed multipliers applied when the player turns on short battle animations.
+const SHORT_STRIKE_SPEED := 2.2
+const SHORT_MOVE_SPEED := 1.5
 const IMMOBILIZED_MODULATE := Color(0.56, 0.92, 1.0, 0.72)
 
 @onready var piece_skin_manager: Node = get_node("/root/PieceSkinManager")
@@ -37,6 +43,8 @@ var item_targeting: bool = false
 var input_enabled: bool = true
 var projection: BoardProjection = BoardProjection.new()
 
+var _pending_promotion: Vector2i = NO_SQUARE
+var _pending_check: Dictionary = {}
 var _board_canvas: Node2D = null
 var _ground_canvas: Node2D = null
 var _air_canvas: Node2D = null
@@ -57,6 +65,7 @@ func _ready() -> void:
 	add_child(_board_canvas)
 	_ground_canvas = Node2D.new()
 	_ground_canvas.name = "GroundFx"
+	_ground_canvas.draw.connect(_draw_proxy_shadows)
 	add_child(_ground_canvas)
 	_piece_layer = Node2D.new()
 	_piece_layer.name = "PieceLayer"
@@ -171,6 +180,9 @@ func _update_projection() -> void:
 	var near_scale: float = BoardProjection.DISTANCE_CELLS / (BoardProjection.DISTANCE_CELLS - board_size * 0.5 * cos(deg_to_rad(BoardProjection.PITCH_DEGREES)))
 	var cell: float = floorf((minf(view.x, view.y) - BOARD_MARGIN * 2.0 * near_scale - 4.0) / (board_size * near_scale))
 	projection = BoardProjection.new(board_size, cell, Vector2(view.x * 0.5, view.y * 0.535))
+	if _strike != null:
+		_strike.fx.projection = projection
+		_strike.fx.unit = cell / 18.0
 
 func _on_resized() -> void:
 	_update_projection()
@@ -274,6 +286,9 @@ func _draw_board() -> void:
 			# One-pixel bevel so squares read as inlaid tiles rather than flat paint.
 			_board_canvas.draw_line(polygon[0], polygon[1], fill.lightened(0.12), 1.0)
 			_board_canvas.draw_line(polygon[3], polygon[2], fill.darkened(0.18), 1.0)
+	for color: int in [GameRules.PieceColor.WHITE, GameRules.PieceColor.BLACK]:
+		if board.has_king(color) and board.is_in_check(color):
+			_draw_square_marker(board.king_pos[color], CHECK_TINT)
 	if selected_square != NO_SQUARE:
 		_draw_square_marker(selected_square, SELECTED_TINT)
 	for target: Vector2i in legal_targets:
@@ -363,7 +378,9 @@ func _make_piece_sprite(texture: Texture2D) -> Sprite2D:
 func _place_sprite(sprite: Sprite2D, world: Vector3) -> void:
 	var ground: Vector3 = Vector3(world.x, 0.0, world.z + standing_offset())
 	var scale_value: float = float(sprite.get_meta("base_scale", 1.0)) * projection.scale_at(ground)
-	sprite.scale = Vector2(scale_value, scale_value)
+	sprite.set_meta("placed_scale", scale_value)
+	sprite.set_meta("world", world)
+	sprite.scale = Vector2(scale_value, scale_value) * (sprite.get_meta("stretch", Vector2.ONE) as Vector2)
 	sprite.position = projection.project(Vector3(ground.x, world.y, ground.z))
 
 func _sprite_hit_rect(sprite: Sprite2D) -> Rect2:
@@ -401,29 +418,48 @@ func _on_skin_changed(_skin_id: StringName) -> void:
 func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 	var move_event: BattleEvent = null
 	var capture_event: BattleEvent = null
+	var castled: bool = false
+	_pending_promotion = NO_SQUARE
+	_pending_check = {}
 	for event: BattleEvent in events:
-		if event.event_type == BattleCommandProcessor.EVENT_PIECE_MOVED:
-			move_event = event
-		elif event.event_type == BattleCommandProcessor.EVENT_PIECE_CAPTURED:
-			capture_event = event
-	if move_event == null or board == null:
+		match event.event_type:
+			BattleCommandProcessor.EVENT_PIECE_MOVED:
+				move_event = event
+			BattleCommandProcessor.EVENT_PIECE_CAPTURED:
+				capture_event = event
+			BattleCommandProcessor.EVENT_CASTLED:
+				castled = true
+			BattleCommandProcessor.EVENT_PROMOTED:
+				_pending_promotion = event.payload.get("position", NO_SQUARE)
+			BattleCommandProcessor.EVENT_CHECK_DECLARED:
+				_pending_check = event.payload
+	if board == null:
+		return
+	if move_event == null:
+		_play_followups()
 		return
 	var data: Dictionary = move_event.payload
 	var from: Vector2i = data.get("from", NO_SQUARE)
 	var to: Vector2i = data.get("to", NO_SQUARE)
 	if not board.in_bounds(from) or not board.in_bounds(to):
+		_play_followups()
 		return
+	var short: bool = _short_animations()
 	var captured: bool = capture_event != null
 	var piece_id: String = str(data.get("piece_def_id", "queen"))
-	if captured and _present_strike(data, capture_event.payload, speed):
+	if captured and _present_strike(data, capture_event.payload, speed * (SHORT_STRIKE_SPEED if short else 1.0)):
 		return
+	if short:
+		speed *= SHORT_MOVE_SPEED
 	var proxy: Sprite2D = _make_piece_sprite(_texture_for(int(data.get("color", player_color)), piece_id))
 	if proxy == null:
+		_play_followups()
 		return
 	var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
 	var profile: PieceMotionProfile = definition.motion_profile if definition != null and definition.motion_profile != null else PieceMotionProfileDatabase.get_profile(&"queen")
 	var duration: float = (profile.capture_duration if captured else profile.move_duration) / maxf(speed, 0.1)
 	var presentation_kind: StringName = presentation_kind_for(definition, captured)
+	var weight: int = definition.weight_class if definition != null else PieceDef.WeightClass.MEDIUM
 	var start: Vector3 = projection.square_world(from)
 	var finish: Vector3 = projection.square_world(to)
 	_place_sprite(proxy, start)
@@ -443,6 +479,8 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 
 	var tween: Tween = create_tween().bind_node(self).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_presentation_tweens.append(tween)
+	# Anticipation: every piece crouches briefly before it leaves its square.
+	tween.tween_method(_stretch.bind(proxy), Vector2.ONE, Vector2(1.12, 0.86), 0.06 / maxf(speed, 0.1))
 	match presentation_kind:
 		&"teleport":
 			tween.tween_property(proxy, "modulate:a", 0.0, duration * 0.35)
@@ -455,8 +493,17 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 		&"lob":
 			tween.tween_method(_travel.bind(proxy, start, finish, projection.cell * 1.6), 0.0, 1.0, duration)
 		_:
-			var arc: float = projection.cell * profile.arc_height_cells if profile.path_type == PieceMotionProfile.PathType.ARC else 0.0
-			tween.tween_method(_travel.bind(proxy, start, finish, arc), 0.0, 1.0, duration)
+			# Light pieces hop, heavy pieces slide; the castling king vaults over its partner.
+			var arc: float = 0.0
+			if castled:
+				arc = projection.cell * 0.7
+			elif profile.path_type == PieceMotionProfile.PathType.ARC:
+				arc = projection.cell * profile.arc_height_cells
+			elif weight == PieceDef.WeightClass.LIGHT:
+				arc = projection.cell * 0.3
+			var travel: float = maxf(duration, (0.13 + 0.03 * Vector2(to - from).length()) / maxf(speed, 0.1))
+			tween.tween_method(_travel.bind(proxy, start, finish, arc), 0.0, 1.0, travel)
+			tween.parallel().tween_method(_stretch.bind(proxy), Vector2(0.94, 1.08), Vector2(0.94, 1.08), travel)
 	if presentation_kind == &"petrify":
 		tween.parallel().tween_property(proxy, "modulate", Color(0.4, 1.25, 1.35, 1.0), duration * 0.6)
 	elif presentation_kind == &"chained_capture":
@@ -470,15 +517,59 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 		fade.tween_interval(duration * 0.8)
 		fade.tween_property(victim, "modulate:a", 0.0, maxf(duration * 0.2, 0.01))
 		fade.tween_callback(_finish_tween.bind(fade))
+	if castled:
+		_present_castling_partner(from, to, duration, speed)
+	# Landing: a squash and a little dust, heavier pieces kick up more.
+	tween.tween_callback(_land.bind(finish, weight))
+	tween.tween_method(_stretch.bind(proxy), Vector2(1.16, 0.82), Vector2.ONE, 0.1 / maxf(speed, 0.1))
 	tween.tween_callback(_finish_tween.bind(tween))
+
+## Castling swaps the king with its partner: the partner slides back to the king's square.
+func _present_castling_partner(king_from: Vector2i, king_to: Vector2i, duration: float, speed: float) -> void:
+	var partner_piece: ChessPiece = board.get_piece(king_from)
+	var partner: Sprite2D = _make_piece_sprite(_piece_texture(partner_piece))
+	if partner == null:
+		return
+	var start: Vector3 = projection.square_world(king_to)
+	var finish: Vector3 = projection.square_world(king_from)
+	_place_sprite(partner, start)
+	_piece_layer.add_child(partner)
+	_presentation_nodes.append(partner)
+	_hidden_squares[king_from] = true
+	var travel: float = maxf(duration, (0.13 + 0.03 * Vector2(king_to - king_from).length()) / maxf(speed, 0.1))
+	var slide: Tween = create_tween().bind_node(self).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_presentation_tweens.append(slide)
+	slide.tween_interval(0.06 / maxf(speed, 0.1))
+	slide.tween_method(_travel.bind(partner, start, finish, 0.0), 0.0, 1.0, travel)
+	slide.tween_callback(_land.bind(finish, PieceDef.WeightClass.HEAVY))
+	slide.tween_method(_stretch.bind(partner), Vector2(1.12, 0.86), Vector2.ONE, 0.1 / maxf(speed, 0.1))
+	slide.tween_callback(_finish_tween.bind(slide))
+
+func _stretch(value: Vector2, sprite: Sprite2D) -> void:
+	if not is_instance_valid(sprite):
+		return
+	sprite.set_meta("stretch", value)
+	sprite.scale = Vector2.ONE * float(sprite.get_meta("placed_scale", sprite.scale.x)) * value
+
+func _land(world: Vector3, weight: int) -> void:
+	if _strike == null:
+		return
+	_strike.fx.puff(world + Vector3(0.0, _strike.fx.unit, 0.0), 3 + weight * 2, 0.5 + 0.2 * weight)
+	if weight == PieceDef.WeightClass.HEAVY:
+		_strike.fx.ring(world.x, world.z, projection.cell * 0.5, 0.25)
+
+func _short_animations() -> bool:
+	var settings: AppSettingsManager = get_node_or_null("/root/SettingsManager") as AppSettingsManager
+	return settings != null and settings.short_battle_animations
 
 ## Plays the capture as a full strike animation when the attacker has one. Returns
 ## false when the simple move presentation should be used instead.
 func _present_strike(move_data: Dictionary, capture_data: Dictionary, speed: float) -> bool:
 	var from: Vector2i = move_data.get("from", NO_SQUARE)
 	var to: Vector2i = move_data.get("to", NO_SQUARE)
-	# En passant and similar captures hit a piece that is not on the destination square.
-	if capture_data.get("position", to) != to:
+	# En passant hits a piece that does not stand on the destination square.
+	var victim_square: Vector2i = capture_data.get("position", to)
+	if not board.in_bounds(victim_square) or victim_square == from:
 		return false
 	var attacker_id: String = str(move_data.get("piece_def_id", ""))
 	var attacker_def: PieceDef = PieceDefDatabase.get_def(attacker_id)
@@ -490,12 +581,60 @@ func _present_strike(move_data: Dictionary, capture_data: Dictionary, speed: flo
 	if victim_def == null or attacker_texture == null or victim_texture == null:
 		return false
 	_hidden_squares[to] = true
-	_strike.play(StringName(attacker_id), attacker_texture, victim_texture, from, to, attacker_def.strike_type, attacker_def.weight_class, victim_def.weight_class, speed)
+	_strike.play(StringName(attacker_id), attacker_texture, victim_texture, from, to, attacker_def.strike_type, attacker_def.weight_class, victim_def.weight_class, speed, victim_square)
 	return true
 
 func _on_strike_finished() -> void:
 	if _presentation_tweens.is_empty():
 		_end_presentation()
+
+## Effects that play on the settled board after a move: promotion flash, check alarm.
+func _play_followups() -> void:
+	if board == null or _strike == null:
+		return
+	var fx: StrikeFx = _strike.fx
+	if _pending_promotion != NO_SQUARE and board.in_bounds(_pending_promotion):
+		var world: Vector3 = projection.square_world(_pending_promotion)
+		fx.ring(world.x, world.z, projection.cell * 0.9, 0.45, PROMOTION_GLOW)
+		fx.ring(world.x, world.z, projection.cell * 0.5, 0.3, PROMOTION_GLOW)
+		fx.spark_burst(world + Vector3(0.0, projection.cell * 0.5, 0.0), 14, Vector2.ZERO, 0.0, 0.7)
+		var promoted: Sprite2D = _piece_sprites.get(_pending_promotion) as Sprite2D
+		if promoted != null:
+			var rest: Vector2 = promoted.scale
+			promoted.scale = rest * Vector2(0.55, 1.6)
+			promoted.create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).tween_property(promoted, "scale", rest, 0.28)
+	if not _pending_check.is_empty():
+		var color: int = int(_pending_check.get("color", -1))
+		if board.has_king(color):
+			var king_square: Vector2i = board.king_pos[color]
+			var world: Vector3 = projection.square_world(king_square)
+			var mate: bool = bool(_pending_check.get("checkmate", false))
+			fx.ring(world.x, world.z, projection.cell * (1.3 if mate else 0.9), 0.5, CHECK_GLOW)
+			if mate:
+				fx.ring(world.x, world.z, projection.cell * 0.7, 0.35, CHECK_GLOW)
+			var king: Sprite2D = _piece_sprites.get(king_square) as Sprite2D
+			if king != null:
+				var home: Vector2 = king.position
+				var shake: Tween = king.create_tween()
+				for step: int in range(6):
+					var reach: float = projection.cell * 0.09 * (1.0 - step / 6.0) * (1.0 if step % 2 == 0 else -1.0)
+					shake.tween_property(king, "position", home + Vector2(reach, 0.0), 0.04)
+				shake.tween_property(king, "position", home, 0.04)
+	_pending_promotion = NO_SQUARE
+	_pending_check = {}
+
+func _draw_proxy_shadows() -> void:
+	for node: Node in _presentation_nodes:
+		if not is_instance_valid(node) or not node.has_meta("world"):
+			continue
+		var world: Vector3 = node.get_meta("world")
+		var shrink: float = maxf(0.4, 1.0 - world.y / (projection.cell * 2.5))
+		var radius: float = projection.cell * 0.33 * shrink
+		var points: PackedVector2Array = PackedVector2Array()
+		for step: int in range(16):
+			var angle: float = TAU * step / 16.0
+			points.append(projection.project(Vector3(world.x + cos(angle) * radius, 0.0, world.z + sin(angle) * radius)))
+		_ground_canvas.draw_colored_polygon(points, Color(0.0, 0.0, 0.0, 0.34 * shrink * (node as CanvasItem).modulate.a))
 
 ## Tween step: moves `sprite` from `start` to `finish`, lifting it along a parabola.
 func _travel(progress: float, sprite: Sprite2D, start: Vector3, finish: Vector3, arc_height: float) -> void:
@@ -504,6 +643,7 @@ func _travel(progress: float, sprite: Sprite2D, start: Vector3, finish: Vector3,
 	var world: Vector3 = start.lerp(finish, progress)
 	world.y = arc_height * 4.0 * progress * (1.0 - progress)
 	_place_sprite(sprite, world)
+	_ground_canvas.queue_redraw()
 
 func _texture_for(color: int, piece_id: String) -> Texture2D:
 	var color_id: StringName = &"white" if color == GameRules.PieceColor.WHITE else &"black"
@@ -562,4 +702,6 @@ func _end_presentation() -> void:
 	_presentation_nodes.clear()
 	_hidden_squares.clear()
 	refresh()
+	_ground_canvas.queue_redraw()
+	_play_followups()
 	presentations_completed.emit()

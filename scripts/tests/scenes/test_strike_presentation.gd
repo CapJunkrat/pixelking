@@ -59,6 +59,47 @@ func _run() -> void:
 			var clean: bool = not view.is_presenting() and layer.get_child_count() == 32
 			_expect(started and clean, "%s capturing %s plays a strike and leaves only the standing pieces" % [attacker, victim])
 
+	# En passant: the victim stands beside the pawn, not on the destination square.
+	view.present_events([
+		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_MOVED, 1, 1, {"from": Vector2i(2, 4), "to": Vector2i(3, 5), "piece_def_id": "pawn", "color": GameRules.PieceColor.WHITE}),
+		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_CAPTURED, 2, 1, {"position": Vector2i(3, 4), "piece_def_id": "pawn", "color": GameRules.PieceColor.BLACK}),
+	] as Array[BattleEvent], 8.0)
+	_expect(view.get_node("StrikeDirector").is_playing(), "en passant plays the pawn strike on the neighbouring square")
+	await _settle(view)
+
+	# Castling swaps the king with its partner, so two pieces travel.
+	view.present_events([
+		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_MOVED, 1, 1, {"from": Vector2i(4, 0), "to": Vector2i(7, 0), "piece_def_id": "king", "color": GameRules.PieceColor.WHITE}),
+		BattleEvent.new(BattleCommandProcessor.EVENT_CASTLED, 2, 1, {"from": Vector2i(4, 0), "to": Vector2i(7, 0)}),
+	] as Array[BattleEvent], 8.0)
+	_expect(layer.get_child_count() == 34, "castling moves both the king and its partner")
+	await _settle(view)
+	_expect(layer.get_child_count() == 32, "castling presentation cleans up both travelling pieces")
+
+	# Promotion and check play on the settled board and must not block the turn.
+	view.present_events([
+		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_MOVED, 1, 1, {"from": Vector2i(2, 2), "to": Vector2i(2, 3), "piece_def_id": "pawn", "color": GameRules.PieceColor.WHITE}),
+		BattleEvent.new(BattleCommandProcessor.EVENT_PROMOTED, 2, 1, {"position": Vector2i(0, 1), "piece_def_id": "queen", "color": GameRules.PieceColor.WHITE}),
+		BattleEvent.new(BattleCommandProcessor.EVENT_CHECK_DECLARED, 3, 1, {"color": GameRules.PieceColor.BLACK, "checkmate": false}),
+	] as Array[BattleEvent], 8.0)
+	await _settle(view)
+	_expect(not view.is_presenting() and layer.get_child_count() == 32, "promotion and check effects do not hold up the presentation")
+
+	var settings := root.get_node("SettingsManager") as AppSettingsManager
+	settings.set_short_battle_animations(true, false)
+	var toggle := battle.get_node("SettingsOverlay/Center/Panel/Margin/Content/ShortAnimations") as CheckButton
+	_expect(toggle != null, "battle settings offer a short animation switch")
+	var strike_events: Array[BattleEvent] = [
+		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_MOVED, 1, 1, {"from": Vector2i(2, 2), "to": Vector2i(3, 3), "piece_def_id": "king", "color": GameRules.PieceColor.WHITE}),
+		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_CAPTURED, 2, 1, {"position": Vector2i(3, 3), "piece_def_id": "pawn", "color": GameRules.PieceColor.BLACK}),
+	]
+	view.present_events(strike_events, 1.0)
+	var short_frames: int = await _settle(view)
+	settings.set_short_battle_animations(false, false)
+	view.present_events(strike_events, 1.0)
+	var full_frames: int = await _settle(view)
+	_expect(short_frames < full_frames, "short battle animations finish sooner than full ones")
+
 	view.present_events([
 		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_MOVED, 1, 1, {"from": Vector2i(2, 2), "to": Vector2i(3, 3), "piece_def_id": "queen", "color": GameRules.PieceColor.WHITE}),
 		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_CAPTURED, 2, 1, {"position": Vector2i(3, 3), "piece_def_id": "rook", "color": GameRules.PieceColor.BLACK}),
@@ -71,6 +112,14 @@ func _run() -> void:
 	_expect(layer.transform == Transform2D.IDENTITY, "skipping a strike restores the board camera")
 	_expect(game_state.board.to_ascii() == authoritative, "strike animations never mutate authoritative battle state")
 	_finish()
+
+func _settle(view: BattleBoardView) -> int:
+	var frames: int = 0
+	while view.is_presenting() and frames < 900:
+		frames += 1
+		await process_frame
+	await process_frame
+	return frames
 
 func _expect(condition: bool, message: String) -> void:
 	if condition:

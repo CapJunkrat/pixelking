@@ -3,6 +3,7 @@ extends ColorRect
 
 @onready var music_slider: HSlider = $Center/Panel/Margin/Content/MusicVolume
 @onready var sfx_slider: HSlider = $Center/Panel/Margin/Content/SFXVolume
+@onready var short_animations_toggle: CheckButton = $Center/Panel/Margin/Content/ShortAnimations
 @onready var leave_confirmation: ConfirmationDialog = $LeaveConfirmation
 @onready var settings_manager: AppSettingsManager = get_node("/root/SettingsManager") as AppSettingsManager
 @onready var audio_manager: AppAudioManager = get_node("/root/AudioManager") as AppAudioManager
@@ -15,6 +16,8 @@ func _ready() -> void:
 	sfx_slider.value_changed.connect(_on_sfx_changed)
 	settings_manager.music_volume_changed.connect(_sync_music)
 	settings_manager.sfx_volume_changed.connect(_sync_sfx)
+	short_animations_toggle.set_pressed_no_signal(settings_manager.short_battle_animations)
+	short_animations_toggle.toggled.connect(settings_manager.set_short_battle_animations)
 	music_slider.set_value_no_signal(audio_manager.music_volume())
 	sfx_slider.set_value_no_signal(audio_manager.sfx_volume())
 	_apply_locale()
@@ -62,6 +65,7 @@ func _apply_locale() -> void:
 	$Center/Panel/Margin/Content/Title.text = _text("SETTINGS_TITLE")
 	$Center/Panel/Margin/Content/MusicLabel.text = _text("SETTINGS_MUSIC")
 	$Center/Panel/Margin/Content/SfxLabel.text = _text("SETTINGS_SOUND")
+	short_animations_toggle.text = _text("SETTINGS_SHORT_ANIMATIONS")
 	$Center/Panel/Margin/Content/ResumeButton.text = _text("BATTLE_SETTINGS_RESUME")
 	$Center/Panel/Margin/Content/MainMenuButton.text = _text("BATTLE_SETTINGS_MAIN_MENU")
 	leave_confirmation.title = _text("BATTLE_SETTINGS_MAIN_MENU")
