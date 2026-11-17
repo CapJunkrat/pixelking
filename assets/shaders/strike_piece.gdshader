@@ -36,6 +36,9 @@ uniform float web_progress = 0.0;
 uniform vec4 brick = vec4(0.0);
 uniform float brick_mode = 0.0;
 
+uniform vec4 tint = vec4(1.0);
+uniform float tint_amount = 0.0;
+
 uniform float sparkle = 0.0;
 uniform float sparkle_time = 0.0;
 
@@ -122,6 +125,7 @@ void fragment() {
 		rgb = WARM_WHITE;
 	}
 
+	rgb = mix(rgb, tint.rgb, tint_amount);
 	rgb = mix(rgb, vec3(1.0), flash);
 	COLOR = vec4(rgb, a * alpha);
 }

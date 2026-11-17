@@ -19,7 +19,10 @@ const PROMOTION_GLOW := Color(1.0, 0.886, 0.588)
 ## Speed multipliers applied when the player turns on short battle animations.
 const SHORT_STRIKE_SPEED := 2.2
 const SHORT_MOVE_SPEED := 1.5
-const IMMOBILIZED_MODULATE := Color(0.56, 0.92, 1.0, 0.72)
+const STONE_SHADER: Shader = preload("res://assets/shaders/stone_piece.gdshader")
+const PETRIFY_SECONDS := 0.8
+const CRACK_SECONDS := 0.4
+const GAZE_COLOR := Color(0.9, 1.0, 0.55)
 
 @onready var piece_skin_manager: Node = get_node("/root/PieceSkinManager")
 
@@ -45,6 +48,11 @@ var _piece_sprites: Dictionary = {}
 var _hidden_squares: Dictionary = {}
 var _presentation_tweens: Array[Tween] = []
 var _presentation_nodes: Array[Node] = []
+## Pieces currently shown as stone (held by a gorgon), keyed by square + piece, so a
+## piece that stays held does not replay the petrify animation on every refresh.
+var _stone_keys: Dictionary = {}
+## Gorgon gaze beams in flight: [gorgon square, target square, seconds elapsed].
+var _gazes: Array = []
 
 func _ready() -> void:
 	piece_skin_manager.connect("skin_changed", _on_skin_changed)
@@ -63,6 +71,7 @@ func _ready() -> void:
 	_air_canvas = Node2D.new()
 	_air_canvas.name = "AirFx"
 	_air_canvas.z_index = 10
+	_air_canvas.draw.connect(_draw_gazes)
 	add_child(_air_canvas)
 	_overlay = Control.new()
 	_overlay.name = "MarkerOverlay"
@@ -311,6 +320,8 @@ func _rebuild_pieces() -> void:
 			_piece_layer.remove_child(old)
 			old.queue_free()
 	_piece_sprites.clear()
+	var previous_stone: Dictionary = _stone_keys
+	_stone_keys = {}
 	for rank: int in range(board.board_size):
 		for file: int in range(board.board_size):
 			var square: Vector2i = Vector2i(file, rank)
@@ -323,10 +334,78 @@ func _rebuild_pieces() -> void:
 			sprite.name = "Piece_%d_%d" % [file, rank]
 			_place_sprite(sprite, projection.square_world(square))
 			if board.is_piece_immobilized(square):
-				sprite.modulate = IMMOBILIZED_MODULATE
+				_show_stone(sprite, square, piece, previous_stone)
 			sprite.visible = not _hidden_squares.has(square)
 			_piece_layer.add_child(sprite)
 			_piece_sprites[square] = sprite
+
+## Held pieces turn to stone. A newly held piece petrifies from the feet up under the
+## gorgon's gaze; while a move is still animating it waits so the gorgon arrives first.
+func _show_stone(sprite: Sprite2D, square: Vector2i, piece: ChessPiece, previous: Dictionary) -> void:
+	var key: String = "%d_%d_%s_%d" % [square.x, square.y, piece.def.id, piece.color]
+	var known: bool = previous.has(key)
+	if not known and is_presenting():
+		return
+	_stone_keys[key] = true
+	var chunks: PieceChunks = PieceChunks.of(sprite.texture)
+	var material: ShaderMaterial = ShaderMaterial.new()
+	material.shader = STONE_SHADER
+	material.set_shader_parameter(&"used", chunks.used_uv())
+	material.set_shader_parameter(&"aspect", chunks.aspect)
+	material.set_shader_parameter(&"seed", float(square.x * 7 + square.y * 3))
+	material.set_shader_parameter(&"progress", 1.0 if known else 0.0)
+	material.set_shader_parameter(&"crack", 1.0 if known else 0.0)
+	sprite.material = material
+	if known:
+		return
+	var gorgon: Vector2i = _holding_gorgon(square, piece)
+	if gorgon != NO_SQUARE:
+		_gazes.append([gorgon, square, 0.0])
+	var tween: Tween = create_tween()
+	tween.tween_method(_set_stone.bind(material, &"progress"), 0.0, 1.0, PETRIFY_SECONDS / presentation_speed)
+	tween.tween_method(_set_stone.bind(material, &"crack"), 0.0, 1.0, CRACK_SECONDS / presentation_speed)
+
+func _set_stone(value: float, material: ShaderMaterial, parameter: StringName) -> void:
+	material.set_shader_parameter(parameter, value)
+
+func _holding_gorgon(square: Vector2i, piece: ChessPiece) -> Vector2i:
+	for dx: int in range(-1, 2):
+		for dy: int in range(-1, 2):
+			var neighbour: Vector2i = square + Vector2i(dx, dy)
+			if neighbour == square or not board.in_bounds(neighbour):
+				continue
+			var other: ChessPiece = board.get_piece(neighbour)
+			if other != null and other.color != piece.color and other.def.immobilizes_adjacent:
+				return neighbour
+	return NO_SQUARE
+
+func _process(delta: float) -> void:
+	if _gazes.is_empty():
+		return
+	for gaze: Array in _gazes:
+		gaze[2] = float(gaze[2]) + delta * presentation_speed
+	_gazes = _gazes.filter(func(gaze: Array) -> bool: return float(gaze[2]) < 0.6)
+	_air_canvas.queue_redraw()
+
+## The gorgon's eyes light up and a wavering beam reaches the piece it holds.
+func _draw_gazes() -> void:
+	var stand: float = standing_offset()
+	for gaze: Array in _gazes:
+		var age: float = float(gaze[2])
+		var alpha: float = clampf(age / 0.12, 0.0, 1.0) * (1.0 - clampf((age - 0.4) / 0.2, 0.0, 1.0))
+		var source: Vector3 = projection.square_world(gaze[0])
+		var target: Vector3 = projection.square_world(gaze[1])
+		var piece_pixels: float = projection.cell * BoardPainter.PIECE_HEIGHT_CELLS
+		var eye_height: float = projection.height_for_pixels(piece_pixels * 0.62)
+		var eye: Vector2 = projection.project(Vector3(source.x, eye_height, source.z + stand))
+		var hit: Vector2 = projection.project(Vector3(target.x, projection.height_for_pixels(piece_pixels * 0.45), target.z + stand))
+		var unit: float = projection.cell / 18.0
+		var waver: Vector2 = Vector2(0.0, sin(age * 50.0) * unit)
+		_air_canvas.draw_line(eye, hit + waver, Color(GAZE_COLOR, 0.25 * alpha), 4.0 * unit)
+		_air_canvas.draw_line(eye - Vector2(unit, 0.0), hit + waver, Color(GAZE_COLOR, alpha), maxf(unit, 1.0))
+		_air_canvas.draw_line(eye + Vector2(unit, 0.0), hit - waver, Color(GAZE_COLOR, alpha), maxf(unit, 1.0))
+		_air_canvas.draw_rect(Rect2(eye - Vector2(2.0, 0.5) * unit, Vector2(unit, unit)), Color(GAZE_COLOR, alpha))
+		_air_canvas.draw_rect(Rect2(eye + Vector2(1.0, -0.5) * unit, Vector2(unit, unit)), Color(GAZE_COLOR, alpha))
 
 func _make_piece_sprite(texture: Texture2D) -> Sprite2D:
 	return BoardPainter.make_sprite(texture, projection)
@@ -504,7 +583,13 @@ func _present_strike(move_data: Dictionary, capture_data: Dictionary, speed: flo
 		return false
 	var attacker_id: String = str(move_data.get("piece_def_id", ""))
 	var attacker_def: PieceDef = PieceDefDatabase.get_def(attacker_id)
-	if attacker_def == null or not StrikeDirector.can_play(StringName(attacker_id), attacker_def.strike_type):
+	if attacker_def == null:
+		return false
+	# Hybrids moving like a knight borrow the knight's stomp (see StrikeDirector.resolve_attack).
+	var attack: Array = StrikeDirector.resolve_attack(StringName(attacker_id), attacker_def.strike_type, from, to)
+	var attack_id: StringName = attack[0]
+	var strike_type: int = attack[1]
+	if not StrikeDirector.can_play(attack_id, strike_type):
 		return false
 	var victim_def: PieceDef = PieceDefDatabase.get_def(str(capture_data.get("piece_def_id", "")))
 	var attacker_texture: Texture2D = _texture_for(int(move_data.get("color", player_color)), attacker_id)
@@ -512,7 +597,10 @@ func _present_strike(move_data: Dictionary, capture_data: Dictionary, speed: flo
 	if victim_def == null or attacker_texture == null or victim_texture == null:
 		return false
 	_hidden_squares[to] = true
-	_strike.play(StringName(attacker_id), attacker_texture, victim_texture, from, to, attacker_def.strike_type, attacker_def.weight_class, victim_def.weight_class, speed, victim_square)
+	var corner: Vector2i = NO_SQUARE
+	if presentation_kind_for(attacker_def) == &"bent_ray":
+		corner = _bent_corner_square(attacker_def, from, to)
+	_strike.play(attack_id, attacker_texture, victim_texture, from, to, strike_type, attacker_def.weight_class, victim_def.weight_class, speed, victim_square, corner)
 	return true
 
 func _on_strike_finished() -> void:

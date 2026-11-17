@@ -19,6 +19,15 @@ const ROWS := PieceChunks.ROWS
 const GOLD := Color(1.0, 0.886, 0.588)
 const AMBER := Color(0.878, 0.706, 0.361)
 const MAX_GHOSTS := 12
+const VOID_COLOR := Color(0.79, 0.63, 1.0)
+const VOID_DEEP := Color(0.54, 0.35, 0.84)
+const VENOM_COLOR := Color(0.53, 0.83, 0.42)
+const VENOM_DARK := Color(0.31, 0.56, 0.24)
+const ARCANE_COLOR := Color(0.65, 0.925, 1.0)
+const ARCANE_DEEP := Color(0.43, 0.75, 1.0)
+const ROCK_COLORS := [Color("#7d7b84"), Color("#a9a7b0"), Color("#5d5c63")]
+## Hybrid pieces that strike like a knight when they make a knight-shaped move.
+const KNIGHT_HYBRIDS := [&"lancer", &"centaur", &"unicorn_cavalry"]
 
 ## impact: when the hit lands. done: when the attacker has settled on its square.
 ## end: hard cap. All in seconds at 1x speed.
@@ -29,6 +38,19 @@ const ATTACKS := {
 	&"pawn": {"impact": 0.38, "done": 0.74, "end": 2.1, "hitstop": 0.07, "shake": 0.55},
 	&"queen": {"impact": 0.62, "done": 1.49, "end": 2.4, "hitstop": 0.12, "shake": 0.9},
 	&"king": {"impact": 0.72, "done": 2.0, "end": 2.7, "hitstop": 0.13, "shake": 1.4},
+	# Special pieces (docs/prototypes/special_strikes.html). Entries marked dynamic have
+	# their timings recomputed in play() from the victim's weight or the move length.
+	&"assassin": {"impact": 0.62, "done": 1.43, "end": 2.0, "hitstop": 0.12, "shake": 0.7},
+	&"bowman": {"impact": 0.74, "done": 1.65, "end": 2.2, "hitstop": 0.08, "shake": 0.5},
+	&"catapult": {"impact": 0.94, "done": 1.85, "end": 2.7, "hitstop": 0.13, "shake": 1.5},
+	&"lancer": {"impact": 0.58, "done": 1.25, "end": 2.2, "hitstop": 0.1, "shake": 0.9},
+	&"portal_mage": {"impact": 0.7, "done": 2.6, "end": 3.4, "hitstop": 0.06, "shake": 0.4},
+	&"royal_guard": {"impact": 0.52, "done": 0.94, "end": 2.3, "hitstop": 0.1, "shake": 1.3},
+	&"centaur": {"impact": 0.47, "done": 1.38, "end": 2.2, "hitstop": 0.11, "shake": 0.7},
+	&"unicorn_cavalry": {"impact": 0.56, "done": 1.25, "end": 2.3, "hitstop": 0.12, "shake": 1.0},
+	&"gryphon": {"impact": 0.72, "done": 1.85, "end": 2.6, "hitstop": 0.1, "shake": 0.8},
+	&"manticore": {"impact": 0.64, "done": 2.6, "end": 3.4, "hitstop": 0.1, "shake": 0.6},
+	&"archmage": {"impact": 0.76, "done": 2.6, "end": 3.4, "hitstop": 0.12, "shake": 0.9},
 }
 
 class Pose:
@@ -41,6 +63,7 @@ class Pose:
 	var white: float = 0.0
 	var trail: bool = false
 	var dizzy: bool = false
+	var alpha: float = 1.0
 
 	func at(point: Vector3) -> void:
 		x = point.x
@@ -84,6 +107,9 @@ class Body:
 	var land_big: bool = false
 	var normal: Vector2 = Vector2.ZERO
 	var tangent: Vector2 = Vector2.ZERO
+	var base_y: float = 0.0
+	var scale_mul: float = 1.0
+	var released: bool = false
 
 var fx: StrikeFx = StrikeFx.new()
 
@@ -98,6 +124,8 @@ var _reaction: StringName = &""
 var _strike_type: int = PieceDef.StrikeType.NONE
 var _underdog: bool = false
 var _power: float = 1.0
+var _victim_weight: int = PieceDef.WeightClass.MEDIUM
+var _attacker_height: float = 0.0
 var _speed: float = 1.0
 var _to_square: Vector2i = Vector2i(-1, -1)
 
@@ -158,12 +186,22 @@ func setup(view: BattleBoardView) -> void:
 static func can_play(attacker_id: StringName, strike_type: int) -> bool:
 	return strike_type != PieceDef.StrikeType.NONE and ATTACKS.has(attacker_id)
 
+## Which attack plays for this move: [attack id, strike type]. Hybrid pieces that make a
+## knight-shaped move borrow the knight's stomp; everything else keeps its own attack.
+static func resolve_attack(attacker_id: StringName, strike_type: int, from: Vector2i, to: Vector2i) -> Array:
+	var delta: Vector2i = (to - from).abs()
+	var knight_shaped: bool = (delta.x == 1 and delta.y == 2) or (delta.x == 2 and delta.y == 1)
+	if attacker_id in KNIGHT_HYBRIDS and knight_shaped:
+		return [&"knight", PieceDef.StrikeType.CRUSH]
+	return [attacker_id, strike_type]
+
 func is_playing() -> bool:
 	return _phase == Phase.PLAYING
 
 ## Starts a strike. `victim_square` differs from `to` only for en passant.
 ## The board is expected to already hold the post-capture position.
-func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: Texture2D, from: Vector2i, to: Vector2i, strike_type: int, attacker_weight: int, victim_weight: int, speed: float, victim_square: Vector2i = Vector2i(-1, -1)) -> void:
+## `corner_square` is the turning square of a bent move (gryphon, manticore), if known.
+func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: Texture2D, from: Vector2i, to: Vector2i, strike_type: int, attacker_weight: int, victim_weight: int, speed: float, victim_square: Vector2i = Vector2i(-1, -1), corner_square: Vector2i = Vector2i(-1, -1)) -> void:
 	_clear_actors()
 	_reset_camera()
 	_proj = _view.projection
@@ -180,6 +218,7 @@ func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: 
 	_attacker_texture = attacker_texture
 	_victim_texture = victim_texture
 	_power = 1.0 if attacker_weight >= victim_weight else 0.45
+	_victim_weight = clampi(victim_weight, 0, 2)
 	_reaction = reaction_for(strike_type, attacker_weight, victim_weight)
 	_underdog = _reaction == &"underdog"
 
@@ -193,6 +232,12 @@ func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: 
 	_face = 1.0 if absf(screen_b.x - screen_a.x) < 2.0 * _unit else signf(screen_b.x - screen_a.x)
 	var delta: Vector2i = to - from
 	_corner = _proj.square_world(Vector2i(from.x, to.y) if absi(delta.y) >= absi(delta.x) else Vector2i(to.x, from.y))
+	if corner_square.x >= 0:
+		_corner = _proj.square_world(corner_square)
+	elif attacker_id == &"gryphon":
+		_corner = _proj.square_world(from + Vector2i(signi(delta.x), signi(delta.y)))
+	elif attacker_id == &"manticore":
+		_corner = _proj.square_world(from + (Vector2i(signi(delta.x), 0) if absi(delta.x) > absi(delta.y) else Vector2i(0, signi(delta.y))))
 	var line: Vector2 = (screen_b - screen_a).normalized()
 	if absf(line.y) < 0.42:
 		line.y = (-1.0 if line.y <= 0.0 else 1.0) * 0.42
@@ -204,6 +249,7 @@ func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: 
 	_settle_time = _impact_time + (0.75 if _underdog else 0.14)
 	_done_time = _settle_time + 0.22 if attacker_id == &"pawn" else float(_attack["done"])
 	_end_time = _impact_time + 2.0 if _underdog else float(_attack["end"])
+	_apply_dynamic_timing()
 	_t = 0.0
 	_hs = 0.0
 	_rt = -1.0
@@ -216,7 +262,6 @@ func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: 
 	_wobble_time = -9.0
 	_rows_broken = 0
 	_brick_out = false
-	_events = _build_events()
 	_events_fired = 0
 
 	_victim_chunks = PieceChunks.of(victim_texture)
@@ -231,6 +276,7 @@ func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: 
 	_victim.material = _victim_material
 	_victim_height = _victim_chunks.used.size.y * float(_victim.get_meta("base_scale", 1.0))
 	layer.add_child(_victim)
+	_set_tint(_victim_material, Color.WHITE, 0.0)
 
 	_holder = Node2D.new()
 	layer.add_child(_holder)
@@ -245,7 +291,10 @@ func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: 
 	_attacker = _view.make_piece_sprite(attacker_texture)
 	_attacker_material = _piece_material(PieceChunks.of(attacker_texture))
 	_attacker.material = _attacker_material
+	_attacker_height = PieceChunks.of(attacker_texture).used.size.y * float(_attacker.get_meta("base_scale", 1.0))
 	_holder.add_child(_attacker)
+	# Built last: some events aim at heights that need both sprites measured.
+	_events = _build_events()
 
 	_phase = Phase.PLAYING
 	_render()
@@ -267,6 +316,15 @@ static func reaction_for(strike_type: int, attacker_weight: int, victim_weight: 
 			return [&"crush_flat", &"crush_collapse", &"crush_sink"][weight]
 		PieceDef.StrikeType.PIERCE:
 			return [&"pierce_knock", &"hole", &"hole_heavy"][weight]
+		PieceDef.StrikeType.VOID:
+			return &"vortex"
+		PieceDef.StrikeType.GRAB:
+			# Too heavy to carry off: the talons rake it in two instead.
+			return &"rake" if weight == 2 else &"grab"
+		PieceDef.StrikeType.VENOM:
+			return &"venom"
+		PieceDef.StrikeType.ARCANE:
+			return &"arcane"
 	if weight == 0:
 		return &"blunt_fly"
 	if weight == 1:
@@ -289,6 +347,10 @@ func _split_time() -> float:
 		&"pierce_knock": return 0.05
 		&"hole": return 0.48
 		&"hole_heavy": return 0.75
+		&"vortex", &"grab": return 0.0
+		&"rake": return 0.1
+		&"venom": return 0.25 + _melt_duration()
+		&"arcane": return _arcane_duration()
 	return 0.1
 
 # --- frame loop ---------------------------------------------------------------
@@ -400,6 +462,10 @@ func _physics(dt: float) -> void:
 				_step_slash_upper(body)
 			&"slash_lower":
 				_step_slash_lower(body)
+			&"vortex":
+				_step_vortex(body, dt)
+			&"grab":
+				_step_grab(body, dt)
 			_:
 				_step_free(body, dt)
 	_bodies = _bodies.filter(func(body: Body) -> bool: return not body.dead)
@@ -422,7 +488,7 @@ func _build_events() -> Array:
 				return [[0.38, _knock_brick_out]]
 		&"king":
 			return [[1.52, _event_king_step.bind(0.5, 4, 0.6, 0.3)], [1.86, _event_king_step.bind(1.0, 5, 0.7, 0.35)]]
-	return []
+	return _special_events()
 
 func _event_knight_crouch() -> void:
 	fx.puff(_up(_a, 2.0), 6, 0.8)
@@ -450,6 +516,7 @@ func _compute_pose(u: float) -> Pose:
 		&"pawn": _pose_pawn(u, o)
 		&"queen": _pose_queen(u, o)
 		&"king": _pose_king(u, o)
+		_: _special_pose(u, o)
 	return o
 
 func _pose_knight(u: float, o: Pose) -> void:
@@ -696,7 +763,7 @@ func _hop(o: Pose, start: Vector3, finish: Vector3, q: float) -> void:
 func _on_impact() -> void:
 	# Bring the two actors in front of the dimmed bystanders. A crush lands on top of
 	# the victim; every other strike reads better with the victim in front.
-	var crush: bool = _strike_type == PieceDef.StrikeType.CRUSH
+	var crush: bool = _strike_type == PieceDef.StrikeType.CRUSH or _strike_type == PieceDef.StrikeType.GRAB
 	_holder.z_index = 2 if crush else 1
 	_victim.z_index = 1 if crush else 2
 	match _attack_id:
@@ -726,6 +793,8 @@ func _on_impact() -> void:
 			fx.puff(_up(_b, 2.0), 12, 1.3)
 			fx.crack_decal(_b.x, _b.z, 8, _cell * 1.05)
 			fx.spark_burst(_up(_b, 4.0), 12, Vector2.ZERO, 0.0, 0.8)
+		_:
+			_special_impact()
 
 ## Pawn against a heavy piece, first hit: a brick flies out of the far side of the base.
 func _knock_brick_out() -> void:
@@ -779,6 +848,8 @@ func _reaction_tick() -> void:
 	if _split:
 		return
 	match _reaction:
+		&"venom", &"arcane":
+			_special_reaction_tick()
 		&"crush_collapse":
 			var rows: int = _collapsed_rows()
 			while _rows_broken < rows:
@@ -863,6 +934,8 @@ func _on_split() -> void:
 			fx.puff(_up(_b, 4.0), 10, 1.1)
 			fx.ring(_b.x, _b.z, _cell * (1.0 if heavy else 0.7), 0.4, GOLD)
 			_shake = maxf(_shake, 0.9 if heavy else 0.6)
+		_:
+			_special_split()
 
 func _split_along_slash(heavy: bool) -> void:
 	var first: Body = _make_body({"plane_keep": -1.0})
@@ -1096,6 +1169,7 @@ func _debris(indices: PackedInt32Array, pivot: Vector2, origin: Vector3, options
 	var gravity: float = float(options.get("gravity", 260.0)) * _unit
 	var life_min: float = float(options.get("life_min", 1.0))
 	var life_max: float = float(options.get("life_max", 1.6))
+	var color_override: Variant = options.get("color", null)
 	var radial: float = float(options.get("radial", 2.0))
 	var chunk: float = _victim_height / ROWS
 	for order: int in range(indices.size()):
@@ -1108,7 +1182,7 @@ func _debris(indices: PackedInt32Array, pivot: Vector2, origin: Vector3, options
 			velocity.x + randf_range(-spread, spread) + local.x * radial,
 			velocity.y + randf_range(0.0, spread * 1.2),
 			velocity.z + randf_range(-spread, spread) * 0.6)
-		fx.add_part(position, speed, _victim_chunks.colors[index], chunk * (1.7 if randf() < 0.25 else 1.0), randf_range(life_min, life_max), gravity)
+		fx.add_part(position, speed, _victim_chunks.colors[index] if color_override == null else color_override as Color, chunk * (1.7 if randf() < 0.25 else 1.0), randf_range(life_min, life_max), gravity)
 
 # --- rendering ----------------------------------------------------------------
 
@@ -1116,6 +1190,7 @@ func _render() -> void:
 	_pose = _compute_pose(_t)
 	_place_pose(_attacker, _pose, true)
 	_attacker_material.set_shader_parameter(&"flash", _pose.white)
+	_attacker_material.set_shader_parameter(&"alpha", _pose.alpha)
 	var trail_limit: int = MAX_GHOSTS if _attack_id == &"bishop" else 7
 	if _pose.trail and _hs <= 0.0:
 		_trail.append(_pose)
@@ -1180,6 +1255,22 @@ func _update_victim() -> void:
 				material.set_shader_parameter(&"hole_glow", 0.9 * (1.0 - clampf(_rt / total, 0.0, 1.0) * 0.6))
 				material.set_shader_parameter(&"web_progress", clampf((_rt - 0.12) / (total - 0.2), 0.0, 1.0))
 				jitter = roundf(randf_range(-1.0, 1.0) * (0.4 + clampf(_rt / total, 0.0, 1.0))) if _rt > 0.1 else 0.0
+			&"venom":
+				if _rt < 0.25:
+					var q: float = _rt / 0.25
+					_set_tint(material, VENOM_COLOR, 0.55 * q * (0.7 + 0.3 * sin(_rt * 50.0)))
+					jitter = roundf(randf_range(-1.0, 1.0) * q)
+				else:
+					var melt: float = clampf((_rt - 0.25) / _melt_duration(), 0.0, 1.0)
+					material.set_shader_parameter(&"clip_y", Vector2(floorf(melt * ROWS) / ROWS, 1.0))
+					_set_tint(material, VENOM_COLOR, 0.55)
+					stretch = Vector2(1.0 + 0.3 * melt, 1.0)
+					jitter = 0.0
+			&"arcane":
+				var q: float = clampf(_rt / _arcane_duration(), 0.0, 1.0)
+				position = _proj.project(ground + Vector3(0.0, _arcane_lift(), 0.0))
+				_set_tint(material, ARCANE_COLOR, (0.25 + 0.5 * q) * (0.7 + 0.3 * sin(_rt * 60.0)))
+				jitter = roundf(randf_range(-1.0, 1.0) * (0.3 + q * 1.6))
 	_victim.position = position + Vector2(jitter * _unit, 0.0)
 	_victim.scale = Vector2(scale_value, scale_value) * stretch
 
@@ -1188,7 +1279,7 @@ func _place_body(body: Body) -> void:
 	var scale_value: float = float(body.sprite.get_meta("base_scale", 1.0)) * _proj.scale_at(ground)
 	var jitter: float = float(randi_range(-1, 1)) * _unit if body.jitter and _rt < body.shatter_at else 0.0
 	body.sprite.position = _proj.project(Vector3(ground.x, body.y, ground.z)) + Vector2(body.ox + jitter, body.oy)
-	body.sprite.scale = Vector2(scale_value, scale_value)
+	body.sprite.scale = Vector2(scale_value, scale_value) * body.scale_mul
 	body.sprite.rotation = body.rot
 	if body.glow:
 		body.material.set_shader_parameter(&"edge_glow", clampf(1.0 - body.age / 0.55, 0.0, 1.0))
@@ -1229,21 +1320,23 @@ func _draw_ground() -> void:
 	fx.draw_ground(canvas)
 	if _phase != Phase.PLAYING:
 		return
-	_draw_shadow(canvas, _pose.x, _pose.z, _pose.y, 1.0)
+	_draw_special_ground(canvas)
+	if _pose.alpha > 0.05:
+		_draw_shadow(canvas, _pose.x, _pose.z, _pose.y, 1.0, _pose.alpha)
 	if not _split:
 		_draw_shadow(canvas, _b.x, _b.z, 0.0, 1.0)
 	for body: Body in _bodies:
 		if body.y > _proj.height_for_pixels(2.0 * _unit):
 			_draw_shadow(canvas, body.x + body.ox, body.z, body.y, 0.75)
 
-func _draw_shadow(canvas: CanvasItem, x: float, z: float, height: float, size: float) -> void:
+func _draw_shadow(canvas: CanvasItem, x: float, z: float, height: float, size: float, alpha: float = 1.0) -> void:
 	var shrink: float = maxf(0.35, 1.0 - height / (45.0 * _unit))
 	var radius: float = _cell * 0.33 * size * shrink
 	var points: PackedVector2Array = PackedVector2Array()
 	for index: int in range(16):
 		var angle: float = TAU * index / 16.0
 		points.append(_proj.project(Vector3(x + cos(angle) * radius, 0.0, z + sin(angle) * radius)))
-	canvas.draw_colored_polygon(points, Color(0.0, 0.0, 0.0, 0.36 * shrink))
+	canvas.draw_colored_polygon(points, Color(0.0, 0.0, 0.0, 0.36 * shrink * alpha))
 
 func _draw_air() -> void:
 	if fx.projection == null:
@@ -1254,6 +1347,7 @@ func _draw_air() -> void:
 		match _attack_id:
 			&"queen": _draw_lance(canvas)
 			&"king": _draw_judgment(canvas)
+			_: _draw_special_air(canvas)
 		if _slash_age >= 0.0:
 			_draw_slash(canvas)
 		if _pose.dizzy:
@@ -1336,6 +1430,738 @@ func _draw_judgment(canvas: CanvasItem) -> void:
 		var half: float = maxf(1.0, roundf(6.0 * k)) * _unit
 		canvas.draw_rect(Rect2(foot.x - half - 2.5 * _unit, top, half * 2.0 + 5.0 * _unit, foot.y - top), Color(AMBER, 0.75 * k))
 		canvas.draw_rect(Rect2(foot.x - half, top, half * 2.0, foot.y - top), Color(1.0, 0.98, 0.91, k))
+
+# --- special pieces -----------------------------------------------------------
+# Ported from docs/prototypes/special_strikes.html. Same conventions as above: `u` is
+# seconds since the strike started, plain numbers are design units scaled by `_unit`.
+
+func _absorb_duration() -> float:
+	return [0.55, 0.75, 1.0][_victim_weight]
+
+func _melt_duration() -> float:
+	return [0.7, 0.9, 1.15][_victim_weight]
+
+func _arcane_duration() -> float:
+	return [0.4, 0.55, 0.75][_victim_weight]
+
+func _manticore_walk() -> float:
+	return 0.64 + 0.25 + _melt_duration() + 0.3
+
+func _portal_vanish() -> float:
+	return 0.7 + _absorb_duration() + 0.45
+
+func _archmage_glide() -> float:
+	return 0.76 + _arcane_duration() + 0.55
+
+## Height of a fraction of the attacker / victim sprite, in world units.
+func _attacker_at(fraction: float) -> float:
+	return _proj.height_for_pixels(_attacker_height * fraction)
+
+func _victim_at(fraction: float) -> float:
+	return _proj.height_for_pixels(_victim_height * fraction)
+
+func _assassin_behind() -> Vector3:
+	var behind: Vector3 = _along(_b, _cell * 0.62)
+	return behind if _on_board(behind) else _along(_b, _cell * 0.35)
+
+func _centaur_past() -> Vector3:
+	var past: Vector3 = _along(_b, _cell * 0.75)
+	return past if _on_board(past) else _along(_b, _cell * 0.35)
+
+## Timings that depend on the victim's weight or on how far the attacker travels.
+func _apply_dynamic_timing() -> void:
+	match _attack_id:
+		&"portal_mage":
+			_done_time = _portal_vanish() + 0.45
+		&"manticore":
+			_done_time = _manticore_walk() + 0.4
+		&"archmage":
+			_done_time = _archmage_glide() + 0.45
+		&"centaur":
+			# The cut lands as the gallop passes the target, wherever that is on the line.
+			var past: Vector3 = _centaur_past()
+			var reach: float = Vector2(past.x - _a.x, past.z - _a.z).length()
+			var hit: float = Vector2(_b.x - _a.x, _b.z - _a.z).length() / maxf(reach, 0.001)
+			_impact_time = 0.2 + 0.32 * clampf(hit, 0.2, 1.0)
+			_done_time = maxf(_done_time, _impact_time + 0.9)
+		_:
+			return
+	_end_time = maxf(_end_time, _done_time + 0.8)
+
+func _special_events() -> Array:
+	match _attack_id:
+		&"assassin":
+			return [[0.16, _event_puff.bind(_up(_a, 2.0), 9, 0.8)], [0.34, _event_puff.bind(_up(_assassin_behind(), 2.0), 7, 0.7)]]
+		&"bowman":
+			return [[0.46, _event_sparks.bind(Vector3(_a.x, _attacker_at(0.6), _a.z), 3, 40.0, 0.25)]]
+		&"catapult":
+			return [[0.1, _event_puff.bind(_up(_a, 1.0), 3, 0.5)], [0.4, _event_catapult_release]]
+		&"royal_guard":
+			return [[0.22, _event_sparks.bind(Vector3(_along(_a, 4.0 * _unit).x, 8.0 * _unit, _along(_a, 4.0 * _unit).z), 4, 0.0, 0.25)]]
+		&"centaur":
+			return [[0.2, _event_puff.bind(_up(_a, 2.0), 6, 0.8)]]
+		&"gryphon":
+			return [[0.2, _event_gryphon_takeoff]]
+		&"manticore":
+			return [[0.45, _event_puff.bind(_up(_along(_b, -_cell * 0.5), 1.0), 6, 0.8)]]
+		&"portal_mage":
+			var vanish: float = _portal_vanish()
+			return [[vanish, _event_puff.bind(_up(_a, 3.0), 8, 0.7)], [vanish + 0.25, _event_portal_arrive]]
+	return []
+
+func _event_puff(at: Vector3, count: int, big: float) -> void:
+	fx.puff(at, count, big)
+
+func _event_sparks(at: Vector3, count: int, bias: float, speed: float) -> void:
+	fx.spark_burst(at, count, _dir, bias, speed)
+
+func _event_catapult_release() -> void:
+	fx.puff(_up(_a, 2.0), 6, 0.8)
+	_shake = maxf(_shake, 0.35)
+
+func _event_gryphon_takeoff() -> void:
+	fx.puff(_up(_a, 1.0), 8, 1.0)
+	fx.ring(_a.x, _a.z, _cell * 0.6, 0.3)
+
+func _event_portal_arrive() -> void:
+	fx.puff(_up(_dest, 3.0), 8, 0.7)
+	fx.ring(_dest.x, _dest.z, _cell * 0.55, 0.3, VOID_COLOR)
+
+func _settle_into(o: Pose, start: Vector3, u: float, at: float, duration: float, hop: float) -> void:
+	var q: float = clampf((u - at) / duration, 0.0, 1.0)
+	o.at(start.lerp(_dest, _smooth(q)))
+	o.y = hop * _unit * sin(q * PI)
+
+func _special_pose(u: float, o: Pose) -> void:
+	match _attack_id:
+		&"assassin": _pose_assassin(u, o)
+		&"bowman": _pose_bowman(u, o)
+		&"catapult": _pose_catapult(u, o)
+		&"lancer": _pose_lancer(u, o)
+		&"portal_mage": _pose_portal_mage(u, o)
+		&"royal_guard": _pose_royal_guard(u, o)
+		&"centaur": _pose_centaur(u, o)
+		&"unicorn_cavalry": _pose_unicorn(u, o)
+		&"gryphon": _pose_gryphon(u, o)
+		&"manticore": _pose_manticore(u, o)
+		&"archmage": _pose_archmage(u, o)
+
+## Vanishes in smoke, reappears behind the target and cuts backhanded.
+func _pose_assassin(u: float, o: Pose) -> void:
+	var behind: Vector3 = _assassin_behind()
+	if u < 0.16:
+		var s: float = u / 0.16
+		o.sx = 1.0 + 0.15 * s
+		o.sy = 1.0 - 0.3 * s
+		o.alpha = 1.0 - 0.4 * s
+		return
+	if u < 0.34:
+		o.alpha = 0.0
+		return
+	o.at(behind)
+	if u < 0.46:
+		var q: float = (u - 0.34) / 0.12
+		o.alpha = q
+		o.sy = 0.75 + 0.25 * q
+		return
+	if u < 0.62:
+		var q: float = (u - 0.46) / 0.16
+		o.rot = lerpf(0.3, -0.4, _ease_in(q)) * -_face
+		o.at(_along(behind, -2.5 * _unit * q))
+		o.white = 0.45 * q
+		o.trail = q > 0.6
+		return
+	if u < 1.15:
+		var q: float = clampf((u - 0.62) / 0.25, 0.0, 1.0)
+		o.at(_along(behind, -2.5 * _unit * (1.0 - q)))
+		o.rot = 0.4 * _face * (1.0 - _smooth(q))
+		return
+	_settle_into(o, behind, u, 1.15, 0.28, 3.0)
+
+## Draws, looses an arrow on an arching flight, then trots in.
+func _pose_bowman(u: float, o: Pose) -> void:
+	if u < 0.44:
+		var s: float = sin(clampf(u / 0.38, 0.0, 1.0) * PI * 0.5)
+		o.rot = -0.14 * s * _face
+		o.sx = 1.0 - 0.06 * s
+		o.sy = 1.0 + 0.04 * s
+		return
+	if u < 0.6:
+		var q: float = (u - 0.44) / 0.16
+		o.at(_along(_a, -2.5 * _unit * sin(q * PI)))
+		o.rot = lerpf(0.12, 0.0, q) * _face
+		return
+	if u < 1.2:
+		return
+	var q: float = clampf((u - 1.2) / 0.45, 0.0, 1.0)
+	o.at(_a.lerp(_dest, _smooth(q)))
+	o.y = absf(sin(q * PI * 3.0)) * 2.5 * _unit
+
+## Winds the arm back, flings a boulder, later rolls onto the square.
+func _pose_catapult(u: float, o: Pose) -> void:
+	if u < 0.38:
+		var s: float = clampf(u / 0.34, 0.0, 1.0)
+		o.rot = -0.1 * s * _face
+		o.sy = 1.0 - 0.1 * s
+		o.sx = 1.0 + 0.05 * s
+		o.x += (randf() - 0.5) * 1.4 * _unit * s
+		return
+	if u < 0.62:
+		var q: float = (u - 0.38) / 0.24
+		o.rot = lerpf(0.16, 0.0, _ease_out(q)) * _face
+		o.sx = 1.0 + 0.06 * (1.0 - q)
+		return
+	if u < 1.3:
+		return
+	var q: float = clampf((u - 1.3) / 0.55, 0.0, 1.0)
+	o.at(_a.lerp(_dest, _smooth(q)))
+	o.y = absf(sin(q * PI * 5.0)) * _unit
+
+## World position of the boulder in flight, and how far along it is.
+func _boulder(u: float) -> Array:
+	var q: float = clampf((u - 0.4) / (float(_attack["impact"]) - 0.4), 0.0, 1.0)
+	var height: float = lerpf(_attacker_at(0.8), _victim_at(1.0), q) + _cell * 3.4 * 4.0 * q * (1.0 - q)
+	return [Vector3(lerpf(_a.x, _b.x, q), height, lerpf(_a.z, _b.z, q)), q]
+
+func _pose_lancer(u: float, o: Pose) -> void:
+	var contact: Vector3 = _along(_b, -_cell * 0.55)
+	if u < 0.24:
+		var s: float = sin(u / 0.24 * PI * 0.5)
+		o.rot = -0.25 * s * _face
+		o.sy = 1.0 - 0.08 * s
+		return
+	if u < 0.58:
+		var q: float = (u - 0.24) / 0.34
+		o.at(_a.lerp(contact, _ease_in(q)))
+		o.y = absf(sin(q * PI * 3.0)) * 3.0 * _unit
+		o.rot = 0.1 * _face
+		o.trail = q > 0.4
+		return
+	if u < 0.95:
+		var q: float = clampf((u - 0.58) / 0.15, 0.0, 1.0)
+		o.at(_along(contact, 3.0 * _unit * sin(q * PI)))
+		return
+	_settle_into(o, contact, u, 0.95, 0.3, 2.0)
+
+## Floats while the void gate opens, then blinks out and reappears on the square.
+func _pose_portal_mage(u: float, o: Pose) -> void:
+	var vanish: float = _portal_vanish()
+	o.y = _cell * 0.22 * _ease_out(clampf(u / 0.3, 0.0, 1.0)) + sin(u * 9.0) * 0.8 * _unit
+	o.white = 0.3 * clampf(u / 0.3, 0.0, 1.0) * (0.7 + 0.3 * sin(u * 40.0)) if u < 0.75 else 0.0
+	if u < vanish:
+		return
+	if u < vanish + 0.1:
+		var k: float = (u - vanish) / 0.1
+		o.alpha = 1.0 - k
+		o.sy = 1.0 + 0.3 * k
+		o.sx = 1.0 - 0.4 * k
+		return
+	o.at(_dest)
+	o.y = 0.0
+	if u < vanish + 0.25:
+		o.alpha = 0.0
+		return
+	var q: float = clampf((u - vanish - 0.25) / 0.2, 0.0, 1.0)
+	o.alpha = q
+	o.y = _cell * 0.25 * (1.0 - q)
+	o.sy = 1.2 - 0.2 * q
+	o.sx = 0.7 + 0.3 * q
+
+func _pose_royal_guard(u: float, o: Pose) -> void:
+	var back: Vector3 = _along(_a, -_cell * 0.22)
+	var contact: Vector3 = _along(_b, -_cell * 0.55)
+	if u < 0.3:
+		var q: float = _ease_out(u / 0.3)
+		o.at(_a.lerp(back, q))
+		o.sx = 1.0 + 0.08 * q
+		o.sy = 1.0 - 0.1 * q
+		o.white = 0.5 if u > 0.18 and u < 0.28 else 0.0
+		return
+	if u < 0.52:
+		var q: float = (u - 0.3) / 0.22
+		o.at(back.lerp(contact, _ease_in(q)))
+		o.sx = 0.92
+		o.sy = 1.08
+		o.trail = true
+		return
+	if u < 0.62:
+		var q: float = (u - 0.52) / 0.1
+		o.at(contact)
+		o.sx = 1.0 + 0.2 * sin(q * PI)
+		o.sy = 1.0 - 0.18 * sin(q * PI)
+		return
+	_settle_into(o, contact, u, 0.62, 0.32, 1.5)
+
+## Gallops along the line, cuts while passing, wheels round and trots back.
+func _pose_centaur(u: float, o: Pose) -> void:
+	var past: Vector3 = _centaur_past()
+	if u < 0.2:
+		var s: float = sin(u / 0.2 * PI * 0.5)
+		o.rot = -0.28 * s * _face
+		o.y = _cell * 0.1 * s
+		return
+	if u < 0.52:
+		var q: float = (u - 0.2) / 0.32
+		o.at(_a.lerp(past, q))
+		o.y = absf(sin(q * PI * 4.0)) * 2.5 * _unit
+		o.rot = 0.08 * _face
+		o.trail = true
+		o.white = 0.6 if absf(u - _impact_time) < 0.04 else 0.0
+		return
+	o.at(past)
+	if u < 0.8:
+		o.rot = lerpf(0.08, -0.12, _ease_out((u - 0.52) / 0.28)) * _face
+		return
+	if u < 1.0:
+		o.sx = lerpf(1.0, -1.0, _smooth((u - 0.8) / 0.2))
+		return
+	var q: float = clampf((u - 1.0) / 0.38, 0.0, 1.0)
+	o.sx = -1.0 if q < 1.0 else 1.0
+	o.at(past.lerp(_dest, _smooth(q)))
+	o.y = absf(sin(q * PI * 2.0)) * 2.0 * _unit
+
+func _pose_unicorn(u: float, o: Pose) -> void:
+	var contact: Vector3 = _along(_b, -_cell * 0.5)
+	if u < 0.3:
+		var s: float = sin(u / 0.3 * PI)
+		o.rot = -0.35 * s * _face
+		o.y = _cell * 0.18 * s
+		o.white = 0.35 * clampf(u / 0.2, 0.0, 1.0) * (0.6 + 0.4 * sin(u * 60.0))
+		return
+	if u < 0.56:
+		var q: float = (u - 0.3) / 0.26
+		o.at(_a.lerp(contact, _ease_in(q)))
+		o.rot = 0.14 * _face
+		o.trail = true
+		o.white = 0.25
+		o.y = absf(sin(q * PI * 2.0)) * 2.0 * _unit
+		return
+	if u < 0.95:
+		var q: float = clampf((u - 0.56) / 0.14, 0.0, 1.0)
+		o.at(_along(contact, 3.0 * _unit * sin(q * PI)))
+		o.rot = 0.14 * _face * (1.0 - q)
+		return
+	_settle_into(o, contact, u, 0.95, 0.3, 2.0)
+
+## Climbs diagonally, glides over the target, dives. Light and medium prey is carried
+## up and dropped; heavy prey is raked and the gryphon bounces back up.
+func _pose_gryphon(u: float, o: Pose) -> void:
+	var high: float = _cell * 2.8
+	var top: float = _victim_at(1.0)
+	if u < 0.2:
+		var s: float = sin(u / 0.2 * PI * 0.5)
+		o.sy = 1.0 - 0.18 * s
+		o.sx = 1.0 + 0.1 * s
+		return
+	if u < 0.42:
+		var q: float = (u - 0.2) / 0.22
+		o.at(_a.lerp(_corner, q))
+		o.y = high * _ease_out(q)
+		_flap(o, u, 40.0)
+		o.trail = true
+		return
+	if u < 0.55:
+		o.at(_corner.lerp(_b, _smooth((u - 0.42) / 0.13)))
+		o.y = high
+		o.rot = -0.08 * _face
+		return
+	o.at(_b)
+	if u < 0.62:
+		o.y = high + 2.0 * _unit * sin(u * 30.0)
+		_flap(o, u, 50.0)
+		return
+	if u < 0.72:
+		o.y = lerpf(high, top, _ease_in((u - 0.62) / 0.1))
+		o.rot = 0.2 * _face
+		o.sx = 0.9
+		o.sy = 1.15
+		o.trail = true
+		return
+	if _victim_weight == PieceDef.WeightClass.HEAVY:
+		var hover: float = _cell * 1.3
+		if u < 0.95:
+			o.y = lerpf(top, hover, _ease_out((u - 0.72) / 0.23))
+			_flap(o, u, 45.0)
+		elif u < 1.5:
+			o.y = hover + sin(u * 10.0) * 1.5 * _unit
+			_flap(o, u, 45.0)
+		else:
+			var q: float = clampf((u - 1.5) / 0.35, 0.0, 1.0)
+			o.y = hover * (1.0 - _smooth(q))
+			_flap(o, u, 30.0 * (1.0 - q))
+		return
+	if u < 0.8:
+		o.y = top
+		o.sx = 1.1
+		o.sy = 0.9
+		return
+	if u < 1.15:
+		o.y = lerpf(top, high * 0.95, _ease_out((u - 0.8) / 0.35))
+		_flap(o, u, 48.0)
+		return
+	if u < 1.45:
+		o.y = high * 0.95 + sin(u * 12.0) * 1.5 * _unit
+		_flap(o, u, 45.0)
+		return
+	var q: float = clampf((u - 1.45) / 0.4, 0.0, 1.0)
+	o.y = high * 0.95 * (1.0 - _smooth(q))
+	_flap(o, u, 30.0 * (1.0 - q))
+
+func _flap(o: Pose, u: float, rate: float) -> void:
+	o.sy = 1.0 + 0.1 * sin(u * rate)
+	o.sx = 1.0 - 0.06 * sin(u * rate)
+
+## Pounces along its bent path, coils the tail and stings; walks in once the victim melts.
+func _pose_manticore(u: float, o: Pose) -> void:
+	var contact: Vector3 = _along(_b, -_cell * 0.5)
+	if u < 0.22:
+		var s: float = sin(u / 0.22 * PI * 0.5)
+		o.sy = 1.0 - 0.18 * s
+		o.sx = 1.0 + 0.12 * s
+		o.rot = -0.1 * s * _face
+		return
+	if u < 0.45:
+		var q: float = (u - 0.22) / 0.23
+		if q < 0.4:
+			o.at(_a.lerp(_corner, q / 0.4))
+		else:
+			o.at(_corner.lerp(contact, (q - 0.4) / 0.6))
+		o.y = _cell * 0.9 * sin(q * PI)
+		o.rot = 0.12 * _face
+		o.trail = true
+		return
+	o.at(contact)
+	if u < 0.52:
+		var w: float = sin((u - 0.45) / 0.07 * PI)
+		o.sx = 1.0 + 0.18 * w
+		o.sy = 1.0 - 0.16 * w
+		return
+	if u < 0.6:
+		o.rot = -0.2 * (u - 0.52) / 0.08 * _face
+		return
+	if u < 0.66:
+		o.rot = lerpf(-0.2, 0.25, (u - 0.6) / 0.06) * _face
+		return
+	var walk: float = _manticore_walk()
+	if u < walk:
+		o.rot = 0.25 * _face * (1.0 - clampf((u - 0.66) / 0.2, 0.0, 1.0))
+		return
+	_settle_into(o, contact, u, walk, 0.4, 1.5)
+
+func _pose_archmage(u: float, o: Pose) -> void:
+	var hover: float = _cell * 0.32
+	var glide: float = _archmage_glide()
+	if u < glide:
+		o.y = hover * _ease_out(clampf(u / 0.3, 0.0, 1.0)) + sin(u * 8.0) * 0.8 * _unit
+		o.white = 0.35 * clampf(u / 0.3, 0.0, 1.0) * (0.7 + 0.3 * sin(u * 45.0)) if u < 0.8 else 0.0
+		if u > 0.56 and u < 0.7:
+			o.rot = 0.12 * _face * sin((u - 0.56) / 0.14 * PI)
+		return
+	var q: float = clampf((u - glide) / 0.45, 0.0, 1.0)
+	o.at(_a.lerp(_dest, _smooth(q)))
+	o.y = hover * (1.0 - _ease_in(q))
+	o.trail = q > 0.05 and q < 0.9
+
+func _special_impact() -> void:
+	match _attack_id:
+		&"assassin":
+			_slash_age = 0.0
+			fx.spark_burst(_up(_b, 9.0), 8, -_dir, 50.0, 0.7)
+		&"bowman":
+			fx.spark_burst(_up(_b, 9.0), 9, _dir, 90.0, 0.6)
+			fx.ring(_b.x, _b.z, _cell * 0.5, 0.26)
+		&"catapult":
+			fx.ring(_b.x, _b.z, _cell * 1.4, 0.5)
+			fx.ring(_b.x, _b.z, _cell * 0.8, 0.32)
+			fx.puff(_up(_b, 2.0), 14, 1.4)
+			fx.crack_decal(_b.x, _b.z, 8, _cell * 1.05)
+			fx.spark_burst(_up(_b, 4.0), 8, Vector2.ZERO, 0.0, 0.7)
+			var chunk: float = _victim_height / ROWS
+			for index: int in range(16):
+				var angle: float = randf() * TAU
+				var speed: float = randf_range(20.0, 70.0) * _unit
+				fx.add_part(Vector3(_b.x, _victim_at(0.6), _b.z + _stand), Vector3(cos(angle) * speed, randf_range(40.0, 110.0) * _unit, sin(angle) * speed * 0.6), ROCK_COLORS[index % ROCK_COLORS.size()], chunk * (1.7 if index % 4 == 0 else 1.0), randf_range(1.0, 1.6), 260.0 * _unit)
+		&"lancer":
+			fx.spark_burst(_up(_b, 8.0), 10, _dir, 90.0, 0.7)
+			fx.ring(_b.x, _b.z, _cell * 0.7, 0.3)
+		&"portal_mage":
+			fx.ring(_b.x, _b.z, _cell * 0.9, 0.45, VOID_COLOR)
+			fx.spark_burst(_up(_b, 4.0), 6, Vector2.ZERO, 0.0, 0.4, VOID_COLOR)
+		&"royal_guard":
+			fx.ring(_b.x, _b.z, _cell * 1.3, 0.5, GOLD)
+			fx.ring(_b.x, _b.z, _cell * 0.7, 0.3)
+			fx.puff(_up(_b, 2.0), 9, 1.2)
+			fx.spark_burst(_up(_b, 7.0), 8, _dir, 40.0, 0.7)
+		&"centaur":
+			_slash_age = 0.0
+			fx.spark_burst(_up(_b, 9.0), 10, _dir, 70.0, 0.8)
+		&"unicorn_cavalry":
+			fx.spark_burst(_up(_b, 9.0), 14, _dir, 110.0, 0.8)
+			fx.ring(_b.x, _b.z, _cell * 0.75, 0.3, GOLD)
+		&"gryphon":
+			fx.spark_burst(Vector3(_b.x, _victim_at(1.0), _b.z), 8, Vector2.ZERO, 0.0, 0.6)
+			fx.ring(_b.x, _b.z, _cell * 0.7, 0.3)
+			fx.puff(_up(_b, 2.0), 6, 0.8)
+		&"manticore":
+			fx.spark_burst(_up(_b, 8.0), 6, _dir, 40.0, 0.5, VENOM_COLOR)
+		&"archmage":
+			fx.ring(_b.x, _b.z, _cell * 0.9, 0.4, ARCANE_COLOR)
+			fx.spark_burst(_up(_b, 8.0), 8, Vector2.ZERO, 0.0, 0.5, ARCANE_COLOR)
+
+func _arcane_lift() -> float:
+	var q: float = clampf(_rt / _arcane_duration(), 0.0, 1.0)
+	return _cell * 0.38 * _ease_out(q) * (0.45 if _victim_weight == PieceDef.WeightClass.HEAVY else 1.0)
+
+func _random_chunk() -> int:
+	return randi() % _victim_chunks.points.size() if _victim_chunks.points.size() > 0 else -1
+
+func _special_reaction_tick() -> void:
+	if _hs > 0.0:
+		return
+	match _reaction:
+		&"venom":
+			if _rt < 0.25:
+				var index: int = _random_chunk()
+				if index >= 0 and randf() < 0.5:
+					_debris(PackedInt32Array([index]), _foot_pivot(), _foot(_b), {"vel": Vector3(0.0, 8.0 * _unit, 0.0), "spread": 6.0, "gravity": -50.0, "life_min": 0.3, "life_max": 0.5, "radial": 0.0, "color": VENOM_COLOR})
+			elif randf() < 0.7:
+				var row: int = floori(clampf((_rt - 0.25) / _melt_duration(), 0.0, 1.0) * ROWS)
+				var front: PackedInt32Array = _select(func(p: Vector2) -> bool: return int(p.y * ROWS) == row)
+				if not front.is_empty():
+					var pick: int = front[randi() % front.size()]
+					_debris(PackedInt32Array([pick]), _foot_pivot(), _foot(_b), {"vel": Vector3.ZERO, "spread": 5.0, "gravity": 160.0, "life_min": 0.4, "life_max": 0.7, "radial": 0.3, "color": VENOM_COLOR if randf() < 0.5 else VENOM_DARK})
+		&"arcane":
+			var index: int = _random_chunk()
+			if index >= 0 and randf() < 0.6:
+				_debris(PackedInt32Array([index]), _foot_pivot(), _foot(_b) + Vector3(0.0, _arcane_lift(), 0.0), {"vel": Vector3(0.0, 15.0 * _unit, 0.0), "spread": 10.0, "gravity": -40.0, "life_min": 0.2, "life_max": 0.35, "radial": 0.0, "color": Color("#d6f6ff")})
+
+func _special_split() -> void:
+	match _reaction:
+		&"vortex":
+			var body: Body = _make_body({})
+			body.kind = &"vortex"
+			body.base_y = body.y
+		&"grab":
+			var body: Body = _make_body({})
+			body.kind = &"grab"
+			body.base_y = body.y
+		&"rake":
+			_slash_age = 0.0
+			_split_along_slash(true)
+		&"venom":
+			fx.ring(_b.x, _b.z, _cell * 0.6, 0.4, VENOM_COLOR)
+			fx.puff(_up(_b, 1.0), 4, 0.5)
+		&"arcane":
+			var lift: float = _arcane_lift()
+			var centre: Vector2 = Vector2(_victim_chunks.aspect * 0.5, 0.5)
+			_debris(_victim_chunks.all_indices(), centre, _foot(_b) + Vector3(0.0, lift + _victim_at(0.5), 0.0), {"vel": Vector3(0.0, 45.0 * _unit, 0.0), "spread": 60.0, "radial": 7.0, "gravity": 220.0})
+			fx.spark_burst(Vector3(_b.x, lift + 8.0 * _unit, _b.z), 16, Vector2.ZERO, 0.0, 1.0, ARCANE_COLOR)
+			fx.ring(_b.x, _b.z, _cell * 1.5, 0.5, ARCANE_COLOR)
+			fx.ring(_b.x, _b.z, _cell * 0.8, 0.32, Color(0.9, 0.98, 1.0))
+			fx.puff(Vector3(_b.x, lift + 4.0 * _unit, _b.z), 8, 1.1)
+			_flash = maxf(_flash, 0.7)
+			_shake = maxf(_shake, 0.9)
+
+## Dragged into the void gate: struggles (heavy only), then spins, shrinks and vanishes.
+func _step_vortex(body: Body, dt: float) -> void:
+	var total: float = _absorb_duration()
+	var heavy: bool = _victim_weight == PieceDef.WeightClass.HEAVY
+	var fight: float = clampf(1.0 - body.age / (total * 0.4), 0.0, 1.0) if heavy else 0.0
+	var pull: float = clampf((body.age - total * (0.35 if heavy else 0.1)) / (total * (0.65 if heavy else 0.9)), 0.0, 1.0)
+	body.scale_mul = maxf(0.02, 1.0 - _ease_in(pull) * 0.92)
+	body.rot = _ease_in(pull) * PI * 4.0 * _face + (sin(body.age * 40.0) * 0.12 if fight > 0.0 else 0.0)
+	body.y = body.base_y * body.scale_mul
+	body.ox = roundf(randf_range(-1.5, 1.5)) * _unit if fight > 0.0 else 0.0
+	_set_tint(body.material, VOID_COLOR, 0.7 * clampf(body.age / total, 0.0, 1.0))
+	if randf() < 0.5:
+		var angle: float = randf() * TAU
+		var radius: float = _cell * 0.55
+		fx.add_part(Vector3(_b.x + cos(angle) * radius, _unit, _b.z + _stand + sin(angle) * radius), Vector3(-cos(angle) * 20.0, 15.0, -sin(angle) * 20.0) * _unit, VOID_COLOR if randf() < 0.5 else VOID_DEEP, _victim_height / ROWS, randf_range(0.25, 0.4), -20.0 * _unit)
+	if body.age >= total:
+		body.dead = true
+		if is_instance_valid(body.sprite):
+			body.sprite.queue_free()
+		fx.ring(_b.x, _b.z, _cell * 0.5, 0.3, VOID_COLOR)
+		fx.spark_burst(_up(_b, 2.0), 8, Vector2.ZERO, 0.0, 0.35, VOID_COLOR)
+		_shake = maxf(_shake, 0.35)
+
+## Hangs from the gryphon's talons, then is dropped from the top of the climb.
+func _step_grab(body: Body, dt: float) -> void:
+	if _rt < 0.5:
+		var carrier: Pose = _compute_pose(_t)
+		body.x = carrier.x + (body.pivot.x - _victim_chunks.aspect * 0.5) * _victim_height
+		body.z = carrier.z
+		body.y = maxf(body.base_y, carrier.y - _victim_at(0.55))
+		body.rot = sin(body.age * 14.0) * 0.15 * clampf(body.age / 0.2, 0.0, 1.0)
+		return
+	if not body.released:
+		body.released = true
+		body.vy = 10.0 * _unit
+		body.vr = 6.0 * _face
+	body.vy -= 330.0 * _unit * dt
+	body.y += body.vy * dt
+	body.rot += body.vr * dt
+	if body.y < _proj.height_for_pixels(3.0 * _unit):
+		_shatter(body, 1.1)
+		fx.ring(body.x, body.z, _cell * 0.9, 0.42)
+		fx.puff(Vector3(body.x, 2.0 * _unit, body.z), 12, 1.2)
+		fx.crack_decal(body.x, body.z, 5, _cell * 0.7)
+		_shake = maxf(_shake, 0.9)
+
+func _set_tint(material: ShaderMaterial, color: Color, amount: float) -> void:
+	material.set_shader_parameter(&"tint", color)
+	material.set_shader_parameter(&"tint_amount", amount)
+
+# --- special drawing ---
+
+func _ground_disc(canvas: CanvasItem, centre: Vector3, radius: float, color: Color) -> void:
+	var points: PackedVector2Array = PackedVector2Array()
+	for index: int in range(24):
+		var angle: float = TAU * index / 24.0
+		points.append(_proj.project(Vector3(centre.x + cos(angle) * radius, 0.0, centre.z + sin(angle) * radius)))
+	canvas.draw_colored_polygon(points, color)
+
+func _ground_dots(canvas: CanvasItem, centre: Vector3, radius: float, count: int, turn: float, color: Color) -> void:
+	for index: int in range(count):
+		var angle: float = TAU * index / count + turn
+		var dot: Vector2 = _proj.project(Vector3(centre.x + cos(angle) * radius, 0.0, centre.z + sin(angle) * radius))
+		canvas.draw_rect(Rect2(dot - Vector2(0.5, 0.5) * _unit, Vector2(_unit, _unit)), color)
+
+func _draw_special_ground(canvas: CanvasItem) -> void:
+	var u: float = _t
+	var foot: Vector3 = _foot(_b)
+	match _attack_id:
+		&"catapult":
+			if u >= 0.4 and not _impacted:
+				var flight: Array = _boulder(u)
+				var at: Vector3 = flight[0]
+				var q: float = flight[1]
+				_ground_disc(canvas, Vector3(at.x, 0.0, at.z + _stand), (2.0 + 4.0 * q) * _unit, Color(0.0, 0.0, 0.0, 0.15 + 0.3 * q))
+		&"portal_mage":
+			if u < 0.2:
+				return
+			var radius: float = _cell * 0.58 * _ease_out(clampf((u - 0.2) / 0.5, 0.0, 1.0))
+			var total: float = _absorb_duration()
+			if _impacted and _rt > total + 0.1:
+				radius *= 1.0 - clampf((_rt - total - 0.1) / 0.25, 0.0, 1.0)
+			if radius < 0.5 * _unit:
+				return
+			_ground_disc(canvas, foot, radius + _unit, Color(VOID_DEEP, 0.55))
+			_ground_disc(canvas, foot, radius, Color(0.086, 0.024, 0.14, 0.96))
+			_ground_dots(canvas, foot, radius, 28, u * 5.0, Color("#d9b8ff"))
+			_ground_dots(canvas, foot, radius * 0.6, 18, -u * 7.0, VOID_DEEP)
+		&"archmage":
+			if u < 0.12:
+				return
+			var strength: float = clampf((u - 0.12) / 0.25, 0.0, 1.0)
+			if _impacted:
+				strength *= 1.0 - clampf((_rt - _arcane_duration()) / 0.3, 0.0, 1.0)
+			if strength <= 0.0:
+				return
+			var radius: float = _cell * 0.62 * _ease_out(strength)
+			_ground_dots(canvas, foot, radius, 40, u * 2.0, Color(ARCANE_COLOR, strength))
+			_ground_dots(canvas, foot, radius * 0.72, 28, -u * 3.0, Color(ARCANE_DEEP, 0.8 * strength))
+			for index: int in range(6):
+				var angle: float = TAU * index / 6.0 + u * 2.0
+				var inner: Vector2 = _proj.project(Vector3(foot.x + cos(angle) * radius * 0.72, 0.0, foot.z + sin(angle) * radius * 0.72))
+				var outer: Vector2 = _proj.project(Vector3(foot.x + cos(angle) * radius, 0.0, foot.z + sin(angle) * radius))
+				canvas.draw_line(inner, outer, Color(ARCANE_COLOR, strength), maxf(_unit, 1.0))
+		&"manticore":
+			if not _impacted or _rt < 0.25:
+				return
+			var melt: float = _melt_duration()
+			var radius: float = _cell * 0.52 * _ease_out(clampf((_rt - 0.25) / melt, 0.0, 1.0))
+			var fade: float = 1.0 - clampf((_rt - 0.25 - melt - 0.6) / 0.6, 0.0, 1.0)
+			if radius > 0.5 * _unit and fade > 0.0:
+				_ground_disc(canvas, foot, radius, Color(0.27, 0.55, 0.22, 0.6 * fade))
+				_ground_disc(canvas, foot, radius * 0.55, Color(0.55, 0.86, 0.39, 0.35 * fade))
+
+func _screen_dir() -> Vector2:
+	var line: Vector2 = _proj.project(_b) - _proj.project(_a)
+	return line.normalized() if line.length() > 0.001 else Vector2.RIGHT
+
+func _victim_centre(fraction: float = 0.5) -> Vector2:
+	return _proj.project(Vector3(_b.x, _victim_at(fraction), _b.z + _stand))
+
+func _draw_special_air(canvas: CanvasItem) -> void:
+	var u: float = _t
+	var thin: float = maxf(_unit, 1.0)
+	match _attack_id:
+		&"bowman":
+			if u < 0.08:
+				return
+			if u < 0.44:
+				var hand: Vector2 = _proj.project(Vector3(_a.x, _attacker_at(0.6), _a.z + _stand))
+				var pull: float = clampf(u / 0.38, 0.0, 1.0) * 3.0 * _unit
+				var along: Vector2 = _screen_dir()
+				canvas.draw_line(hand - along * pull, hand + along * (6.0 * _unit - pull), Color("#e8d9b0"), thin)
+				return
+			if _impacted:
+				return
+			var q: float = clampf((u - 0.46) / (float(_attack["impact"]) - 0.46), 0.0, 1.0)
+			var head: Vector2 = _arrow_at(q)
+			var tail: Vector2 = _arrow_at(maxf(0.0, q - 0.1))
+			canvas.draw_line(tail, head, Color(1.0, 0.94, 0.78, 0.25), 3.0 * _unit)
+			canvas.draw_line(tail, head, Color("#e8d9b0"), thin)
+			canvas.draw_rect(Rect2(head - Vector2(0.5, 0.5) * _unit, Vector2(_unit, _unit)), Color.WHITE)
+			var across: Vector2 = Vector2(-(head - tail).normalized().y, (head - tail).normalized().x) * _unit
+			canvas.draw_rect(Rect2(tail + across - Vector2(0.5, 0.5) * _unit, Vector2(_unit, _unit)), Color("#d0564f"))
+			canvas.draw_rect(Rect2(tail - across - Vector2(0.5, 0.5) * _unit, Vector2(_unit, _unit)), Color("#d0564f"))
+		&"catapult":
+			if u < 0.4 or _impacted:
+				return
+			var at: Vector3 = _boulder(u)[0]
+			var centre: Vector2 = _proj.project(Vector3(at.x, at.y, at.z + _stand))
+			canvas.draw_rect(Rect2(centre - Vector2(2.5, 2.5) * _unit, Vector2(5.0, 5.0) * _unit), Color("#3b3a40"))
+			canvas.draw_rect(Rect2(centre - Vector2(2.5, 2.5) * _unit, Vector2(4.0, 4.0) * _unit), Color("#7d7b84"))
+			canvas.draw_rect(Rect2(centre - Vector2(1.5, 1.5) * _unit, Vector2(2.0, 1.0) * _unit), Color("#a9a7b0"))
+		&"lancer":
+			if _impacted and _rt > 0.3:
+				return
+			var along: Vector2 = _screen_dir()
+			var lower: float = _smooth(clampf((u - 0.06) / 0.2, 0.0, 1.0))
+			var aim: Vector2 = Vector2(lerpf(along.x * 0.35, along.x, lower), lerpf(-0.95, along.y, lower)).normalized()
+			var grip: Vector2 = _proj.project(Vector3(_pose.x, _pose.y + _attacker_at(0.5), _pose.z + _stand))
+			var tip: Vector2 = grip + aim * 12.0 * _unit
+			canvas.draw_line(grip, tip, Color("#d9c79e"), thin)
+			canvas.draw_rect(Rect2(tip - Vector2(0.5, 0.5) * _unit, Vector2(_unit, _unit)), Color.WHITE)
+		&"unicorn_cavalry":
+			if u < 0.3 or _impacted:
+				return
+			var colors: Array[Color] = [Color("#ffe6f5"), Color("#d8f2ff"), Color("#fff3c4")]
+			for index: int in range(3):
+				var back: float = randf_range(4.0, 16.0) * _unit
+				var spark: Vector2 = _proj.project(Vector3(_pose.x - _dir.x * back, _pose.y + randf_range(4.0, 18.0) * _unit, _pose.z - _dir.y * back + _stand))
+				canvas.draw_rect(Rect2(spark - Vector2(0.5, 0.5) * _unit, Vector2(_unit, _unit)), colors[index])
+		&"manticore":
+			if u < 0.58 or (_impacted and _rt > 0.1):
+				return
+			var start: Vector2 = _proj.project(Vector3(_pose.x - _dir.x * 4.0 * _unit, _pose.y + _attacker_at(0.95), _pose.z - _dir.y * 4.0 * _unit + _stand))
+			var finish: Vector2 = _victim_centre(0.55)
+			var bend: Vector2 = Vector2((start.x + finish.x) * 0.5, minf(start.y, finish.y) - 10.0 * _unit)
+			var reach: float = clampf((u - 0.6) / 0.04, 0.0, 1.0)
+			var points: PackedVector2Array = PackedVector2Array([start])
+			for index: int in range(1, int(16.0 * reach) + 1):
+				var s: float = index / 16.0
+				points.append(start * (1.0 - s) * (1.0 - s) + bend * 2.0 * (1.0 - s) * s + finish * s * s)
+			if points.size() >= 2:
+				canvas.draw_polyline(points, Color("#9be36a"), thin)
+		&"archmage":
+			if u < 0.58 or _impacted:
+				return
+			var q: float = _ease_in(clampf((u - 0.6) / 0.16, 0.0, 1.0))
+			var staff: Vector2 = _proj.project(Vector3(_pose.x + _face * 5.0 * _unit, _pose.y + _attacker_at(1.0), _pose.z + _stand))
+			var orb: Vector2 = staff.lerp(_victim_centre(), q)
+			canvas.draw_circle(orb, 4.0 * _unit, Color(0.47, 0.78, 1.0, 0.35))
+			canvas.draw_rect(Rect2(orb - Vector2(1.0, 1.0) * _unit, Vector2(2.0, 2.0) * _unit), Color("#e8fbff"))
+		&"portal_mage":
+			if u > 0.1 and u < 0.75:
+				var hand: Vector2 = _proj.project(Vector3(_pose.x, _pose.y + _attacker_at(0.85), _pose.z + _stand))
+				canvas.draw_rect(Rect2(hand + Vector2(4.0, -2.0) * _unit, Vector2(2.0, 2.0) * _unit), Color(0.85, 0.72, 1.0, 0.6 + 0.4 * sin(u * 50.0)))
+
+func _arrow_at(q: float) -> Vector2:
+	var height: float = lerpf(_attacker_at(0.6), _victim_at(0.5), q) + _cell * 0.7 * 4.0 * q * (1.0 - q)
+	return _proj.project(Vector3(lerpf(_a.x, _b.x, q), height, lerpf(_a.z, _b.z, q) + _stand))
 
 # --- helpers ------------------------------------------------------------------
 

@@ -16,6 +16,11 @@ enum StrikeType {
 	BLUNT,
 	PIERCE,
 	CRUSH,
+	## Special pieces with their own victim reactions (see StrikeDirector.reaction_for).
+	VOID,
+	GRAB,
+	VENOM,
+	ARCANE,
 }
 
 ## Visual mass. Presentation-only: together with the attacker's StrikeType it decides

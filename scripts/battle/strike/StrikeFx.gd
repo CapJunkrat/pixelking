@@ -23,6 +23,7 @@ class Part:
 	var bounced: int = 0
 
 class Spark:
+	var color: Color = Color(0.0, 0.0, 0.0, 0.0)
 	var pos: Vector3
 	var prev: Vector3
 	var vel: Vector3
@@ -89,7 +90,8 @@ func puff(pos: Vector3, count: int = 8, big: float = 1.0) -> void:
 		item.life = randf_range(0.3, 0.55)
 		smoke.append(item)
 
-func spark_burst(pos: Vector3, count: int, direction: Vector2 = Vector2.ZERO, bias: float = 0.0, speed: float = 1.0) -> void:
+## `color` with zero alpha keeps the default warm spark colour.
+func spark_burst(pos: Vector3, count: int, direction: Vector2 = Vector2.ZERO, bias: float = 0.0, speed: float = 1.0, color: Color = Color(0.0, 0.0, 0.0, 0.0)) -> void:
 	for _index: int in range(count):
 		var angle: float = randf() * TAU
 		var magnitude: float = randf_range(70.0, 160.0) * speed
@@ -98,6 +100,7 @@ func spark_burst(pos: Vector3, count: int, direction: Vector2 = Vector2.ZERO, bi
 		item.prev = pos
 		item.vel = Vector3(cos(angle) * magnitude + direction.x * bias, randf_range(20.0, 110.0) * speed, sin(angle) * magnitude + direction.y * bias) * unit
 		item.life = randf_range(0.18, 0.34)
+		item.color = color
 		sparks.append(item)
 
 ## `max_radius` is in world units.
@@ -200,7 +203,8 @@ func draw_air(canvas: CanvasItem) -> void:
 		var progress: float = item.age / item.life
 		canvas.draw_circle(projection.project(item.pos), item.radius * (1.0 + progress * 1.4), Color(SMOKE_COLOR, 0.55 * (1.0 - progress)))
 	for spark: Spark in sparks:
-		var color: Color = Color(1.0, randf_range(0.78, 1.0), 0.47, 1.0 - spark.age / spark.life)
+		var fade: float = 1.0 - spark.age / spark.life
+		var color: Color = Color(spark.color, fade) if spark.color.a > 0.0 else Color(1.0, randf_range(0.78, 1.0), 0.47, fade)
 		canvas.draw_line(projection.project(spark.prev), projection.project(spark.pos), color, maxf(unit, 1.0))
 
 func _draw_part(canvas: CanvasItem, part: Part) -> void:
