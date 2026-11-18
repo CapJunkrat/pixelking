@@ -175,6 +175,30 @@ func in_bounds(pos: Vector2i) -> bool:
 func is_rock(pos: Vector2i) -> bool:
 	return rocks.has(pos)
 
+## Inside the board edges, rocks included.
+func on_board(pos: Vector2i) -> bool:
+	return pos.x >= 0 and pos.x < board_size and pos.y >= 0 and pos.y < board_size
+
+## Breaks a rock. Clones share the rock table, so it is replaced, never edited.
+func break_rock(pos: Vector2i) -> bool:
+	if not rocks.has(pos):
+		return false
+	var remaining: Dictionary = rocks.duplicate()
+	remaining.erase(pos)
+	rocks = remaining
+	return true
+
+## Bodyguard: a King with one of its own pieces next to it cannot be shot at.
+func is_king_guarded(pos: Vector2i) -> bool:
+	var king: ChessPiece = get_piece(pos)
+	if king == null:
+		return false
+	for offset: Vector2i in NEIGHBORS:
+		var ally: ChessPiece = get_piece(pos + offset)
+		if ally != null and ally.color == king.color:
+			return true
+	return false
+
 ## Places rocks on empty squares (pieces are never buried).
 func set_rocks(squares: Array) -> void:
 	rocks = {}
@@ -253,7 +277,8 @@ func is_move_dangerous(from: Vector2i, to: Vector2i) -> bool:
 	var result: Dictionary = simulation._apply_move(from, to, "queen", true)
 	if not bool(result.get("success", false)):
 		return false
-	return simulation.is_in_check(piece.color) or simulation.is_square_attacked(to, GameRules.opposite(piece.color))
+	var landing: Vector2i = result.get("landing", to)
+	return simulation.is_in_check(piece.color) or simulation.is_square_attacked(landing, GameRules.opposite(piece.color))
 
 ## Strict chess-legal moves remain available for check/checkmate analysis.
 func get_legal_moves(pos: Vector2i) -> Array[Vector2i]:
@@ -367,7 +392,11 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 		if not kind.is_empty() and kind != &"ranged":
 			piece.used_abilities[kind] = true
 		var victim_died: bool = false
-		if is_pawn_move and target_piece == null and to == en_passant_target and to != Vector2i(-1, -1):
+		if kind == RangedAttackRule.ACTION:
+			landing = from
+			result["ranged"] = true
+			victim_died = _resolve_shot(piece, from, to, result, serial)
+		elif is_pawn_move and target_piece == null and to == en_passant_target and to != Vector2i(-1, -1):
 			result["en_passant_capture"] = true
 			result["captured"] = true
 			_kill(Vector2i(to.x, from.y), &"capture", result, serial)
@@ -381,9 +410,6 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 			else:
 				result["captured"] = true
 				victim_died = true
-				if kind == &"ranged":
-					landing = from
-					result["ranged"] = true
 		if landing != from:
 			if victim_died and not bool(result["en_passant_capture"]):
 				# Lift the victim first so the attacker can stand there during its death effects.
@@ -395,13 +421,6 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 			else:
 				set_piece(from, null)
 				set_piece(landing, piece)
-		elif victim_died and not bool(result["en_passant_capture"]):
-			_kill(to, &"capture", result, serial)
-			if moving_def.splash_on_ranged_capture:
-				for offset: Vector2i in NEIGHBORS:
-					var splashed: ChessPiece = get_piece(to + offset)
-					if splashed != null and splashed.color != moving_color:
-						_hit(to + offset, &"splash", result, serial)
 		piece.has_moved = true
 		if victim_died:
 			_record_capture(piece, result)
@@ -446,6 +465,37 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 			else:
 				result["stalemate"] = is_stalemate(turn)
 	return result
+
+## A shot from `from` at `to`; the shooter stays put. Breaks a rock, or hits the
+## target (every enemy on the line for a boomerang), with splash around each kill.
+## Returns whether anything died.
+func _resolve_shot(shooter: ChessPiece, from: Vector2i, to: Vector2i, result: Dictionary, serial: int) -> bool:
+	if break_rock(to):
+		result["rock_broken"] = to
+		return false
+	var squares: Array[Vector2i] = [to]
+	var rule: RangedAttackRule = MoveGenerator.ranged_rule(self, from, to) as RangedAttackRule
+	if rule != null:
+		squares = rule.victims(self, from, to, shooter)
+	var any_died: bool = false
+	for square: Vector2i in squares:
+		var victim: ChessPiece = get_piece(square)
+		if victim == null or victim.color == shooter.color:
+			continue
+		if victim.shell_left > 0:
+			victim.shell_left -= 1
+			result["shells"].append({"position": square, "instance_id": victim.instance_id, "left": victim.shell_left})
+			continue
+		any_died = true
+		if square == to:
+			result["captured"] = true
+		_kill(square, &"capture" if square == to else &"pierce", result, serial)
+		if shooter.def.splash_on_ranged_capture:
+			for offset: Vector2i in NEIGHBORS:
+				var splashed: ChessPiece = get_piece(square + offset)
+				if splashed != null and splashed.color != shooter.color and not splashed.def.immune_to_ranged:
+					_hit(square + offset, &"splash", result, serial)
+	return any_died
 
 ## A blow that a shell can absorb (explosions, splash).
 func _hit(pos: Vector2i, cause: StringName, result: Dictionary, serial: int) -> void:

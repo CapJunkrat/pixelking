@@ -123,7 +123,7 @@ func _test_ranged_capture() -> void:
 	expect(bool(result["captured"]) and bool(result["ranged"]), "Falconer captures over a piece from a distance")
 	expect(board.get_piece(Vector2i(3, 3)).def.id == "falconer" and board.get_piece(Vector2i(3, 5)) == null, "Falconer stays on its square")
 	var ranger: BoardState = _board({Vector2i(0, 3): [&"ranger", W]})
-	expect(Vector2i(0, 7) in _moves(ranger, Vector2i(0, 3)) and Vector2i(7, 0) in _moves(ranger, Vector2i(0, 3)), "Ranger slides along the edge and around corners")
+	expect(Vector2i(0, 7) not in _moves(ranger, Vector2i(0, 3)) and Vector2i(1, 4) in _moves(ranger, Vector2i(0, 3)), "Ranger only steps one square")
 
 func _test_monk() -> void:
 	var board: BoardState = _board({Vector2i(3, 3): [&"sun_moon_monk", W]})
@@ -131,12 +131,14 @@ func _test_monk() -> void:
 	expect(Vector2i(5, 5) in moves and Vector2i(6, 6) in moves and Vector2i(4, 3) not in moves and Vector2i(7, 7) not in moves, "Monk teleports to same-coloured squares within 3")
 
 func _test_shells() -> void:
-	var board: BoardState = _board({Vector2i(3, 3): [&"rook", B], Vector2i(3, 1): [&"gargoyle", W], Vector2i(0, 0): [&"king", W], Vector2i(7, 7): [&"king", B]}, B)
+	var board: BoardState = _board({Vector2i(3, 3): [&"rook", B], Vector2i(3, 1): [&"knight", W], Vector2i(0, 0): [&"king", W], Vector2i(7, 7): [&"king", B]}, B)
+	var shelled: ChessPiece = board.get_piece(Vector2i(3, 1))
+	shelled.shell_left = 1
 	var result: Dictionary = board.make_move(Vector2i(3, 3), Vector2i(3, 1))
-	expect(not bool(result["captured"]) and board.get_piece(Vector2i(3, 1)).def.id == "gargoyle" and board.get_piece(Vector2i(3, 3)).def.id == "rook", "the Gargoyle's shell breaks and the attacker bounces back")
+	expect(not bool(result["captured"]) and board.get_piece(Vector2i(3, 1)) == shelled and board.get_piece(Vector2i(3, 3)).def.id == "rook", "a shell breaks and the attacker bounces back")
 	board.make_move(Vector2i(0, 0), Vector2i(0, 1))
 	result = board.make_move(Vector2i(3, 3), Vector2i(3, 1))
-	expect(bool(result["captured"]), "the second capture destroys the Gargoyle")
+	expect(bool(result["captured"]), "the second capture destroys the shelled piece")
 	var giant: BoardState = _board({Vector2i(3, 3): [&"stone_giant", W]})
 	expect(giant.get_piece(Vector2i(3, 3)).shell_left == 2, "the Stone Giant needs three captures")
 

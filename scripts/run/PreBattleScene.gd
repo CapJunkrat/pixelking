@@ -368,6 +368,8 @@ func _threat_hints() -> Dictionary:
 			continue
 		var square: Vector2i = DeploymentState.position_from_value(placement.get("position", {}))
 		for target: Vector2i in MoveGenerator.generate_pseudo_legal(board, square):
+			if board.is_rock(target):
+				continue
 			var occupant: ChessPiece = board.get_piece(target)
 			if occupant == null:
 				hints[target] = "move"

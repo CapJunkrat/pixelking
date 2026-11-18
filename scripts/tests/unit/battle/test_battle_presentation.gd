@@ -30,7 +30,7 @@ func _run() -> void:
 	_expect("knight" in log_panel.log_label.text, "battle log describes the moved piece")
 	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("portal_mage")) == &"teleport", "teleport rules select the portal presentation")
 	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("manticore")) == &"bent_ray", "bent-ray rules select a turning presentation")
-	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("catapult")) == &"lob", "jumping slide rules select a lob presentation")
+	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("ember_bird")) == &"lob", "jumping slide rules select a lob presentation")
 	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("gorgon")) == &"petrify", "immobilizing traits select a petrify presentation")
 	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("assassin"), true) == &"chained_capture", "capture-action traits select a chained strike presentation")
 	var strike_expectations: Dictionary = {

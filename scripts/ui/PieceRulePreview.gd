@@ -93,8 +93,15 @@ static func ability_keys(definition: PieceDef) -> Array[String]:
 		abilities.append("CODEX_TRAIT_LAST_STAND")
 	for rule: MovementRule in definition.resolved_movement_rules():
 		var slide: SlideMovementRule = rule as SlideMovementRule
-		if slide != null and slide.ranged and "CODEX_TRAIT_RANGED" not in abilities:
+		var shot: RangedAttackRule = rule as RangedAttackRule
+		if (shot != null or (slide != null and slide.ranged)) and "CODEX_TRAIT_RANGED" not in abilities:
 			abilities.append("CODEX_TRAIT_RANGED")
+		if shot != null and shot.pierce and "CODEX_TRAIT_BOOMERANG" not in abilities:
+			abilities.append("CODEX_TRAIT_BOOMERANG")
+		if shot != null and shot.breaks_rocks and "CODEX_TRAIT_ROCKBREAKER" not in abilities:
+			abilities.append("CODEX_TRAIT_ROCKBREAKER")
+	if definition.immune_to_ranged:
+		abilities.append("CODEX_TRAIT_RANGED_IMMUNE")
 	if abilities.is_empty():
 		abilities.append("CODEX_TRAIT_NONE")
 	return abilities

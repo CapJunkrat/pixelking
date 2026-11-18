@@ -33,18 +33,19 @@ func _test_royal_guard() -> void:
 func _test_catapult() -> void:
 	var board: BoardState = _piece_board(&"catapult")
 	board.set_piece(Vector2i(3, 4), _piece(&"pawn", GameRules.PieceColor.WHITE))
+	board.set_piece(Vector2i(3, 6), _piece(&"pawn", GameRules.PieceColor.BLACK))
 	var moves: Array[Vector2i] = MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3))
-	expect(Vector2i(3, 5) in moves, "Catapult jumps over vertical blockers")
-	board.set_piece(Vector2i(4, 3), _piece(&"pawn", GameRules.PieceColor.WHITE))
-	moves = MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3))
-	expect(Vector2i(5, 3) not in moves, "Catapult horizontal movement remains blocked")
+	expect(Vector2i(3, 6) in moves, "Catapult lobs over vertical blockers")
+	expect(Vector2i(3, 5) not in moves and Vector2i(2, 2) in moves, "Catapult only steps one square")
 
 func _test_bowman() -> void:
 	var board: BoardState = _piece_board(&"bowman")
 	var moves: Array[Vector2i] = MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3))
-	expect(Vector2i(4, 3) not in moves and Vector2i(5, 3) in moves, "Bowman requires at least two squares")
+	expect(Vector2i(4, 3) in moves and Vector2i(5, 3) not in moves, "Bowman steps one square")
+	board.set_piece(Vector2i(6, 3), _piece(&"pawn", GameRules.PieceColor.BLACK))
+	expect(Vector2i(6, 3) in MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3)), "Bowman shoots along a line")
 	board.set_piece(Vector2i(4, 3), _piece(&"pawn", GameRules.PieceColor.WHITE))
-	expect(Vector2i(5, 3) not in MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3)), "adjacent blocker stops Bowman distant ray")
+	expect(Vector2i(6, 3) not in MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3)), "a piece in between blocks the Bowman's arrow")
 
 func _test_portal_mage() -> void:
 	var board: BoardState = _piece_board(&"portal_mage")

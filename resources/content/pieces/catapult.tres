@@ -1,24 +1,38 @@
-[gd_resource type="Resource" script_class="PieceDef" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="PieceDef" load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/PieceDef.gd" id="1_piece"]
 [ext_resource type="Script" path="res://scripts/core/movement/MovementProfile.gd" id="2_profile"]
 [ext_resource type="Script" path="res://scripts/core/movement/SlideMovementRule.gd" id="3_slide"]
-[ext_resource type="Resource" path="res://resources/content/motion_profiles/rook.tres" id="4_motion"]
+[ext_resource type="Script" path="res://scripts/core/movement/RangedAttackRule.gd" id="4_ranged"]
+[ext_resource type="Resource" path="res://resources/content/motion_profiles/rook.tres" id="5_motion"]
 
-[sub_resource type="Resource" id="VerticalRule"]
+[sub_resource type="Resource" id="Rule1"]
 script = ExtResource("3_slide")
+directions = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)])
+min_distance = 1
+max_distance = 1
+
+[sub_resource type="Resource" id="Rule2"]
+script = ExtResource("4_ranged")
 directions = Array[Vector2i]([Vector2i(0, 1), Vector2i(0, -1)])
+min_distance = 2
 max_distance = 8
-jump_over_occupied = true
+over_pieces = true
+breaks_rocks = true
+pierce = false
 
-[sub_resource type="Resource" id="HorizontalRule"]
-script = ExtResource("3_slide")
+[sub_resource type="Resource" id="Rule3"]
+script = ExtResource("4_ranged")
 directions = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0)])
+min_distance = 2
 max_distance = 2
+over_pieces = true
+breaks_rocks = true
+pierce = false
 
 [sub_resource type="Resource" id="MovementProfile"]
 script = ExtResource("2_profile")
-rules = Array[Resource]([SubResource("VerticalRule"), SubResource("HorizontalRule")])
+rules = Array[Resource]([SubResource("Rule1"), SubResource("Rule2"), SubResource("Rule3")])
 
 [resource]
 script = ExtResource("1_piece")
@@ -27,7 +41,7 @@ display_name_key = &"PIECE_CATAPULT"
 strike_type = 4
 weight_class = 2
 movement_profile = SubResource("MovementProfile")
-motion_profile = ExtResource("4_motion")
+motion_profile = ExtResource("5_motion")
 base_value = 5
 rarity = 1
 available_in_opening_draft = true

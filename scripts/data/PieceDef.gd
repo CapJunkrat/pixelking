@@ -79,6 +79,8 @@ enum WeightClass {
 @export var protects_adjacent_from_immobilization: bool = false
 ## Captures by ranged rules also destroy the non-King enemies around the target.
 @export var splash_on_ranged_capture: bool = false
+## Ranged shots (and their splash) cannot target this piece; only melee captures can.
+@export var immune_to_ranged: bool = false
 ## Hits absorbed before this piece is really captured. Restored every battle.
 @export var shell_hits: int = 0
 ## Revives this many of its owner's turns after being captured, once per battle (0 = never).
@@ -137,3 +139,7 @@ func movement_rule(rule: StringName) -> MovementRule:
 
 func has_movement_rule(rule: StringName) -> bool:
 	return movement_rule(rule) != null
+
+## Shoots from a distance (and so follows the shared ranged rules).
+func is_ranged() -> bool:
+	return has_movement_rule(&"ranged_attack")

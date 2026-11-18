@@ -24,6 +24,7 @@ const EVENT_MOVE_LEARNED: StringName = &"move_learned"
 const EVENT_FORM_CHANGED: StringName = &"form_changed"
 const EVENT_PIECE_REVIVED: StringName = &"piece_revived"
 const EVENT_LAST_STAND: StringName = &"last_stand"
+const EVENT_ROCK_BROKEN: StringName = &"rock_broken"
 const EVENT_TURN_ENDED_EARLY: StringName = &"turn_ended_early"
 ## A side lost its last piece besides the King: the other King strikes it down at once.
 const EVENT_KING_EXECUTION: StringName = &"king_execution"
@@ -383,6 +384,8 @@ func _append_ability_events(events: Array[BattleEvent], action_id: int, action: 
 			events.append(_event(EVENT_PIECE_DESTROYED, action_id, entry))
 	for entry: Dictionary in move_result.get("shells", []):
 		events.append(_event(EVENT_SHELL_BROKEN, action_id, entry))
+	if move_result.has("rock_broken"):
+		events.append(_event(EVENT_ROCK_BROKEN, action_id, {"position": move_result["rock_broken"]}))
 	var shielded: Array = move_result.get("shielded", [])
 	if not shielded.is_empty():
 		events.append(_event(EVENT_SHIELD_GRANTED, action_id, {"positions": shielded}))

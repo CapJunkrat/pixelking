@@ -44,6 +44,22 @@ static func action_kind(board: BoardState, from: Vector2i, to: Vector2i) -> Stri
 		kind = rule_kind
 	return &"" if kind == &"none" else kind
 
+## The rule that makes from -> to a shot from a distance, or null.
+static func ranged_rule(board: BoardState, from: Vector2i, to: Vector2i) -> MovementRule:
+	var piece: ChessPiece = board.get_piece(from)
+	if piece == null:
+		return null
+	for rule: MovementRule in piece.def.resolved_movement_rules():
+		if rule == null or rule.action_kind(board, from, to, piece) != &"ranged":
+			continue
+		var borrowed: BorrowedMovementRule = rule as BorrowedMovementRule
+		if borrowed != null:
+			for inner: MovementRule in borrowed.borrowed_rules(board, piece):
+				if inner.action_kind(board, from, to, piece) == &"ranged":
+					return inner
+		return rule
+	return null
+
 ## Shielded enemies (martyr) can be neither captured nor attacked.
 static func _without_shielded(board: BoardState, piece: ChessPiece, squares: Array[Vector2i]) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []

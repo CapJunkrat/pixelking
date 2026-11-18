@@ -18,6 +18,9 @@ const MOVE_DOT := Color(1.0, 0.94, 0.78, 0.72)
 const CHECK_TINT := Color(0.95, 0.2, 0.2, 0.42)
 const CHECK_GLOW := Color(1.0, 0.32, 0.28)
 const PROMOTION_GLOW := Color(1.0, 0.886, 0.588)
+const CROSSHAIR := Color(1.0, 0.36, 0.3, 0.95)
+const GUARD_GLOW := Color(1.0, 0.86, 0.45, 0.3)
+const GUARD_RING := Color(1.0, 0.86, 0.45, 0.9)
 ## Speed multipliers applied when the player turns on short battle animations.
 const SHORT_STRIKE_SPEED := 2.2
 const SHORT_MOVE_SPEED := 1.5
@@ -289,7 +292,7 @@ func advance_hold(delta: float) -> void:
 			piece_info_requested.emit(square)
 
 func _on_square_pressed(board_position: Vector2i) -> void:
-	if board == null or not input_enabled or intro_locked or not board.in_bounds(board_position):
+	if board == null or not input_enabled or intro_locked or not board.on_board(board_position):
 		return
 	if item_targeting:
 		item_targeting = false
@@ -367,8 +370,11 @@ func _draw_board() -> void:
 			_draw_square_marker(board.king_pos[color], CHECK_TINT)
 	if selected_square != NO_SQUARE:
 		_draw_square_marker(selected_square, SELECTED_TINT)
+	_draw_bodyguards()
 	for target: Vector2i in legal_targets:
-		if board.get_piece(target) != null:
+		if _is_shot(target):
+			_draw_square_marker(target, Color(CAPTURE_TINT, CAPTURE_TINT.a * 0.55))
+		elif board.get_piece(target) != null:
 			_draw_square_marker(target, CAPTURE_TINT)
 		else:
 			_draw_ground_ellipse(target, projection.cell * 0.2, MOVE_DOT)
@@ -379,6 +385,53 @@ func _draw_board() -> void:
 				_draw_ground_ellipse(square, projection.cell * 0.33, BoardPainter.SHADOW)
 	for rock_value: Variant in board.rocks:
 		_draw_ground_ellipse(rock_value, projection.cell * 0.4, BoardPainter.SHADOW)
+
+func _is_shot(target: Vector2i) -> bool:
+	return selected_square != NO_SQUARE and MoveGenerator.action_kind(board, selected_square, target) == RangedAttackRule.ACTION
+
+## A ranged target: a red sight ring with four ticks, drawn above the pieces at about
+## the middle of the target (the shooter stays put).
+func _draw_crosshair(square: Vector2i) -> void:
+	var piece_pixels: float = projection.cell * BoardPainter.PIECE_HEIGHT_CELLS
+	var world: Vector3 = projection.square_world(square)
+	var centre_world: Vector3 = Vector3(world.x, projection.height_for_pixels(piece_pixels * 0.3), world.z + standing_offset())
+	var radius: float = projection.cell * 0.32
+	var ring: PackedVector2Array = _world_ring(centre_world, radius)
+	var width: float = maxf(1.5, projection.cell * 0.05)
+	for pass_index: int in range(2):
+		var colour: Color = Color("#2a0710") if pass_index == 0 else CROSSHAIR
+		var line_width: float = width + 2.0 if pass_index == 0 else width
+		_overlay.draw_polyline(ring, colour, line_width)
+		for direction: Vector3 in [Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 0, -1)]:
+			var inner: Vector2 = projection.project(centre_world + direction * radius * 0.7)
+			var outer: Vector2 = projection.project(centre_world + direction * radius * 1.3)
+			_overlay.draw_line(inner, outer, colour, line_width)
+
+func _world_ring(centre: Vector3, radius: float) -> PackedVector2Array:
+	var ring: PackedVector2Array = PackedVector2Array()
+	for step: int in range(33):
+		var angle: float = TAU * step / 32.0
+		ring.append(projection.project(centre + Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)))
+	return ring
+
+## Kings that ranged pieces cannot shoot (an ally stands next to them) get a soft gold
+## ring, shown only while the other side has a ranged piece.
+func _draw_bodyguards() -> void:
+	for color: int in [GameRules.PieceColor.WHITE, GameRules.PieceColor.BLACK]:
+		if not board.has_king(color) or not _has_ranged(GameRules.opposite(color)):
+			continue
+		var square: Vector2i = board.king_pos[color]
+		if board.is_king_guarded(square):
+			_draw_ground_ellipse(square, projection.cell * 0.46, GUARD_GLOW)
+			_board_canvas.draw_polyline(_world_ring(projection.square_world(square), projection.cell * 0.46), GUARD_RING, maxf(1.5, projection.cell * 0.05))
+
+func _has_ranged(color: int) -> bool:
+	for rank: int in range(board.board_size):
+		for file: int in range(board.board_size):
+			var piece: ChessPiece = board.get_piece(Vector2i(file, rank))
+			if piece != null and piece.color == color and piece.def.is_ranged():
+				return true
+	return false
 
 func _draw_square_marker(square: Vector2i, tint: Color) -> void:
 	BoardPainter.draw_marker(_board_canvas, projection, square, tint)
@@ -408,6 +461,9 @@ func _draw_overlay() -> void:
 				dome.append(base + Vector2(cos(angle) * radius, sin(angle) * radius * 3.0 + projection.cell * 0.08))
 			_overlay.draw_polyline(dome, Color(0.67, 0.84, 1.0, 0.75), 2.0)
 			_overlay.draw_colored_polygon(dome, Color(0.67, 0.84, 1.0, 0.12))
+	for target: Vector2i in legal_targets:
+		if _is_shot(target):
+			_draw_crosshair(target)
 	for rank: int in range(board.board_size):
 		for file: int in range(board.board_size):
 			var square: Vector2i = Vector2i(file, rank)
@@ -567,7 +623,7 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 				castled = true
 			BattleCommandProcessor.EVENT_KING_EXECUTION:
 				_pending_execution = event.payload
-			BattleCommandProcessor.EVENT_PIECE_DESTROYED:
+			BattleCommandProcessor.EVENT_PIECE_DESTROYED, BattleCommandProcessor.EVENT_ROCK_BROKEN:
 				_pending_bursts.append(event.payload.get("position", NO_SQUARE))
 			BattleCommandProcessor.EVENT_SHELL_BROKEN:
 				if shell_event == null:
@@ -796,7 +852,7 @@ func _play_followups() -> void:
 					shake.tween_property(king, "position", home + Vector2(reach, 0.0), 0.04)
 				shake.tween_property(king, "position", home, 0.04)
 	for square: Vector2i in _pending_bursts:
-		if board.in_bounds(square):
+		if board.on_board(square):
 			var burst_at: Vector3 = projection.square_world(square)
 			fx.puff(burst_at + Vector3(0.0, fx.unit * 4.0, 0.0), 10, 1.0)
 			fx.spark_burst(burst_at + Vector3(0.0, projection.cell * 0.3, 0.0), 12, Vector2.ZERO, 0.0, 0.9)
