@@ -380,6 +380,7 @@ const LOCALES := {
 			"RESULT_BEST_CAPTURES": "%d captures",
 			"RESULT_GROWTH_EVOLVED": "Grew into %s",
 			"RESULT_GROWTH_LEARNED": "%s learned the %s's moves",
+			"RESULT_REASON_EXECUTION": "The last defender fell, and the King was struck down.",
 			"RESULT_REASON_CHECKMATE": "Checkmate. There was no way out.",
 			"RESULT_REASON_KING_CAPTURED": "A King was taken.",
 			"RESULT_REASON_LONE_KING": "One King was left to stand alone.",

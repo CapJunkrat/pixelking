@@ -79,6 +79,7 @@ func start_run_battle(run_state: RunState) -> bool:
 		turn_limit = encounter.turn_limit
 	board = run_board
 	command_processor = BattleCommandProcessor.new(board, challenger_items, player_color, turn_limit)
+	command_processor.shield_kings_for_opening()
 	command_processor.apply_battle_start_relics()
 	last_command_result = null
 	return true

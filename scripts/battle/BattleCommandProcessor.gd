@@ -25,6 +25,10 @@ const EVENT_FORM_CHANGED: StringName = &"form_changed"
 const EVENT_PIECE_REVIVED: StringName = &"piece_revived"
 const EVENT_LAST_STAND: StringName = &"last_stand"
 const EVENT_TURN_ENDED_EARLY: StringName = &"turn_ended_early"
+## A side lost its last piece besides the King: the other King strikes it down at once.
+const EVENT_KING_EXECUTION: StringName = &"king_execution"
+## Kings cannot be captured before this turn serial (two turns for each side).
+const OPENING_KING_SHIELD_SERIAL := 4
 ## A turn never holds more than this many actions.
 const MAX_ACTIONS_PER_TURN := 2
 
@@ -311,6 +315,9 @@ func _execute_move(action: MoveAction, action_id: int) -> BattleCommandResult:
 	)
 	if prior_actions == 0 and pending_bonus_color == action.actor_color:
 		pending_bonus_color = -1
+	if bonus_candidate and _try_execution(result.events, action_id):
+		result.events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
+		return result
 	if bonus_candidate:
 		# Terminal rules are evaluated while the captured side owns the response turn.
 		_try_last_stand(result.events, action_id)
@@ -465,6 +472,8 @@ func _refresh_legacy_terminal_flags(move_result: Dictionary) -> void:
 	move_result["stalemate"] = board.is_stalemate(board.turn) if not bool(move_result["check"]) else false
 
 func _append_terminal_events(events: Array[BattleEvent], action_id: int) -> void:
+	if _try_execution(events, action_id):
+		return
 	_try_last_stand(events, action_id)
 	var outcome: BattleOutcome = outcome_evaluator.evaluate(board, player_color, turn_limit)
 	if outcome.finished:
@@ -474,6 +483,40 @@ func _append_terminal_events(events: Array[BattleEvent], action_id: int) -> void
 		return
 	if board.is_in_check(board.turn):
 		events.append(_event(EVENT_CHECK_DECLARED, action_id, {"color": board.turn, "checkmate": false}))
+
+## When one side has nothing left but its King while the other still has an army, the
+## winning King walks over and takes the lone King, ending the battle at once.
+func _try_execution(events: Array[BattleEvent], action_id: int) -> bool:
+	for loser: int in [GameRules.PieceColor.WHITE, GameRules.PieceColor.BLACK]:
+		var winner: int = GameRules.opposite(loser)
+		if not (board.has_king(loser) and board.has_king(winner) and board.has_only_king(loser) and board.has_non_king_piece(winner)):
+			continue
+		var from: Vector2i = board.king_pos[winner]
+		var to: Vector2i = board.king_pos[loser]
+		var killer: ChessPiece = board.get_piece(from)
+		var victim: ChessPiece = board.get_piece(to)
+		board.set_piece(from, null)
+		board.set_piece(to, killer)
+		board.king_pos[winner] = to
+		board.king_pos.erase(loser)
+		events.append(_event(EVENT_KING_EXECUTION, action_id, {
+			"from": from,
+			"to": to,
+			"color": winner,
+			"piece_def_id": killer.def.id,
+			"victim_def_id": victim.def.id,
+			"victim_color": loser,
+		}))
+		_complete_battle(events, action_id, BattleOutcome.completed(winner, false, &"execution"))
+		return true
+	return false
+
+## Both Kings start each battle shielded, so neither can fall before it is defended.
+func shield_kings_for_opening() -> void:
+	for color: int in [GameRules.PieceColor.WHITE, GameRules.PieceColor.BLACK]:
+		if board.has_king(color):
+			var king: ChessPiece = board.get_piece(board.king_pos[color])
+			king.shield_until_serial = maxi(king.shield_until_serial, board.turn_serial + OPENING_KING_SHIELD_SERIAL)
 
 func _complete_battle(events: Array[BattleEvent], action_id: int, outcome: BattleOutcome) -> void:
 	if status.finish(outcome, action_id):

@@ -31,6 +31,8 @@ func _run() -> void:
 	_test_blast_catapult()
 	_test_kings()
 	_test_run_growth()
+	_test_king_execution()
+	_test_opening_king_shield()
 	finish_test("New piece rules test")
 
 func _test_vanguard() -> void:
@@ -176,7 +178,7 @@ func _test_revival() -> void:
 	expect(board.get_piece(Vector2i(0, 0)) != null and board.get_piece(Vector2i(0, 0)).def.id == "ember_bird", "its start square is taken, so it revives in the bottom-left corner")
 
 func _test_courier() -> void:
-	var board: BoardState = _board({Vector2i(2, 2): [&"swift_courier", W], Vector2i(0, 0): [&"king", W], Vector2i(7, 7): [&"king", B]})
+	var board: BoardState = _board({Vector2i(2, 2): [&"swift_courier", W], Vector2i(0, 0): [&"king", W], Vector2i(7, 7): [&"king", B], Vector2i(6, 6): [&"pawn", B]})
 	var processor: BattleCommandProcessor = BattleCommandProcessor.new(board)
 	processor.execute(MoveAction.new(Vector2i(2, 2), Vector2i(4, 4), W))
 	expect(board.turn == W and board.bonus_instance_id != 0, "Swift Courier acts twice every turn")
@@ -218,6 +220,27 @@ func _test_run_growth() -> void:
 	chameleon.absorb_growth({"def_id": "chameleon", "capture_count": 1, "learned": ["knight"]})
 	var piece: ChessPiece = chameleon.to_chess_piece(W)
 	expect(piece.learned_def_ids == (["knight"] as Array[String]) and piece.capture_count == 1, "learned moves come back in the next battle")
+
+func _test_king_execution() -> void:
+	# White takes Black's last piece: the White King strikes the lone Black King at once.
+	var board: BoardState = _board({Vector2i(0, 0): [&"king", W], Vector2i(3, 3): [&"rook", W], Vector2i(3, 6): [&"knight", B], Vector2i(7, 7): [&"king", B]})
+	var processor: BattleCommandProcessor = BattleCommandProcessor.new(board)
+	var result: BattleCommandResult = processor.execute(MoveAction.new(Vector2i(3, 3), Vector2i(3, 6), W))
+	expect(_has(result.events, BattleCommandProcessor.EVENT_KING_EXECUTION), "taking the last piece triggers the King's execution")
+	expect(processor.status.is_finished() and board.king_pos[W] == Vector2i(7, 7) and not board.has_king(B), "the winning King ends on the lone King's square and the battle is over")
+	# And the other way round: losing your last piece loses the battle at once.
+	var losing: BoardState = _board({Vector2i(0, 0): [&"king", W], Vector2i(3, 3): [&"knight", W], Vector2i(3, 6): [&"rook", B], Vector2i(7, 7): [&"king", B]}, B)
+	var enemy: BattleCommandProcessor = BattleCommandProcessor.new(losing)
+	enemy.execute(MoveAction.new(Vector2i(3, 6), Vector2i(3, 3), B))
+	expect(enemy.status.is_finished() and not losing.has_king(W), "the enemy King strikes down a lone player King")
+
+func _test_opening_king_shield() -> void:
+	var board: BoardState = _board({Vector2i(4, 0): [&"king", W], Vector2i(4, 7): [&"king", B], Vector2i(4, 3): [&"rook", W], Vector2i(0, 7): [&"rook", B]})
+	var processor: BattleCommandProcessor = BattleCommandProcessor.new(board)
+	processor.shield_kings_for_opening()
+	expect(Vector2i(4, 7) not in board.get_executable_moves(Vector2i(4, 3)), "a King cannot be captured in the opening turns")
+	board.turn_serial = BattleCommandProcessor.OPENING_KING_SHIELD_SERIAL
+	expect(Vector2i(4, 7) in board.get_executable_moves(Vector2i(4, 3)), "the opening shield wears off after two turns each")
 
 # --- helpers ------------------------------------------------------------------
 

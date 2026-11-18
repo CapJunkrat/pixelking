@@ -200,6 +200,23 @@ func _check_new(view: BattleBoardView, layer: Node2D, game_state: Node) -> void:
 	await process_frame
 
 func _check_core_extras(view: BattleBoardView, layer: Node2D, battle: Node, game_state: Node, authoritative: String) -> void:
+	# Taking the last piece: the capture plays, then the winning King strikes the lone King.
+	view.present_events([
+		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_MOVED, 1, 1, {"from": Vector2i(2, 2), "to": Vector2i(2, 4), "piece_def_id": "rook", "color": GameRules.PieceColor.WHITE}),
+		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_CAPTURED, 2, 1, {"position": Vector2i(2, 4), "piece_def_id": "knight", "color": GameRules.PieceColor.BLACK}),
+		BattleEvent.new(BattleCommandProcessor.EVENT_KING_EXECUTION, 3, 1, {"from": Vector2i(4, 0), "to": Vector2i(4, 7), "color": GameRules.PieceColor.WHITE, "piece_def_id": "king", "victim_def_id": "king", "victim_color": GameRules.PieceColor.BLACK}),
+	] as Array[BattleEvent], 8.0)
+	var director: StrikeDirector = view.get_node("StrikeDirector") as StrikeDirector
+	var attacks: Array[StringName] = []
+	var guard: int = 0
+	while view.is_presenting() and guard < 1200:
+		if director.is_playing() and (attacks.is_empty() or attacks[-1] != director._attack_id):
+			attacks.append(director._attack_id)
+		guard += 1
+		await process_frame
+	await process_frame
+	_expect(attacks == ([&"rook", &"king"] as Array[StringName]) and layer.get_child_count() == 32, "the last capture is followed by the King's execution strike")
+
 	# En passant: the victim stands beside the pawn, not on the destination square.
 	view.present_events([
 		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_MOVED, 1, 1, {"from": Vector2i(2, 4), "to": Vector2i(3, 5), "piece_def_id": "pawn", "color": GameRules.PieceColor.WHITE}),

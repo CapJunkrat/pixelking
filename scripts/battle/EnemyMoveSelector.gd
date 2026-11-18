@@ -43,6 +43,10 @@ func _score_move(board: BoardState, from: Vector2i, to: Vector2i, color: int) ->
 		score += 700
 	var center := Vector2((board.board_size - 1) / 2.0, (board.board_size - 1) / 2.0)
 	score += int(20.0 - Vector2(to).distance_squared_to(center))
+	# Never hand the opponent a free King: a move that leaves our King capturable is
+	# only worth it when nothing else is.
+	if simulation.has_king(color) and simulation.is_square_attacked(simulation.king_pos[color], GameRules.opposite(color)):
+		score -= 6000
 	if simulation.is_square_attacked(to, GameRules.opposite(color)):
 		var moved_piece := simulation.get_piece(to)
 		if moved_piece != null:

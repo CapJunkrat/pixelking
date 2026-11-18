@@ -39,6 +39,9 @@ var projection: BoardProjection = BoardProjection.new()
 var _pending_promotion: Vector2i = NO_SQUARE
 var _pending_check: Dictionary = {}
 var _pending_bursts: Array[Vector2i] = []
+## A King execution to play once the current move has finished (BattleCommandProcessor).
+var _pending_execution: Dictionary = {}
+var _last_speed: float = 1.0
 var _pending_rings: Array[Vector2i] = []
 var _board_canvas: Node2D = null
 var _ground_canvas: Node2D = null
@@ -300,6 +303,20 @@ func _draw_overlay() -> void:
 	var font: Font = get_theme_default_font()
 	if font == null:
 		return
+	# Shielded pieces (opening King shield, Martyr, Holy Water, Iron Crown) wear a dome.
+	for rank: int in range(board.board_size):
+		for file: int in range(board.board_size):
+			var shielded: ChessPiece = board.get_piece(Vector2i(file, rank))
+			if shielded == null or not shielded.is_shielded(board.turn_serial) or _hidden_squares.has(Vector2i(file, rank)):
+				continue
+			var base: Vector2 = projection.project(projection.square_world(Vector2i(file, rank)))
+			var radius: float = projection.cell * 0.5 * projection.square_scale(Vector2i(file, rank))
+			var dome: PackedVector2Array = PackedVector2Array()
+			for step: int in range(25):
+				var angle: float = PI + PI * step / 24.0
+				dome.append(base + Vector2(cos(angle) * radius, sin(angle) * radius * 3.0 + projection.cell * 0.08))
+			_overlay.draw_polyline(dome, Color(0.67, 0.84, 1.0, 0.75), 2.0)
+			_overlay.draw_colored_polygon(dome, Color(0.67, 0.84, 1.0, 0.12))
 	for rank: int in range(board.board_size):
 		for file: int in range(board.board_size):
 			var square: Vector2i = Vector2i(file, rank)
@@ -444,6 +461,8 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 				capture_event = event
 			BattleCommandProcessor.EVENT_CASTLED, BattleCommandProcessor.EVENT_KING_SWAPPED:
 				castled = true
+			BattleCommandProcessor.EVENT_KING_EXECUTION:
+				_pending_execution = event.payload
 			BattleCommandProcessor.EVENT_PIECE_DESTROYED:
 				_pending_bursts.append(event.payload.get("position", NO_SQUARE))
 			BattleCommandProcessor.EVENT_SHELL_BROKEN:
@@ -461,7 +480,11 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 				_pending_check = event.payload
 	if board == null:
 		return
+	_last_speed = speed
 	if move_event == null:
+		if not _pending_execution.is_empty():
+			_start_execution()
+			return
 		_play_followups()
 		return
 	var data: Dictionary = move_event.payload
@@ -743,6 +766,7 @@ func is_presenting() -> bool:
 	return not _presentation_tweens.is_empty() or (_strike != null and _strike.is_playing())
 
 func skip_presentations() -> void:
+	_pending_execution = {}
 	for tween: Tween in _presentation_tweens:
 		if tween != null and tween.is_valid():
 			tween.kill()
@@ -756,7 +780,26 @@ func _finish_tween(tween: Tween) -> void:
 	if _presentation_tweens.is_empty() and not _strike.is_playing():
 		_end_presentation()
 
+## The winning King runs over and strikes down the lone King.
+func _start_execution() -> void:
+	var data: Dictionary = _pending_execution
+	_pending_execution = {}
+	_hidden_squares.clear()
+	var move_data: Dictionary = {"from": data.get("from", NO_SQUARE), "to": data.get("to", NO_SQUARE), "target": data.get("to", NO_SQUARE), "piece_def_id": str(data.get("piece_def_id", "king")), "color": int(data.get("color", 0))}
+	var capture_data: Dictionary = {"position": data.get("to", NO_SQUARE), "piece_def_id": str(data.get("victim_def_id", "king")), "color": int(data.get("victim_color", 1))}
+	if _present_strike(move_data, capture_data, _last_speed):
+		refresh()
+		return
+	_end_presentation()
+
 func _end_presentation() -> void:
+	if not _pending_execution.is_empty():
+		for node: Node in _presentation_nodes:
+			if is_instance_valid(node):
+				node.queue_free()
+		_presentation_nodes.clear()
+		_start_execution()
+		return
 	for node: Node in _presentation_nodes:
 		if is_instance_valid(node):
 			node.queue_free()
