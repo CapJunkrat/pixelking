@@ -52,9 +52,11 @@ func _run() -> void:
 	_expect(moved_id in manager.current_run.active_piece_ids and manager.current_run.deployment_state.player_position(moved_id).y <= 1, "tapping a reserve piece sends it back in and places it")
 
 	# Arrange by hand: move the King one file left; the choice is kept for the Run.
-	var arrange: Button = preview.get_node("SafeArea/Layout/ArrangeRow/ArrangeButton") as Button
-	arrange.button_pressed = true
-	await process_frame
+	_expect(preview.get_node_or_null("SafeArea/Layout/ArrangeRow/ArrangeButton") == null, "arranging needs no mode button")
+	board.square_pressed.emit(Vector2i(4, 0))
+	_expect(board.deploy_rows == 2 and board.selected_square == Vector2i(4, 0), "tapping your piece picks it up and lights your two ranks")
+	board.square_pressed.emit(Vector2i(5, 7))
+	_expect(preview.arrange_selected == 0 and board.deploy_rows == 0, "tapping elsewhere puts the piece back down")
 	board.square_pressed.emit(Vector2i(4, 0))
 	board.square_pressed.emit(Vector2i(3, 0))
 	await process_frame

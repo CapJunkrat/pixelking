@@ -41,11 +41,10 @@ var bench_row: HBoxContainer = null
 var status_label: Label = null
 var back_button: Button = null
 var fight_button: Button = null
-var arrange_button: Button = null
 var auto_button: Button = null
 var focus_id: String = ""
-## Arranging by hand: tap one of your pieces, then a square in your two ranks.
-var arranging: bool = false
+## Arranging by hand is always on: tap one of your pieces, then a square in your two
+## ranks. 0 while no piece is picked up.
 var arrange_selected: int = 0
 var _starting: bool = false
 
@@ -103,16 +102,16 @@ func _build() -> void:
 	var arrange_row: HBoxContainer = HBoxContainer.new()
 	arrange_row.name = "ArrangeRow"
 	arrange_row.add_theme_constant_override("separation", 6)
-	arrange_button = _button(_text("PREBATTLE_ARRANGE"), PANEL_2, LINE, INK)
-	arrange_button.name = "ArrangeButton"
-	arrange_button.custom_minimum_size = Vector2(0, 32)
-	arrange_button.toggle_mode = true
-	arrange_button.toggled.connect(_set_arranging)
+	var arrange_hint: Label = _label(_text("PREBATTLE_ARRANGE_TIP"), 11, MUTED)
+	arrange_hint.name = "ArrangeHint"
+	arrange_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	arrange_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	arrange_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	auto_button = _button(_text("PREBATTLE_AUTO_FORMATION"), PANEL_2, LINE, INK)
 	auto_button.name = "AutoFormationButton"
 	auto_button.custom_minimum_size = Vector2(0, 32)
 	auto_button.pressed.connect(_reset_formation)
-	arrange_row.add_child(arrange_button)
+	arrange_row.add_child(arrange_hint)
 	arrange_row.add_child(auto_button)
 	layout.add_child(arrange_row)
 
@@ -267,13 +266,15 @@ func _render_board() -> void:
 	var deployment: DeploymentState = run_manager.current_run.deployment_state
 	var pieces: Dictionary = {}
 	var focus_square: Vector2i = DeploymentBoardView.NO_SQUARE
-	if arranging and arrange_selected > 0:
+	if arrange_selected > 0:
 		focus_square = deployment.player_position(arrange_selected)
+	# The two ranks you may use light up only while a piece is in hand.
+	board_view.deploy_rows = 2 if arrange_selected > 0 else 0
 	for placement: Dictionary in deployment.enemy_placements:
 		var square: Vector2i = DeploymentState.position_from_value(placement.get("position", {}))
 		var id: String = str(placement.get("piece_def_id", ""))
 		pieces[square] = {"texture": _texture(&"black", id), "player": false}
-		if id == focus_id and focus_square == DeploymentBoardView.NO_SQUARE and not arranging:
+		if id == focus_id and focus_square == DeploymentBoardView.NO_SQUARE:
 			focus_square = square
 	for instance_id: int in run_manager.current_run.active_piece_ids:
 		var piece: PieceInstanceState = run_manager.current_run.get_piece_state(instance_id)
@@ -428,27 +429,19 @@ func _focus(id: String) -> void:
 	_render_pattern()
 
 func _on_square_pressed(square: Vector2i) -> void:
-	if arranging and _arrange_at(square):
+	if _arrange_at(square):
 		return
+	# Any other tap puts the piece in hand back down.
+	if arrange_selected > 0:
+		_put_down()
 	for placement: Dictionary in run_manager.current_run.deployment_state.enemy_placements:
 		if DeploymentState.position_from_value(placement.get("position", {})) == square:
 			focus_id = ""
 			_focus(str(placement.get("piece_def_id", "")))
 			return
 
-func _set_arranging(enabled: bool) -> void:
-	arranging = enabled
-	arrange_selected = 0
-	board_view.deploy_rows = 2 if enabled else 0
-	if enabled:
-		_show_status(_text("PREBATTLE_ARRANGE_HINT"))
-		status_label.add_theme_color_override("font_color", GOLD_SOFT)
-	else:
-		status_label.visible = false
-		status_label.add_theme_color_override("font_color", ENEMY)
-	_render_board()
-
-## Handles a tap while arranging. Returns false when the tap was not about arranging.
+## Handles a tap that picks up, moves or puts down one of your pieces. Returns false when the
+## tap was not about arranging.
 func _arrange_at(square: Vector2i) -> bool:
 	var deployment: DeploymentState = run_manager.current_run.deployment_state
 	var own: int = deployment.player_at(square)
@@ -456,27 +449,32 @@ func _arrange_at(square: Vector2i) -> bool:
 		if own <= 0:
 			return false
 		arrange_selected = own
+		_show_status(_text("PREBATTLE_ARRANGE_HINT"))
+		status_label.add_theme_color_override("font_color", GOLD_SOFT)
 		_render_board()
 		return true
 	if own == arrange_selected:
-		arrange_selected = 0
-		_render_board()
+		_put_down()
 		return true
 	if square.y > 1:
 		return false
 	if run_manager.move_deployed_piece(arrange_selected, square) != OK:
 		_show_status(_text("PREBATTLE_ARRANGE_ROWS"))
 		return true
-	arrange_selected = 0
-	_render_board()
+	_put_down()
 	return true
+
+func _put_down() -> void:
+	arrange_selected = 0
+	status_label.visible = false
+	status_label.add_theme_color_override("font_color", ENEMY)
+	_render_board()
 
 func _reset_formation() -> void:
 	if run_manager.reset_deployment_formation() != OK:
 		_show_status(_text("PREBATTLE_LINEUP_ERROR"))
 		return
-	arrange_selected = 0
-	_render_board()
+	_put_down()
 
 func _toggle_piece(instance_id: int, to_active: bool) -> void:
 	if to_active and _active_non_king() >= run_manager.current_run.max_active_pieces():
