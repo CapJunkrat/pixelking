@@ -39,6 +39,10 @@ var player_color: int = GameRules.PieceColor.WHITE
 var presentation_speed: float = 1.0
 var item_targeting: bool = false
 var input_enabled: bool = true
+## True while the opening transition plays; taps are ignored.
+var intro_locked: bool = false
+## Size of the shield domes (0 hides them); the opening transition pops them in.
+var dome_scale: float = 1.0
 var projection: BoardProjection = BoardProjection.new()
 
 var _pending_promotion: Vector2i = NO_SQUARE
@@ -181,6 +185,44 @@ func standing_offset() -> float:
 func make_piece_sprite(texture: Texture2D) -> Sprite2D:
 	return _make_piece_sprite(texture)
 
+## Opening transition: the board starts exactly where the pre-battle board stood
+## (`source` in global coordinates) and glides into place over `seconds`.
+func glide_in_from(source: Rect2, seconds: float) -> Tween:
+	var size_now: int = 8 if board == null else board.board_size
+	var from_projection: BoardProjection = BoardPainter.fit(size_now, source.size)
+	var k: float = from_projection.cell / maxf(projection.cell, 1.0)
+	var target_centre: Vector2 = source.position + from_projection.center - get_global_rect().position
+	var start: Transform2D = Transform2D(0.0, Vector2(k, k), 0.0, target_centre - projection.center * k)
+	set_camera(start)
+	var tween: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_method(func(t: float) -> void: set_camera(start.interpolate_with(Transform2D.IDENTITY, t)), 0.0, 1.0, seconds)
+	return tween
+
+## One side's pieces hop in place, one after another, as if waking up.
+func hop_pieces(color: int, stagger: float = 0.035) -> void:
+	var index: int = 0
+	for square_value: Variant in _piece_sprites:
+		var piece: ChessPiece = board.get_piece(square_value)
+		var sprite: Sprite2D = _piece_sprites[square_value] as Sprite2D
+		if piece == null or piece.color != color or sprite == null:
+			continue
+		var rest: float = sprite.position.y
+		var hop: Tween = create_tween()
+		hop.tween_interval(index * stagger)
+		hop.tween_property(sprite, "position:y", rest - projection.cell * 0.32, 0.11).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		hop.tween_property(sprite, "position:y", rest, 0.2).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+		index += 1
+
+## Pops the shield domes in (they are hidden during the opening glide).
+func pop_domes(seconds: float = 0.3) -> void:
+	var tween: Tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_method(_set_dome_scale, 0.0, 1.0, seconds)
+
+func _set_dome_scale(value: float) -> void:
+	dome_scale = value
+	if _overlay != null:
+		_overlay.queue_redraw()
+
 ## Moves the whole board picture (zoom punch, shake). Identity restores it.
 func set_camera(camera: Transform2D) -> void:
 	for layer: Node2D in [_board_canvas, _ground_canvas, _piece_layer, _air_canvas]:
@@ -247,7 +289,7 @@ func advance_hold(delta: float) -> void:
 			piece_info_requested.emit(square)
 
 func _on_square_pressed(board_position: Vector2i) -> void:
-	if board == null or not input_enabled or not board.in_bounds(board_position):
+	if board == null or not input_enabled or intro_locked or not board.in_bounds(board_position):
 		return
 	if item_targeting:
 		item_targeting = false
@@ -357,7 +399,9 @@ func _draw_overlay() -> void:
 			if shielded == null or not shielded.is_shielded(board.turn_serial) or _hidden_squares.has(Vector2i(file, rank)):
 				continue
 			var base: Vector2 = projection.project(projection.square_world(Vector2i(file, rank)))
-			var radius: float = projection.cell * 0.5 * projection.square_scale(Vector2i(file, rank))
+			var radius: float = projection.cell * 0.5 * projection.square_scale(Vector2i(file, rank)) * dome_scale
+			if radius <= 0.5:
+				continue
 			var dome: PackedVector2Array = PackedVector2Array()
 			for step: int in range(25):
 				var angle: float = PI + PI * step / 24.0

@@ -6,6 +6,10 @@ signal debug_mode_changed(enabled: bool)
 ## 全局游戏状态单例。
 ## 当前持有对局棋盘和挑战者物品；后续 Roguelike 阶段将在此扩展金币、遗物、招募棋子与波次等状态。
 var board: BoardState = null
+## Hand-off from the pre-battle screen: where its board stood on screen and a picture
+## of that last frame, so the battle board can grow out of it without a cut.
+var entry_board_rect: Rect2 = Rect2()
+var entry_snapshot: Texture2D = null
 var command_processor: BattleCommandProcessor = null
 var last_command_result: BattleCommandResult = null
 

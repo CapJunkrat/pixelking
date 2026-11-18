@@ -43,6 +43,89 @@ func _ready() -> void:
 	board_view.setup(GameState.board, GameState.player_color)
 	_refresh_board()
 	_refresh_challenger_slots()
+	_play_intro()
+
+const BANNER_FONT := preload("res://assets/fonts/battle/PixelMplus10-Bold.ttf")
+
+## Coming from the pre-battle screen: the board glides from where it stood there, the
+## battle HUD slides in around it, the enemy wakes with a hop, the opening shields pop
+## and a short banner announces the fight. Skipped headless or without a hand-off.
+func _play_intro() -> void:
+	var source: Rect2 = GameState.entry_board_rect
+	var snapshot: Texture2D = GameState.entry_snapshot
+	GameState.entry_board_rect = Rect2()
+	GameState.entry_snapshot = null
+	if source.size == Vector2.ZERO or DisplayServer.get_name() == "headless":
+		return
+	board_view.intro_locked = true
+	board_view.dome_scale = 0.0
+	var cover: TextureRect = null
+	if snapshot != null:
+		# The last pre-battle frame covers the first frames while the layout settles.
+		cover = TextureRect.new()
+		cover.name = "IntroCover"
+		cover.texture = snapshot
+		cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cover.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		cover.stretch_mode = TextureRect.STRETCH_SCALE
+		cover.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		add_child(cover)
+	var parts: Array[Control] = [battle_hud, challenger_tray, battle_log]
+	for part: Control in parts:
+		part.modulate.a = 0.0
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	var glide: Tween = board_view.glide_in_from(source, 0.5)
+	if cover != null:
+		var fade: Tween = create_tween()
+		fade.tween_property(cover, "modulate:a", 0.0, 0.12)
+		fade.tween_callback(cover.queue_free)
+	for index: int in range(parts.size()):
+		var part: Control = parts[index]
+		var rest: float = part.position.y
+		var from_y: float = rest - 36.0 if part == battle_hud else rest + 36.0
+		part.position.y = from_y
+		var slide: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		slide.tween_interval(0.12 + index * 0.05)
+		slide.tween_property(part, "position:y", rest, 0.35)
+		slide.parallel().tween_property(part, "modulate:a", 1.0, 0.3)
+	await glide.finished
+	if not is_inside_tree():
+		return
+	board_view.hop_pieces(GameRules.PieceColor.BLACK if GameState.player_color == GameRules.PieceColor.WHITE else GameRules.PieceColor.WHITE)
+	board_view.pop_domes()
+	_show_banner()
+	await get_tree().create_timer(0.45).timeout
+	if is_inside_tree():
+		board_view.intro_locked = false
+
+func _show_banner() -> void:
+	var banner: Label = Label.new()
+	banner.name = "BattleBanner"
+	banner.text = Localization.text("BATTLE_START_BANNER")
+	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	banner.add_theme_font_override("font", BANNER_FONT)
+	banner.add_theme_font_size_override("font_size", 40)
+	banner.add_theme_color_override("font_color", Color("#f5d58f"))
+	banner.add_theme_color_override("font_outline_color", Color("#1a1408"))
+	banner.add_theme_constant_override("outline_size", 8)
+	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	add_child(banner)
+	var board_rect: Rect2 = board_view.get_global_rect()
+	banner.size = Vector2(board_rect.size.x, 60.0)
+	banner.global_position = Vector2(board_rect.position.x, board_rect.get_center().y - 30.0)
+	banner.pivot_offset = banner.size * 0.5
+	banner.modulate.a = 0.0
+	banner.scale = Vector2(1.5, 1.5)
+	var tween: Tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(banner, "scale", Vector2.ONE, 0.22)
+	tween.parallel().tween_property(banner, "modulate:a", 1.0, 0.15)
+	tween.tween_interval(0.45)
+	tween.tween_property(banner, "modulate:a", 0.0, 0.25)
+	tween.tween_callback(banner.queue_free)
 
 func _exit_tree() -> void:
 	if GameState.battle_events_emitted.is_connected(_on_battle_events_emitted):

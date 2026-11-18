@@ -300,6 +300,7 @@ const LOCALES := {
 			"PREBATTLE_LINE_COUNT": "On the board %d / %d",
 			"PREBATTLE_FIRST_TIP": "Tap one of your pieces, then a square in your bottom two rows to move it. Tap an empty reserve slot to bench it, or a reserve piece to swap.",
 			"PREBATTLE_FIRST_TIP_OK": "Tap anywhere to start",
+			"BATTLE_START_BANNER": "BATTLE!",
 			"PREBATTLE_CLOSE_INFO": "Back to your line-up",
 			"PREBATTLE_AUTO_FORMATION": "Reset Formation",
 			"PREBATTLE_ARRANGE_HINT": "Tap a square in your two ranks to move it, or a reserve slot to bench it.",
