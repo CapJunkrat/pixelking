@@ -54,18 +54,23 @@ func _run() -> void:
 	_expect(run_manager.current_run.current_node_id == selected_id, "tapping a map node transactionally locks the route")
 	var overlay: ColorRect = path_map.get_node("NodeOverlay") as ColorRect
 	_expect(view.is_travelling() and not overlay.visible, "the king walks to the chosen node before its details open")
-	var waited: int = 0
-	while not overlay.visible and waited < 240:
-		waited += 1
-		await process_frame
-	_expect(overlay.visible, "selected node opens a full-information confirmation panel")
-	_expect(run_manager.available_map_node_ids() == [selected_id], "unresolved selected node is the only resumable map action")
 	var selected_node: MapNodeState = run_manager.current_run.map_state.get_node(selected_id)
 	var selected_definition: MapNodeDef = MapNodeDefDatabase.get_def(selected_node.node_type_id)
-	if not selected_definition.is_battle:
-		var action_button: Button = path_map.get_node("NodeOverlay/Center/Panel/Content/ActionButton") as Button
-		action_button.pressed.emit()
+	var is_event: bool = selected_node.node_type_id == &"event"
+	var waited: int = 0
+	while not overlay.visible and waited < 240 and (not is_event or run_manager.current_run.pending_choice.is_empty()):
+		waited += 1
 		await process_frame
+	if is_event:
+		_expect(not overlay.visible and str(run_manager.current_run.pending_choice.get("type", "")) == "event", "an event opens straight away, with no details panel")
+	else:
+		_expect(overlay.visible, "selected node opens a full-information confirmation panel")
+		_expect(run_manager.available_map_node_ids() == [selected_id], "unresolved selected node is the only resumable map action")
+	if not selected_definition.is_battle:
+		if not is_event:
+			var action_button: Button = path_map.get_node("NodeOverlay/Center/Panel/Content/ActionButton") as Button
+			action_button.pressed.emit()
+			await process_frame
 		_expect(not run_manager.current_run.pending_choice.is_empty(), "non-battle node stages a persisted interaction")
 		var options: Array = run_manager.current_run.pending_choice.get("options", []) as Array
 		var submitted: bool = false

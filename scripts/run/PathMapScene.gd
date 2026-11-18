@@ -106,11 +106,12 @@ func _on_node_selected(node_id: StringName) -> void:
 	if is_inside_tree() and run_manager.current_run != null and run_manager.current_run.current_node_id == node_id:
 		_open_node(node_id)
 
-## Battles go straight to the pre-battle preview; other nodes show their details first.
+## Battles go straight to the pre-battle preview and events straight into the event
+## (its own scene says what it is); other nodes show their details first.
 func _open_node(node_id: StringName) -> void:
 	var node: MapNodeState = run_manager.current_run.map_state.get_node(node_id)
 	var definition: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id) if node != null else null
-	if definition != null and definition.is_battle:
+	if definition != null and (definition.is_battle or node.node_type_id == &"event"):
 		presented_node_id = node_id
 		_on_action_pressed()
 		return
