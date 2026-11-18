@@ -8,6 +8,8 @@ extends Control
 signal move_requested(from: Vector2i, to: Vector2i)
 signal item_target_requested(position: Vector2i)
 signal presentations_completed
+## A piece was held down long enough to ask what it does (works on either side's turn).
+signal piece_info_requested(square: Vector2i)
 
 const NO_SQUARE := Vector2i(-1, -1)
 const SELECTED_TINT := Color(0.88, 0.71, 0.36, 0.55)
@@ -23,6 +25,9 @@ const STONE_SHADER: Shader = preload("res://assets/shaders/stone_piece.gdshader"
 const PETRIFY_SECONDS := 0.8
 const CRACK_SECONDS := 0.4
 const GAZE_COLOR := Color(0.9, 1.0, 0.55)
+const LONG_PRESS_SECONDS := 0.45
+## A finger that drifts further than this (pixels) is not holding still.
+const LONG_PRESS_SLOP := 14.0
 
 @onready var piece_skin_manager: Node = get_node("/root/PieceSkinManager")
 
@@ -58,6 +63,10 @@ var _presentation_nodes: Array[Node] = []
 var _stone_keys: Dictionary = {}
 ## Gorgon gaze beams in flight: [gorgon square, target square, seconds elapsed].
 var _gazes: Array = []
+## The piece being held down for its info card: square, where and how long.
+var _hold_square: Vector2i = NO_SQUARE
+var _hold_point: Vector2 = Vector2.ZERO
+var _hold_seconds: float = 0.0
 
 func _ready() -> void:
 	piece_skin_manager.connect("skin_changed", _on_skin_changed)
@@ -192,14 +201,49 @@ func _on_resized() -> void:
 # --- input ------------------------------------------------------------------
 
 func _gui_input(event: InputEvent) -> void:
-	var click: InputEventMouseButton = event as InputEventMouseButton
-	if click == null or not click.pressed or click.button_index != MOUSE_BUTTON_LEFT:
+	var motion: InputEventMouseMotion = event as InputEventMouseMotion
+	if motion != null:
+		if _hold_square != NO_SQUARE and motion.position.distance_to(_hold_point) > LONG_PRESS_SLOP:
+			_hold_square = NO_SQUARE
 		return
+	var click: InputEventMouseButton = event as InputEventMouseButton
+	if click == null or click.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if not click.pressed:
+		_hold_square = NO_SQUARE
+		return
+	_hold_square = piece_square_at(click.position)
+	_hold_point = click.position
+	_hold_seconds = 0.0
 	var square: Vector2i = square_at(click.position)
 	if square == NO_SQUARE:
 		return
 	accept_event()
 	_on_square_pressed(square)
+
+## The piece under a point, ignoring move targets (for long presses).
+func piece_square_at(point: Vector2) -> Vector2i:
+	if board == null:
+		return NO_SQUARE
+	for rank: int in range(board.board_size):
+		for file: int in range(board.board_size):
+			var square: Vector2i = Vector2i(file, rank)
+			var sprite: Sprite2D = _piece_sprites.get(square) as Sprite2D
+			if sprite != null and sprite.visible and BoardPainter.sprite_hit_rect(sprite).has_point(point):
+				return square
+	var ground: Vector2i = projection.screen_to_square(point)
+	return ground if ground != NO_SQUARE and board.get_piece(ground) != null else NO_SQUARE
+
+## Counts a held piece towards a long press. Split out so tests can drive time.
+func advance_hold(delta: float) -> void:
+	if _hold_square == NO_SQUARE or item_targeting:
+		return
+	_hold_seconds += delta
+	if _hold_seconds >= LONG_PRESS_SECONDS:
+		var square: Vector2i = _hold_square
+		_hold_square = NO_SQUARE
+		if board != null and board.get_piece(square) != null:
+			piece_info_requested.emit(square)
 
 func _on_square_pressed(board_position: Vector2i) -> void:
 	if board == null or not input_enabled or not board.in_bounds(board_position):
@@ -399,6 +443,7 @@ func _holding_gorgon(square: Vector2i, piece: ChessPiece) -> Vector2i:
 	return NO_SQUARE
 
 func _process(delta: float) -> void:
+	advance_hold(delta)
 	if _gazes.is_empty():
 		return
 	for gaze: Array in _gazes:

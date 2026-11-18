@@ -43,6 +43,7 @@ const TESTS = [
 	{"path": "res://scripts/tests/integration/run/test_run_manager.gd", "layer": "integration", "domain": "run", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/scenes/test_audio_settings.gd", "layer": "scene", "domain": "ui", "kind": "scene_tree", "serial": true},
 	{"path": "res://scripts/tests/scenes/test_battle_scene.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree"},
+	{"path": "res://scripts/tests/scenes/test_piece_info.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/scenes/test_strike_presentation.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/scenes/test_strike_special_pieces.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree", "slow": true},
 	{"path": "res://scripts/tests/scenes/test_strike_new_pieces_1.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree", "slow": true},

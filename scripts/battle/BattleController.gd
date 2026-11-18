@@ -25,6 +25,7 @@ var legal_targets: Array[Vector2i]:
 var challenger_slots: Array[Button] = []
 var pending_item_slot: int = -1
 var _presentation_generation: int = 0
+var piece_info: PieceInfoPanel = null
 
 func _ready() -> void:
 	battle_hud.settings_requested.connect(settings_overlay.open)
@@ -34,6 +35,10 @@ func _ready() -> void:
 	challenger_slots = challenger_tray.slots()
 	board_view.move_requested.connect(_on_board_move_requested)
 	board_view.item_target_requested.connect(_on_item_target_requested)
+	piece_info = PieceInfoPanel.new()
+	piece_info.name = "PieceInfo"
+	add_child(piece_info)
+	board_view.piece_info_requested.connect(_on_piece_info_requested)
 	GameState.battle_events_emitted.connect(_on_battle_events_emitted)
 	board_view.setup(GameState.board, GameState.player_color)
 	_refresh_board()
@@ -61,7 +66,14 @@ func _await_presentation_completion(generation: int) -> void:
 	if generation == _presentation_generation:
 		presentation_completed.emit()
 
+func _on_piece_info_requested(square: Vector2i) -> void:
+	piece_info.show_piece(GameState.board, square, GameState.player_color)
+
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel") and piece_info != null and piece_info.is_open():
+		piece_info.close()
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("ui_cancel") and settings_overlay.is_open():
 		settings_overlay.close()
 		get_viewport().set_input_as_handled()

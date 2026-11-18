@@ -31,6 +31,30 @@ static func pattern(piece_def_id: String, grid_size: int = DEFAULT_GRID_SIZE) ->
 				result[square - center] = "attack"
 	return result
 
+const PATTERN_COLORS := {"move": Color("#3fb6d8"), "attack": Color("#e07a6a"), "both": Color("#b07ae0")}
+const PATTERN_EMPTY := Color("#2a3550")
+const PATTERN_CENTER := Color("#e0b45c")
+
+## A small grid of where a piece moves (blue), captures (red) or both (purple).
+## `facing_up` draws a piece that advances up the screen (the player's side).
+static func make_grid(piece_def_id: String, grid_size: int, cell_px: float, facing_up: bool) -> GridContainer:
+	var grid: GridContainer = GridContainer.new()
+	grid.columns = grid_size
+	grid.add_theme_constant_override("h_separation", 2)
+	grid.add_theme_constant_override("v_separation", 2)
+	var marks: Dictionary = pattern(piece_def_id, grid_size)
+	var half: int = grid_size / 2
+	for row: int in range(grid_size):
+		var y: int = (half - row) if facing_up else (row - half)
+		for x: int in range(-half, half + 1):
+			var cell: ColorRect = ColorRect.new()
+			cell.custom_minimum_size = Vector2(cell_px, cell_px)
+			cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var kind: String = str(marks.get(Vector2i(x, y), ""))
+			cell.color = PATTERN_CENTER if x == 0 and y == 0 else PATTERN_COLORS.get(kind, PATTERN_EMPTY)
+			grid.add_child(cell)
+	return grid
+
 static func move_key(definition: PieceDef) -> String:
 	return "DRAFT_MOVE_%s" % definition.id.to_upper()
 
