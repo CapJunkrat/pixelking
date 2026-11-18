@@ -2,8 +2,10 @@ class_name DeploymentState
 extends RefCounted
 
 const CURRENT_VERSION := 1
-## Each side deploys in its own three back ranks; the rows between are no-man's-land.
+## Each side deploys in a corner of its own three back ranks: the player bottom-left,
+## the enemy top-right, ZONE_COLUMNS wide. The rows between are no-man's-land.
 const PLAYER_ROWS := 3
+const ZONE_COLUMNS := 5
 
 var deployment_version: int = CURRENT_VERSION
 var encounter_id: StringName = &""
@@ -103,14 +105,25 @@ func set_player_position(instance_id: int, position: Vector2i) -> void:
 	player_positions[str(instance_id)] = _position_value(position)
 
 func _is_player_square(position: Vector2i) -> bool:
-	return position.x >= 0 and position.x < board_size and position.y >= 0 and position.y < PLAYER_ROWS
+	return is_player_zone(position, board_size)
 
 func _is_enemy_square(position: Vector2i) -> bool:
+	return is_enemy_zone(position, board_size)
+
+static func zone_columns(size: int) -> int:
+	return mini(ZONE_COLUMNS, size)
+
+## The player's corner: the bottom three ranks, left columns.
+static func is_player_zone(position: Vector2i, size: int) -> bool:
+	return position.x >= 0 and position.x < zone_columns(size) and position.y >= 0 and position.y < PLAYER_ROWS
+
+## The enemy's corner: the top three ranks, right columns.
+static func is_enemy_zone(position: Vector2i, size: int) -> bool:
 	return (
-		position.x >= 0
-		and position.x < board_size
-		and position.y >= board_size - PLAYER_ROWS
-		and position.y < board_size
+		position.x >= size - zone_columns(size)
+		and position.x < size
+		and position.y >= size - PLAYER_ROWS
+		and position.y < size
 	)
 
 static func position_value(position: Vector2i) -> Dictionary:

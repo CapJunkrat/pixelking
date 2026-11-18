@@ -3,14 +3,14 @@ extends RefCounted
 
 ## Places the player's active pieces automatically, so a battle starts without a
 ## deployment step. The rule is fixed and easy to predict:
-## - the King stands in the middle of the back rank;
+## Everything stays inside the player's corner (DeploymentState.is_player_zone):
+## the bottom three ranks, left five columns.
+## - the King stands in the middle of the corner's back rank;
 ## - pieces that only move forward (pawns, Vanguard, level-1 Squire) take the front rank,
 ##   from the middle outwards;
 ## - heavy pieces guard the corners of the back rank;
 ## - everything else fills the back rank from the middle outwards, most valuable first.
-## Whatever does not fit spills onto the other player rank.
-
-const PLAYER_RANKS := 2
+## Whatever does not fit spills onto the other ranks of the corner.
 
 ## Returns {instance_id (int): Vector2i} for every active piece.
 ## `fixed` maps instance ids to squares the player chose; they are kept as they are.
@@ -20,9 +20,10 @@ static func arrange(run_state: RunState, board_size: int, fixed: Dictionary = {}
 	for instance_id: Variant in fixed:
 		result[int(instance_id)] = fixed[instance_id]
 		occupied[fixed[instance_id]] = true
-	var centre: int = floori(float(board_size) / 2.0)
-	var middle_out: Array[int] = _middle_out(board_size, centre)
-	var corners: Array[int] = _corners_in(board_size)
+	var width: int = DeploymentState.zone_columns(board_size)
+	var centre: int = floori(float(width) / 2.0)
+	var middle_out: Array[int] = _middle_out(width, centre)
+	var corners: Array[int] = _corners_in(width)
 	var forward: Array[PieceInstanceState] = []
 	var heavy: Array[PieceInstanceState] = []
 	var others: Array[PieceInstanceState] = []
@@ -84,8 +85,8 @@ static func _take(occupied: Dictionary, plans: Array, board_size: int) -> Vector
 			if not occupied.has(square):
 				occupied[square] = true
 				return square
-	for rank: int in range(PLAYER_RANKS):
-		for x: int in range(board_size):
+	for rank: int in range(DeploymentState.PLAYER_ROWS):
+		for x: int in range(DeploymentState.zone_columns(board_size)):
 			var square: Vector2i = Vector2i(x, rank)
 			if not occupied.has(square):
 				occupied[square] = true

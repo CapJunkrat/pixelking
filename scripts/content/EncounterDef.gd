@@ -23,7 +23,7 @@ func is_valid() -> bool:
 		var position: Vector2i = DeploymentState.position_from_value(placement.get("position", {}))
 		if placement_id.is_empty() or placement_ids.has(placement_id) or piece_def_id.is_empty():
 			return false
-		if position.x < 0 or position.x >= board_size or position.y < board_size - 2 or position.y >= board_size:
+		if not DeploymentState.is_enemy_zone(position, board_size):
 			return false
 		if occupied.has(position):
 			return false

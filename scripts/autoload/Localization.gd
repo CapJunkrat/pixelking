@@ -327,7 +327,7 @@ const LOCALES := {
 			"DEPLOY_INSTRUCTION": "Select an active piece, then choose a highlighted square.",
 			"DEPLOY_SELECTED": "Selected: %s",
 			"DEPLOY_SELECT_FIRST": "Select one of your active pieces first.",
-			"DEPLOY_PLAYER_ROWS_ONLY": "Pieces may only be placed in your bottom two rows.",
+			"DEPLOY_PLAYER_ROWS_ONLY": "Pieces may only be placed in your bottom-left corner.",
 			"DEPLOY_CONFIRM": "Begin Battle",
 			"DEPLOY_CONFIRM_ERROR": "Deployment is incomplete or could not be saved.",
 			"DEPLOY_MAP": "Map",

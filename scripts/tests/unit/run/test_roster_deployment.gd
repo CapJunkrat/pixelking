@@ -55,7 +55,8 @@ func _test_deployment_state() -> void:
 	if previous_occupant > 0:
 		_expect(deployment.player_position(previous_occupant) == source, "moving onto a friendly piece swaps positions")
 	_expect(deployment_service.move_piece(run_state, king_id, Vector2i(0, DeploymentState.PLAYER_ROWS)) == ERR_INVALID_PARAMETER, "deployment rejects squares outside player rows")
-	_expect(DeploymentState.PLAYER_ROWS == 3 and deployment.player_at(Vector2i(7, 2)) == 0 and deployment_service.move_piece(run_state, king_id, Vector2i(7, 2)) == OK, "the third rank is part of the deployment zone")
+	_expect(deployment_service.move_piece(run_state, king_id, Vector2i(5, 0)) == ERR_INVALID_PARAMETER, "deployment rejects squares right of the player's corner")
+	_expect(DeploymentState.PLAYER_ROWS == 3 and deployment.player_at(Vector2i(4, 2)) == 0 and deployment_service.move_piece(run_state, king_id, Vector2i(4, 2)) == OK, "the third rank is part of the deployment zone")
 	deployment_service.move_piece(run_state, king_id, swap_target)
 	_expect(deployment_service.confirm(run_state) == OK and deployment.confirmed, "valid deployment can be confirmed")
 	run_state.phase = RunPhase.BATTLE_READY

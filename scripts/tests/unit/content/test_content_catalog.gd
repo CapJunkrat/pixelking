@@ -55,7 +55,7 @@ func registry_boss_king() -> String:
 	var catalog: ContentCatalogType = load(CATALOG_PATH) as ContentCatalogType
 	var registry: ContentRegistryType = ContentRegistryType.new(catalog)
 	for placement: Dictionary in registry.encounter(&"boss_royal_guard").enemy_placements:
-		if DeploymentState.position_from_value(placement.get("position", {})) == Vector2i(4, 7):
+		if DeploymentState.position_from_value(placement.get("position", {})) == Vector2i(5, 7):
 			return str(placement.get("piece_def_id", ""))
 	return ""
 

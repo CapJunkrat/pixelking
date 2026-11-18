@@ -21,6 +21,8 @@ const PATTERN_SIZE := 7
 const LINEUP_SLOTS := 6
 ## Height of the enemy explanation, which scrolls when it is longer.
 const LINEUP_HEIGHT := 120.0
+## The item strip (34 px slots plus the row gap) that an enemy explanation takes over.
+const ITEM_STRIP_HEIGHT := 40.0
 const TIP_ID := "prebattle_arrange"
 
 @onready var run_manager: AppRunManager = get_node("/root/RunManager") as AppRunManager
@@ -306,6 +308,11 @@ func _render_pattern() -> void:
 	pattern_panel.visible = not focus_id.is_empty()
 	pattern_scroll.visible = pattern_panel.visible
 	lineup_box.visible = not pattern_panel.visible
+	# An enemy explanation takes the item strip's place too (an item card keeps it,
+	# so another item can be picked straight away).
+	var enemy_focus: bool = not focus_id.is_empty() and not focus_id.begins_with("item:")
+	item_strip.visible = not enemy_focus
+	pattern_scroll.custom_minimum_size = Vector2(0, LINEUP_HEIGHT + (ITEM_STRIP_HEIGHT if enemy_focus else 0.0))
 	if focus_id.is_empty():
 		return
 	pattern_scroll.scroll_vertical = 0
@@ -566,7 +573,7 @@ func _arrange_at(square: Vector2i) -> bool:
 	if own == arrange_selected:
 		_put_down()
 		return true
-	if square.y >= DeploymentState.PLAYER_ROWS:
+	if not DeploymentState.is_player_zone(square, run_manager.current_run.deployment_state.board_size):
 		return false
 	if run_manager.move_deployed_piece(arrange_selected, square) != OK:
 		_nudge(board_view)

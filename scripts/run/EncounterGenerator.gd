@@ -4,11 +4,14 @@ extends RefCounted
 ## Builds the enemy army for normal and elite battles from a strength budget that
 ## grows with the map layer, instead of one fixed full army. Early battles field a few
 ## basic pieces; later ones bring special and rare pieces. The enemy King always has
-## pieces in front of it. The same seed always gives the same army.
+## pieces in front of it. The same seed always gives the same army. Everything stands in
+## the enemy's corner (DeploymentState.is_enemy_zone): the top three ranks, right columns.
 
-const KING_FILES: Array[int] = [3, 4]
+const BOARD_SIZE := 8
+const KING_FILES: Array[int] = [5]
 const BACK_RANK := 7
 const FRONT_RANK := 6
+const THIRD_RANK := 5
 ## Strength (sum of piece values, King excluded) at the first and last battle layer.
 const NORMAL_BUDGET := Vector2(7.0, 20.0)
 const ELITE_BUDGET := Vector2(14.0, 26.0)
@@ -77,7 +80,7 @@ static func _place(army: Array[String], king_file: int, guards: int) -> Array[Di
 	var result: Array[Dictionary] = [_placement("king", Vector2i(king_file, BACK_RANK), 0)]
 	var guard_squares: Array[Vector2i] = [Vector2i(king_file, FRONT_RANK), Vector2i(king_file - 1, FRONT_RANK), Vector2i(king_file + 1, FRONT_RANK)]
 	var middle_out: Array[int] = [king_file, king_file - 1, king_file + 1, king_file - 2, king_file + 2, king_file - 3, king_file + 3, king_file - 4, king_file + 4]
-	var corners: Array[int] = [0, 7, 1, 6, 2, 5]
+	var corners: Array[int] = [7, BOARD_SIZE - DeploymentState.zone_columns(BOARD_SIZE)]
 	var guard_index: int = 0
 	for index: int in range(army.size()):
 		var id: String = army[index]
@@ -94,6 +97,8 @@ static func _place(army: Array[String], king_file: int, guards: int) -> Array[Di
 		if square.x < 0:
 			square = _free(taken, middle_out, FRONT_RANK)
 		if square.x < 0:
+			square = _free(taken, middle_out, THIRD_RANK)
+		if square.x < 0:
 			continue
 		taken[square] = true
 		result.append(_placement(id, square, index + 1))
@@ -102,7 +107,7 @@ static func _place(army: Array[String], king_file: int, guards: int) -> Array[Di
 static func _free(taken: Dictionary, files: Array[int], rank: int) -> Vector2i:
 	for x: int in files:
 		var square: Vector2i = Vector2i(x, rank)
-		if x >= 0 and x < 8 and not taken.has(square):
+		if DeploymentState.is_enemy_zone(square, BOARD_SIZE) and not taken.has(square):
 			return square
 	return Vector2i(-1, -1)
 

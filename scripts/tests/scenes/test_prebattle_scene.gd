@@ -44,7 +44,11 @@ func _run() -> void:
 	_expect(board.board_size == 8 and board.piece_count(true) == manager.current_run.active_piece_ids.size(), "the board shows every active piece")
 	_expect(board.piece_count(false) == deployment.enemy_placements.size(), "the board shows the whole enemy formation")
 	var king_id: int = manager.current_run.active_piece_ids[0]
-	_expect(deployment.player_position(king_id) == Vector2i(4, 0), "the King stands in the middle of the back rank")
+	_expect(deployment.player_position(king_id) == Vector2i(2, 0), "the King stands in the middle of the back rank of your corner")
+	for instance_id: int in manager.current_run.active_piece_ids:
+		_expect(DeploymentState.is_player_zone(deployment.player_position(instance_id), 8), "your pieces start in the bottom-left corner")
+	for placement: Dictionary in deployment.enemy_placements:
+		_expect(DeploymentState.is_enemy_zone(DeploymentState.position_from_value(placement.get("position", {})), 8), "enemies start in the top-right corner")
 
 	var details: Node = preview.get_node("SafeArea/Layout/Details")
 	_expect(not details is ScrollContainer and preview.find_children("*", "ScrollContainer", true, false).size() == 1, "the page itself does not scroll")
@@ -110,11 +114,15 @@ func _run() -> void:
 
 	# Arrange by hand: move the King one file left; the choice is kept for the Run.
 	_expect(preview.get_node_or_null("SafeArea/Layout/ArrangeRow/ArrangeButton") == null, "arranging needs no mode button")
-	board.square_pressed.emit(Vector2i(4, 0))
-	_expect(board.deploy_rows == DeploymentState.PLAYER_ROWS and board.selected_square == Vector2i(4, 0), "tapping your piece picks it up and lights your three ranks")
+	board.square_pressed.emit(Vector2i(2, 0))
+	_expect(board.deploy_rows == DeploymentState.PLAYER_ROWS and board.selected_square == Vector2i(2, 0), "tapping your piece picks it up and lights your corner")
+	_expect(board.is_deploy_square(Vector2i(4, 2)) and not board.is_deploy_square(Vector2i(5, 0)), "the lit zone is the bottom-left corner only")
+	board.square_pressed.emit(Vector2i(6, 1))
+	await process_frame
+	_expect(manager.current_run.deployment_state.player_position(king_id) == Vector2i(2, 0), "a square outside the corner does not take the piece")
 	board.square_pressed.emit(Vector2i(5, 7))
 	_expect(preview.arrange_selected == 0 and board.deploy_rows == 0, "tapping elsewhere puts the piece back down")
-	board.square_pressed.emit(Vector2i(4, 0))
+	board.square_pressed.emit(Vector2i(2, 0))
 	board.square_pressed.emit(Vector2i(3, 0))
 	await process_frame
 	_expect(manager.current_run.deployment_state.player_position(king_id) == Vector2i(3, 0), "arranging moves the King where the player taps")

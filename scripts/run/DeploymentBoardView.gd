@@ -60,7 +60,7 @@ func has_piece(square: Vector2i) -> bool:
 	return _pieces.has(square)
 
 func is_deploy_square(square: Vector2i) -> bool:
-	return square.y >= 0 and square.y < deploy_rows and square.x >= 0 and square.x < board_size
+	return deploy_rows > 0 and DeploymentState.is_player_zone(square, board_size)
 
 func square_center(square: Vector2i) -> Vector2:
 	return projection.square_center(square)
@@ -146,7 +146,7 @@ func _draw() -> void:
 	for rank: int in range(deploy_rows):
 		for file: int in range(board_size):
 			var square: Vector2i = Vector2i(file, rank)
-			if rocks.has(square):
+			if rocks.has(square) or not is_deploy_square(square):
 				continue
 			BoardPainter.draw_marker(self, projection, square, ZONE_TINT)
 			if selected_square != NO_SQUARE and not _pieces.has(square):

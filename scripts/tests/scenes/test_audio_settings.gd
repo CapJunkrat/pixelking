@@ -11,7 +11,9 @@ func _run() -> void:
 	var settings_manager: Node = root.get_node("SettingsManager")
 	var audio_manager: Node = root.get_node("AudioManager")
 	var music_player: AudioStreamPlayer = audio_manager.get("music_player") as AudioStreamPlayer
-	_expect(music_player != null and music_player.stream != null and music_player.playing, "placeholder music is loaded and playing")
+	_expect(music_player != null and music_player.stream != null and music_player.playing, "background music is loaded and playing")
+	_expect(AppAudioManager.track_for_scene("res://scenes/battle/BattleScene.tscn") == &"battle" and AppAudioManager.track_for_scene("res://scenes/run/PathMapScene.tscn") == &"explore" and AppAudioManager.track_for_scene("res://scenes/run/RunInteractionScene.tscn") == &"rest", "each screen picks its track")
+	_expect((music_player.stream as AudioStreamWAV).loop_mode != AudioStreamWAV.LOOP_DISABLED, "the music loops")
 	original_music = float(settings_manager.get("music_volume"))
 	original_sfx = float(settings_manager.get("sfx_volume"))
 	audio_manager.call("set_music_volume", 0.40)
