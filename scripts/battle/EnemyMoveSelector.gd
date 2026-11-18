@@ -33,13 +33,16 @@ func _score_move(board: BoardState, from: Vector2i, to: Vector2i, color: int) ->
 	var captured := board.get_piece(to)
 	if captured != null:
 		score += _piece_value(captured) * 10
+	# A plain simulated step: the full checkmate search behind make_move() made every
+	# enemy turn cost seconds, and a capture of the King already scores highest here.
 	var simulation := board.clone()
-	var result := simulation.make_move(from, to)
+	var result := simulation._apply_move(from, to, "queen", true)
 	if not result.get("success", false):
 		return -1000000000
-	if result.get("checkmate", false):
+	if result.get("king_captured", false) and int(result.get("captured_color", -1)) != color:
 		return 100000000
-	if result.get("check", false):
+	var enemy: int = GameRules.opposite(color)
+	if simulation.has_king(enemy) and simulation.is_square_attacked(simulation.king_pos[enemy], color):
 		score += 700
 	var center := Vector2((board.board_size - 1) / 2.0, (board.board_size - 1) / 2.0)
 	score += int(20.0 - Vector2(to).distance_squared_to(center))

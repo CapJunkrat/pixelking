@@ -10,3 +10,4 @@ enemy_placements = Array[Dictionary]([{"placement_id": "elite_gorgon", "piece_de
 turn_limit = 0
 reward_tier = &"elite"
 is_boss = false
+procedural = true

@@ -7,6 +7,9 @@ extends Resource
 @export var turn_limit: int = 0
 @export var reward_tier: StringName = &"normal"
 @export var is_boss: bool = false
+## Generated per battle by EncounterGenerator from a budget that grows with the map
+## layer; enemy_placements then only serve as a fallback example.
+@export var procedural: bool = false
 
 func is_valid() -> bool:
 	if id.is_empty() or board_size != BoardState.DEFAULT_SIZE or enemy_placements.is_empty() or turn_limit < 0 or reward_tier not in [&"normal", &"elite", &"boss"]:

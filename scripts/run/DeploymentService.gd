@@ -18,6 +18,13 @@ func ensure_deployment(run_state: RunState) -> Error:
 	deployment.encounter_id = run_state.current_encounter_id
 	deployment.board_size = encounter.board_size
 	deployment.enemy_placements = encounter.placement_copies()
+	if encounter.procedural and run_state.map_state != null:
+		deployment.enemy_placements = EncounterGenerator.generate(
+			encounter.reward_tier,
+			current.layer_index,
+			run_state.map_state.total_layers,
+			run_state.current_encounter_seed,
+			EncounterGenerator.player_strength(run_state))
 	run_state.deployment_state = deployment
 	var sync_error: Error = synchronize_with_roster(run_state)
 	if sync_error != OK:

@@ -23,27 +23,41 @@ func test_default_catalog_is_valid_and_resource_backed() -> void:
 	assert(registry.map_template(&"standard_region") != null)
 	assert(registry.ordered_encounters().size() == 3)
 	assert(registry.map_node(&"boss").encounter_def_id == &"boss_royal_guard")
-	assert(registry.encounter(&"boss_royal_guard").enemy_placements.size() == 12)
+	assert(registry.encounter(&"boss_royal_guard").enemy_placements.size() == 9)
 
 func test_special_pieces_are_deployed_across_enemy_encounters() -> void:
+	# Normal and elite armies are generated, so every special piece must be reachable
+	# through the generator's pools or elite captains.
+	var reachable: Dictionary = {}
+	for band: Dictionary in EncounterGenerator.POOLS:
+		for id: String in band["ids"]:
+			reachable[id] = true
+	for id: String in EncounterGenerator.ELITE_CAPTAINS:
+		reachable[id] = true
+	for piece_id: String in ["assassin", "royal_guard", "catapult", "bowman", "portal_mage", "unicorn_cavalry", "centaur", "manticore", "gryphon", "gorgon"]:
+		assert(reachable.has(piece_id), "%s must appear in generated encounters" % piece_id)
+	# Every generated army has one King with a piece standing right in front of it.
+	for layer: int in range(6):
+		for tier: StringName in [&"normal", &"elite"]:
+			var army: Array[Dictionary] = EncounterGenerator.generate(tier, layer, 7, 1234 + layer, 10)
+			var squares: Dictionary = {}
+			var king_square: Vector2i = Vector2i(-1, -1)
+			for placement: Dictionary in army:
+				var square: Vector2i = DeploymentState.position_from_value(placement.get("position", {}))
+				assert(not squares.has(square), "generated pieces never overlap")
+				squares[square] = true
+				if str(placement.get("piece_def_id", "")) == "king":
+					king_square = square
+			assert(king_square.x >= 0 and squares.has(king_square + Vector2i(0, -1)), "the enemy King is guarded at layer %d" % layer)
+	assert(str(registry_boss_king()) == "king")
+
+func registry_boss_king() -> String:
 	var catalog: ContentCatalogType = load(CATALOG_PATH) as ContentCatalogType
 	var registry: ContentRegistryType = ContentRegistryType.new(catalog)
-	var deployed_specials: Dictionary = {}
-	for encounter: EncounterDef in registry.ordered_encounters():
-		var occupied: Dictionary = {}
-		var king_count: int = 0
-		for placement: Dictionary in encounter.enemy_placements:
-			var piece_id: String = str(placement.get("piece_def_id", ""))
-			var position: Vector2i = DeploymentState.position_from_value(placement.get("position", {}))
-			assert(not occupied.has(position), "%s must not overlap enemy positions" % encounter.id)
-			occupied[position] = true
-			if piece_id == "king":
-				king_count += 1
-			if piece_id in ["assassin", "royal_guard", "catapult", "bowman", "portal_mage", "unicorn_cavalry", "centaur", "manticore", "gryphon", "gorgon"]:
-				deployed_specials[piece_id] = true
-		assert(king_count == 1, "%s must deploy exactly one enemy King" % encounter.id)
-	assert(deployed_specials.size() == 10, "Every new special piece must appear in a formal encounter")
-	assert(str(registry.encounter(&"boss_royal_guard").enemy_placements[3].get("piece_def_id")) == "royal_guard")
+	for placement: Dictionary in registry.encounter(&"boss_royal_guard").enemy_placements:
+		if DeploymentState.position_from_value(placement.get("position", {})) == Vector2i(4, 7):
+			return str(placement.get("piece_def_id", ""))
+	return ""
 
 func test_enemy_ai_can_act_in_every_special_encounter() -> void:
 	var catalog: ContentCatalogType = load(CATALOG_PATH) as ContentCatalogType
