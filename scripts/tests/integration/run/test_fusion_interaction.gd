@@ -18,8 +18,8 @@ func test_reward_fusion_preview_cancel_and_confirm() -> void:
 	run_state.phase = RunPhase.FUSION_CONFIRMATION
 	assert(str(run_state.pending_choice.get("type", "")) == "fusion_confirmation")
 	var preview_text: String = str(run_state.pending_choice.get("description", ""))
-	assert("Pawn #" in preview_text and "Knight #" in preview_text)
-	assert("Produces: Lancer" in preview_text and "Movement:" in preview_text and "Capacity:" in preview_text)
+	assert("Pawn" in preview_text and "Knight" in preview_text)
+	assert("Creates: Lancer" in preview_text and "MOVE" in preview_text and "Battle line" in preview_text)
 	assert(_piece_count(run_state, &"pawn") == 1 and _piece_count(run_state, &"knight") == 1)
 	assert(run_state.is_valid())
 	var restored: RunState = RunState.new()

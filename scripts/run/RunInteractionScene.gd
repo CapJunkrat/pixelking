@@ -90,9 +90,9 @@ func _render() -> void:
 	for child: Node in choices.get_children():
 		child.queue_free()
 	if run_manager.current_run == null or run_manager.current_run.pending_choice.is_empty():
-		title_label.text = "No pending interaction"
-		status_label.text = "Return to the journey map."
-		leave_button.text = "Continue"
+		title_label.text = _localized("INTERACTION_NONE")
+		status_label.text = _localized("INTERACTION_NONE_DETAIL")
+		leave_button.text = _localized("INTERACTION_CONTINUE")
 		_gold_label.text = ""
 		return
 	var run: RunState = run_manager.current_run
@@ -106,19 +106,19 @@ func _render() -> void:
 	if event_def != null:
 		_vignette.show_event(event_def)
 	var title_key: String = str(pending.get("title_key", ""))
-	title_label.text = _formatted(title_key, pending.get("title_args", [])) if not title_key.is_empty() else str(pending.get("title", type.replace("_", " ").capitalize()))
-	var description: String = str(pending.get("description", "Choose one option."))
+	title_label.text = _formatted(title_key, pending.get("title_args", [])) if not title_key.is_empty() else _c(str(pending.get("title", type.replace("_", " ").capitalize())))
+	var description: String = _c(str(pending.get("description", "Choose one option.")))
 	var description_key: String = str(pending.get("description_key", ""))
 	if not description_key.is_empty():
 		var keyed: String = _formatted(description_key, pending.get("description_args", []))
 		description = keyed if description.is_empty() else "%s\n\n%s" % [keyed, description]
 	status_label.text = description
-	_gold_label.text = "%d Gold" % run.gold
+	_gold_label.text = _localized("INTERACTION_GOLD") % run.gold
 	for option_value: Variant in pending.get("options", []) as Array:
 		if option_value is Dictionary:
 			choices.add_child(_card(option_value as Dictionary))
 	leave_button.visible = bool(pending.get("allow_leave", false)) or type in RunContentService.LEAVABLE_TYPES or type == "run_summary"
-	leave_button.text = "Finish Run" if type == "run_summary" else ("Walk Away" if type in ["event", "rest"] else "Leave")
+	leave_button.text = _localized("INTERACTION_FINISH_RUN") if type == "run_summary" else _localized("INTERACTION_WALK_AWAY" if type in ["event", "rest"] else "INTERACTION_LEAVE")
 
 ## One choice: a picture, what it is, what it does, and its price or risk.
 func _card(option: Dictionary) -> Button:
@@ -153,7 +153,7 @@ func _card(option: Dictionary) -> Button:
 	text.add_theme_constant_override("separation", 1)
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var label_key: String = str(option.get("label_key", ""))
-	var title: String = _localized(label_key) if not label_key.is_empty() else str(option.get("label", option.get("id", "Option")))
+	var title: String = _localized(label_key) if not label_key.is_empty() else _c(str(option.get("label", option.get("id", "Option"))))
 	title = title.split(" — ")[0]
 	# The card's own text stays for accessibility and tests; the visible copy is the row below.
 	card.text = title
@@ -181,21 +181,23 @@ func _card(option: Dictionary) -> Button:
 	for paid: Variant in payload.get("pay", []) as Array:
 		match str((paid as Dictionary).get("kind", "")):
 			"lose_item":
-				tags.add_child(_chip("-ITEM", DANGER))
+				tags.add_child(_chip(_localized("INTERACTION_TAG_ITEM"), DANGER))
 			"lose_retry":
-				tags.add_child(_chip("-RETRY", DANGER))
+				tags.add_child(_chip(_localized("INTERACTION_TAG_RETRY"), DANGER))
 	if tags.get_child_count() > 0:
 		row.add_child(tags)
 	card.add_child(row)
 	# A Button does not grow with its children, so size it from the text it carries.
-	var title_lines: int = ceili(float(title.length()) / 30.0)
-	var detail_lines: int = ceili(float(detail.length()) / 40.0)
+	# Chinese characters are about twice as wide as Latin letters.
+	var width_factor: float = 1.8 if localization != null and bool(localization.call("is_chinese")) else 1.0
+	var title_lines: int = ceili(float(title.length()) * width_factor / 30.0)
+	var detail_lines: int = ceili(float(detail.length()) * width_factor / 40.0)
 	card.custom_minimum_size.y = maxf(66.0, 16.0 + title_lines * 19.0 + detail_lines * 15.0)
 	return card
 
 func _detail(kind: String, payload: Dictionary) -> String:
 	if payload.has("detail"):
-		return str(payload["detail"])
+		return _c(str(payload["detail"]))
 	match kind:
 		"piece":
 			var definition: PieceDef = PieceDefDatabase.get_def(str(payload.get("piece_def_id", "")))
@@ -204,9 +206,9 @@ func _detail(kind: String, payload: Dictionary) -> String:
 			var item: ChallengerItemDef = ChallengerItemDatabase.get_def(StringName(str(payload.get("relic_id", payload.get("item_id", "")))))
 			return _localized(String(item.description_key)) if item != null else ""
 		"gold":
-			return "Add %d Gold to your purse." % int(payload.get("amount", 0))
+			return _localized("INTERACTION_GOLD_DETAIL") % int(payload.get("amount", 0))
 		"restore_retry":
-			return "Get your one retry back."
+			return _localized("INTERACTION_RETRY_DETAIL")
 		"fusion":
 			var recipe: FusionRecipeDef = FusionRecipeDatabase.get_def(StringName(str(payload.get("recipe_id", ""))))
 			return _localized(String(recipe.description_key)) if recipe != null else ""
@@ -292,7 +294,7 @@ func _show_outcome(text: String) -> void:
 	column.name = "OutcomeColumn"
 	column.add_theme_constant_override("separation", 10)
 	if bool(info.get("risky", false)):
-		var banner: Label = _label("FORTUNE SMILES" if success else "LUCK RUNS OUT", 13, accent)
+		var banner: Label = _label(_localized("INTERACTION_LUCKY" if success else "INTERACTION_UNLUCKY"), 13, accent)
 		banner.name = "OutcomeBanner"
 		banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		column.add_child(banner)
@@ -303,7 +305,7 @@ func _show_outcome(text: String) -> void:
 		icon.custom_minimum_size = Vector2(64, 64)
 		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		column.add_child(icon)
-	var label: Label = _label(text, 15, INK)
+	var label: Label = _label(_c(text), 15, INK)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(label)
@@ -313,35 +315,35 @@ func _show_outcome(text: String) -> void:
 	changes.add_theme_constant_override("separation", 6)
 	var gold_delta: int = int(info.get("gold_delta", 0))
 	if gold_delta != 0:
-		changes.add_child(_chip("%+d Gold" % gold_delta, GOLD if gold_delta > 0 else DANGER))
+		changes.add_child(_chip(_localized("INTERACTION_GOLD_DELTA") % gold_delta, GOLD if gold_delta > 0 else DANGER))
 	for lost: Variant in info.get("lost", []) as Array:
-		changes.add_child(_chip("Lost: %s" % str(lost), DANGER))
+		changes.add_child(_chip(_localized("INTERACTION_LOST") % _c(str(lost)), DANGER))
 	if changes.get_child_count() > 0:
 		column.add_child(changes)
 	var next: Button = Button.new()
 	next.name = "ContinueButton"
-	next.text = "Continue"
+	next.text = _localized("INTERACTION_CONTINUE")
 	_style_button(next, true)
 	next.pressed.connect(_route_after_commit)
 	column.add_child(next)
 	_outcome.add_child(column)
 	_outcome.visible = true
 	if run_manager.current_run != null:
-		_gold_label.text = "%d Gold" % run_manager.current_run.gold
+		_gold_label.text = _localized("INTERACTION_GOLD") % run_manager.current_run.gold
 	next.grab_focus()
 
 func _on_leave() -> void:
 	if run_manager.current_run != null and str(run_manager.current_run.pending_choice.get("type", "")) == "run_summary":
 		var finish_error: Error = run_manager.finish_run_summary()
 		if finish_error != OK:
-			status_label.text = "Unable to finish the Run: %s" % error_string(finish_error)
+			status_label.text = _localized("INTERACTION_FINISH_ERROR") % error_string(finish_error)
 			return
 		get_tree().change_scene_to_file(AppSceneRoutes.MAIN_MENU)
 		return
 	if run_manager.current_run != null and not run_manager.current_run.pending_choice.is_empty():
 		var error: Error = run_manager.leave_run_interaction()
 		if error != OK:
-			status_label.text = "Cannot leave yet."
+			status_label.text = _localized("INTERACTION_CANNOT_LEAVE")
 			return
 	_route_after_commit()
 
@@ -393,6 +395,10 @@ func _style_button(button: Button, primary: bool) -> void:
 	var font: Color = Color("#1a1408") if primary else INK
 	for key: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		button.add_theme_color_override(key, font)
+
+## Content stored as English text, in the current language.
+func _c(text: String) -> String:
+	return str(localization.call("content", text)) if localization != null else text
 
 func _localized(key: String) -> String:
 	return str(localization.call("text", key)) if localization != null else key

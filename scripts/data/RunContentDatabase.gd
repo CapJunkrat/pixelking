@@ -29,7 +29,16 @@ static func rest_site() -> RestSiteDefType:
 	return DefaultContentType.registry().default_rest_site()
 
 static func relic_label(id: StringName) -> String:
-	return String(id).replace("_", " ").capitalize()
+	return item_label(id)
+
+## A fusion recipe's name in the current language.
+static func recipe_label(recipe: FusionRecipeDef) -> String:
+	if recipe == null:
+		return ""
+	var localization: Node = Engine.get_main_loop().root.get_node_or_null("Localization") if Engine.get_main_loop() is SceneTree else null
+	if localization != null and not recipe.display_name_key.is_empty():
+		return str(localization.call("text", String(recipe.display_name_key)))
+	return recipe.display_name
 
 static func item_label(id: StringName) -> String:
 	var definition: ChallengerItemDef = ChallengerItemDatabase.get_def(id)

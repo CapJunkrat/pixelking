@@ -21,7 +21,7 @@ func stage(run_state: RunState, original_pending: Dictionary, source_choice_id: 
 	]
 	options[0]["label_key"] = "FUSION_CONFIRM"
 	options[1]["label_key"] = "FUSION_CANCEL"
-	var preview: Dictionary = RunChoiceBuilder.pending("fusion_confirmation", recipe.display_name, fusion_service.preview_description(run_state, plan), options, false)
+	var preview: Dictionary = RunChoiceBuilder.pending("fusion_confirmation", RunContentDatabase.recipe_label(recipe), fusion_service.preview_description(run_state, plan), options, false)
 	preview["title_key"] = String(recipe.display_name_key)
 	preview["description_key"] = String(recipe.description_key)
 	preview["plan"] = plan.to_dictionary()

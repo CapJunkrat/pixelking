@@ -164,9 +164,10 @@ func confirm(
 		return ERR_INVALID_DATA
 	return OK
 
+## What the fusion uses and creates, in the current language.
 func preview_description(run_state: RunState, plan: FusionPlan) -> String:
 	if run_state == null or plan == null:
-		return "Fusion preview unavailable."
+		return _t("FUSION_PREVIEW_UNAVAILABLE")
 	var ingredient_labels: Array[String] = []
 	var active_removed: int = 0
 	var reserve_removed: int = 0
@@ -174,40 +175,37 @@ func preview_description(run_state: RunState, plan: FusionPlan) -> String:
 		var piece: PieceInstanceState = run_state.get_piece_state(instance_id)
 		if piece == null:
 			continue
-		var piece_label: String = String(piece.piece_def_id).replace("_", " ").capitalize()
-		var location: String = "Active" if instance_id in run_state.active_piece_ids else "Reserve"
-		ingredient_labels.append("%s #%d (%s)" % [piece_label, instance_id, location])
+		var location: String = _t("ROSTER_ON_LINE") if instance_id in run_state.active_piece_ids else _t("ROSTER_IN_RESERVE")
+		ingredient_labels.append("%s (%s)" % [_piece_name(String(piece.piece_def_id)), location])
 		if instance_id != plan.preserved_king_instance_id:
 			active_removed += 1 if instance_id in run_state.active_piece_ids else 0
 			reserve_removed += 1 if instance_id in run_state.reserve_piece_ids else 0
 	var result_definition: PieceDef = PieceDefDatabase.get_def(String(plan.result_piece_def_id))
-	var result_label: String = String(plan.result_piece_def_id).replace("_", " ").capitalize()
-	var rarity_labels: Array[String] = ["Common", "Rare", "Epic", "Legendary", "Mythic"]
-	var rarity_label: String = rarity_labels[result_definition.rarity] if result_definition != null and result_definition.rarity >= 0 and result_definition.rarity < rarity_labels.size() else "Unknown"
-	var movement_labels: Array[String] = []
+	var rarity_keys: Array[String] = ["RARITY_COMMON", "RARITY_RARE", "RARITY_EPIC", "RARITY_LEGENDARY", "RARITY_MYTHIC"]
+	var rarity_label: String = _t(rarity_keys[result_definition.rarity]) if result_definition != null and result_definition.rarity >= 0 and result_definition.rarity < rarity_keys.size() else "?"
+	var lines: Array[String] = [
+		_t("FUSION_PREVIEW_USES") % ", ".join(ingredient_labels),
+		_t("FUSION_PREVIEW_CREATES") % [_piece_name(String(plan.result_piece_def_id)), rarity_label, result_definition.base_value if result_definition != null else 0],
+	]
 	if result_definition != null:
-		for rule: MovementRule in result_definition.resolved_movement_rules():
-			var rule_label: String = String(rule.rule_id()).replace("_", " ").capitalize()
-			if rule_label not in movement_labels:
-				movement_labels.append(rule_label)
-	var movement_text: String = ", ".join(movement_labels) if not movement_labels.is_empty() else "None"
-	var destination_label: String = "Active King" if plan.result_is_king else "Reserve"
+		lines.append(_t(PieceRulePreview.move_key(result_definition)))
+		lines.append(_t(PieceRulePreview.attack_key(result_definition)))
 	var active_after: int = run_state.active_piece_ids.size() - active_removed
 	var reserve_after: int = run_state.reserve_piece_ids.size() - reserve_removed + (0 if plan.result_is_king else 1)
-	var price_line: String = "\nPrice: %d Gold" % plan.price if plan.price > 0 else ""
-	return "Consumes: %s\nProduces: %s · %s · Power %d\nMovement: %s\nPassive: None\nDestination: %s\nCapacity: Active %d→%d · Reserve %d→%d%s" % [
-		", ".join(ingredient_labels),
-		result_label,
-		rarity_label,
-		result_definition.base_value if result_definition != null else 0,
-		movement_text,
-		destination_label,
-		run_state.active_piece_ids.size(),
-		active_after,
-		run_state.reserve_piece_ids.size(),
-		reserve_after,
-		price_line,
-	]
+	lines.append(_t("FUSION_PREVIEW_DESTINATION") % _t("FUSION_PREVIEW_AS_KING" if plan.result_is_king else "ROSTER_RESERVE"))
+	lines.append(_t("FUSION_PREVIEW_CAPACITY") % [run_state.active_piece_ids.size(), active_after, run_state.reserve_piece_ids.size(), reserve_after])
+	if plan.price > 0:
+		lines.append(_t("FUSION_PREVIEW_PRICE") % plan.price)
+	return "\n".join(lines)
+
+func _piece_name(piece_def_id: String) -> String:
+	var definition: PieceDef = PieceDefDatabase.get_def(piece_def_id)
+	return _t(String(definition.display_name_key)) if definition != null else piece_def_id
+
+func _t(key: String) -> String:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	var localization: Node = tree.root.get_node_or_null("Localization") if tree != null else null
+	return str(localization.call("text", key)) if localization != null else key
 
 func _select_ingredient_instances(run_state: RunState, recipe: FusionRecipeDef) -> Array[int]:
 	var result: Array[int] = []

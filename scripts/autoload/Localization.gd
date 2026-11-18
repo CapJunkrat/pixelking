@@ -245,6 +245,32 @@ const LOCALES := {
 			"MAP_TITLE": "The Crown Road",
 			"MAP_PROGRESS": "Layer %d / %d",
 			"MAP_ACT": "Act %d",
+			"BATTLE_RESULT_REWARD": "Choose Reward",
+			"BATTLE_RESULT_SUMMARY": "Run Summary",
+			"FUSION_PREVIEW_UNAVAILABLE": "Fusion preview unavailable.",
+			"FUSION_PREVIEW_USES": "Uses: %s",
+			"FUSION_PREVIEW_CREATES": "Creates: %s · %s · value %d",
+			"FUSION_PREVIEW_DESTINATION": "Goes to: %s",
+			"FUSION_PREVIEW_AS_KING": "your King",
+			"FUSION_PREVIEW_CAPACITY": "Battle line %d→%d · Reserve %d→%d",
+			"FUSION_PREVIEW_PRICE": "Price: %d Gold",
+			"INTERACTION_NONE": "No pending interaction",
+			"INTERACTION_NONE_DETAIL": "Return to the journey map.",
+			"INTERACTION_CONTINUE": "Continue",
+			"INTERACTION_GOLD": "%d Gold",
+			"INTERACTION_FINISH_RUN": "Finish Run",
+			"INTERACTION_WALK_AWAY": "Walk Away",
+			"INTERACTION_LEAVE": "Leave",
+			"INTERACTION_TAG_ITEM": "-ITEM",
+			"INTERACTION_TAG_RETRY": "-RETRY",
+			"INTERACTION_GOLD_DETAIL": "Add %d Gold to your purse.",
+			"INTERACTION_RETRY_DETAIL": "Get your one retry back.",
+			"INTERACTION_LUCKY": "FORTUNE SMILES",
+			"INTERACTION_UNLUCKY": "LUCK RUNS OUT",
+			"INTERACTION_GOLD_DELTA": "%+d Gold",
+			"INTERACTION_LOST": "Lost: %s",
+			"INTERACTION_FINISH_ERROR": "Unable to finish the Run: %s",
+			"INTERACTION_CANNOT_LEAVE": "Cannot leave yet.",
 			"INTERACTION_UNAVAILABLE": "That choice is unavailable.",
 			"LOG_HINT": "Tap a piece to see what it does. Hold it for full details.",
 			"LOG_MOVED": "%s → %s",
@@ -282,8 +308,8 @@ const LOCALES := {
 			"MAP_LEGEND": "Battle · Elite · Shop · Event · Rest · Boss",
 			"MAP_ENEMY_LABEL": "Enemy: %s",
 			"MAP_REWARD_LABEL": "Reward: %s",
-			"MAP_ENTER_BATTLE": "Enter Prototype Battle",
-			"MAP_RESOLVE_PLACEHOLDER": "Resolve Placeholder Node",
+			"MAP_ENTER_BATTLE": "Enter Battle",
+			"MAP_RESOLVE_PLACEHOLDER": "Continue",
 			"MAP_ACTION_NORMAL_BATTLE": "Enter Battle",
 			"MAP_ACTION_ELITE_BATTLE": "Challenge the Elite",
 			"MAP_ACTION_BOSS": "Face the Boss",
@@ -303,18 +329,18 @@ const LOCALES := {
 			"MAP_DESC_SHOP": "Spend gold on pieces, recipes, items, and services.",
 			"MAP_DESC_EVENT": "A visible risk-and-reward choice awaits here.",
 			"MAP_DESC_REST": "Choose one recovery or preparation service.",
-			"MAP_DESC_BOSS": "The final guardian of this region and the end of the standard Run.",
+			"MAP_DESC_BOSS": "The guardian at the end of this act.",
 			"MAP_ENEMY_NORMAL": "Balanced foe",
 			"MAP_ENEMY_ELITE": "Strong foe",
 			"MAP_ENEMY_NONE": "No battle",
 			"MAP_ENEMY_UNKNOWN": "Unknown outcome",
-			"MAP_ENEMY_BOSS": "Royal guardian",
+			"MAP_ENEMY_BOSS": "Boss",
 			"MAP_REWARD_NORMAL": "Gold + choice",
 			"MAP_REWARD_ELITE": "Better reward",
 			"MAP_REWARD_SHOP": "Buy / services",
 			"MAP_REWARD_EVENT": "Risk / reward",
 			"MAP_REWARD_REST": "Preparation",
-			"MAP_REWARD_BOSS": "Run completion",
+			"MAP_REWARD_BOSS": "Next act",
 			"ROSTER_TITLE": "Your Army",
 			"ROSTER_SUBTITLE": "Tap a piece or an item to see what it does.",
 			"ROSTER_ACTIVE": "Battle Line",
@@ -335,7 +361,7 @@ const LOCALES := {
 			"PREBATTLE_FORMATION_NOTE": "Pieces are placed for you (King in the middle, forward-only pieces in front, heavy pieces on the flanks) unless you arrange them yourself.",
 			"PREBATTLE_BACK": "Back to Map",
 			"PREBATTLE_LINE_COUNT": "On the board %d / %d",
-			"PREBATTLE_FIRST_TIP": "Tap one of your pieces, then a square in your bottom two rows to move it. Tap an empty reserve slot to bench it, or a reserve piece to swap.",
+			"PREBATTLE_FIRST_TIP": "Tap one of your pieces, then a square in your bottom-left corner to move it. Tap an empty reserve slot to bench it, or a reserve piece to swap.",
 			"PREBATTLE_FIRST_TIP_OK": "Tap anywhere to start",
 			"BATTLE_START_BANNER": "BATTLE!",
 			"PREBATTLE_TAP_TO_CLOSE": "Tap to close",
@@ -446,7 +472,7 @@ const LOCALES := {
 			"PIECE_INFO_REVIVES": "Returns to its starting square %d more time(s) after falling.",
 			"PIECE_INFO_GROWTH": "Growth: %d / %d captures to evolve.",
 			"PIECE_INFO_LEARNED": "Learned: %s",
-			"RESULT_REASON_EXECUTION": "The last defender fell, and the King was struck down.",
+			"RESULT_REASON_EXECUTION": "The last defender fell, and the lone King fell with it.",
 			"RESULT_REASON_CHECKMATE": "Checkmate. There was no way out.",
 			"RESULT_REASON_KING_CAPTURED": "A King was taken.",
 			"RESULT_REASON_LONE_KING": "One King was left to stand alone.",
@@ -471,10 +497,10 @@ const LOCALES := {
 		},
 	},
 	"zh_CN": {
-		"label": "简体中文 - Coming Soon",
-		"enabled": false,
+		"label": "简体中文",
+		"enabled": true,
 		"title_path": "",
-		"strings": {},
+		"strings": LocalizationZh.STRINGS,
 	},
 }
 
@@ -500,9 +526,100 @@ func set_locale(locale: String, should_persist: bool = true) -> bool:
 	locale_changed.emit(locale)
 	return true
 
+## The text for `key` in the current language, falling back to English, then the key.
 func text(key: String) -> String:
 	var strings: Dictionary = LOCALES[current_locale].get("strings", {})
-	return strings.get(key, key)
+	if strings.has(key):
+		return strings[key]
+	return LOCALES[DEFAULT_LOCALE]["strings"].get(key, key)
+
+## Content written directly in English (event texts, shop and rest titles, generated
+## option labels...) in the current language. Matches, in order: the exact text; any
+## UI string (so a piece or item name finds its translation); a template from
+## LocalizationZh.CONTENT with placeholders (%s, %d, {reward}, {target}, {lost}), whose
+## filled-in parts are translated the same way. Several lines are done one by one.
+func content(english: String) -> String:
+	if current_locale != "zh_CN" or english.strip_edges().is_empty():
+		return english
+	if "\n" in english:
+		var lines: PackedStringArray = english.split("\n")
+		for index: int in range(lines.size()):
+			lines[index] = content(lines[index])
+		return "\n".join(lines)
+	_prepare_content()
+	if LocalizationZh.CONTENT.has(english):
+		return str(LocalizationZh.CONTENT[english])
+	if _name_map.has(english):
+		return str(_name_map[english])
+	var gold: RegExMatch = _gold_pattern.search(english)
+	if gold != null:
+		return "%s 金币" % gold.get_string(1)
+	for entry: Array in _content_patterns:
+		var found: RegExMatch = (entry[0] as RegEx).search(english)
+		if found == null:
+			continue
+		var result: String = str(entry[2])
+		var tokens: Array = entry[1]
+		for index: int in range(tokens.size()):
+			var value: String = found.get_string(index + 1)
+			var token: String = str(tokens[index])
+			if token != "%d":
+				value = content(value)
+			result = result.replace("<%d>" % index, value)
+		return result
+	return english
+
+var _content_patterns: Array = []
+var _name_map: Dictionary = {}
+var _gold_pattern: RegEx = null
+const _PLACEHOLDER := "%s|%d|%\\+d|\\{reward\\}|\\{target\\}|\\{lost\\}"
+
+## Builds the name table (English UI string -> Chinese) and the template patterns once.
+func _prepare_content() -> void:
+	if _gold_pattern != null:
+		return
+	_gold_pattern = RegEx.create_from_string("^(-?\\d+) Gold$")
+	var english: Dictionary = LOCALES[DEFAULT_LOCALE]["strings"]
+	for key: String in english:
+		var source: String = str(english[key])
+		if LocalizationZh.STRINGS.has(key) and not "%" in source:
+			_name_map[source] = LocalizationZh.STRINGS[key]
+	var placeholder: RegEx = RegEx.create_from_string(_PLACEHOLDER)
+	for template: String in LocalizationZh.CONTENT:
+		var found: Array[RegExMatch] = placeholder.search_all(template)
+		if found.is_empty():
+			continue
+		var pattern: String = "^"
+		var tokens: Array = []
+		var cursor: int = 0
+		for match_value: RegExMatch in found:
+			pattern += _escape(template.substr(cursor, match_value.get_start() - cursor))
+			var token: String = match_value.get_string()
+			pattern += "(-?\\d+)" if token == "%d" else ("([+-]\\d+)" if token == "%+d" else "(.+?)")
+			tokens.append(token)
+			cursor = match_value.get_end()
+		pattern += _escape(template.substr(cursor)) + "$"
+		# The Chinese template names its slots <0>, <1>... in the order of the English one.
+		var chinese: String = str(LocalizationZh.CONTENT[template])
+		for index: int in range(tokens.size()):
+			# Each English slot takes the first still-unfilled slot of its kind.
+			chinese = _replace_first(chinese, str(tokens[index]), "<%d>" % index)
+		_content_patterns.append([RegEx.create_from_string(pattern), tokens, chinese])
+
+func _escape(text: String) -> String:
+	var result: String = ""
+	for character: String in text:
+		result += ("\\" + character) if character in ".^$*+?()[]{}|\\/" else character
+	return result
+
+func _replace_first(text: String, token: String, replacement: String) -> String:
+	var position: int = text.find(token)
+	if position < 0:
+		return text
+	return text.substr(0, position) + replacement + text.substr(position + token.length())
+
+func is_chinese() -> bool:
+	return current_locale == "zh_CN"
 
 func title_texture() -> Texture2D:
 	var path: String = LOCALES[current_locale].get("title_path", "")

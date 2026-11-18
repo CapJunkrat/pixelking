@@ -22,7 +22,7 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 	var eligible_recipes: Array[FusionRecipeDef] = fusion_service.eligible_recipes(run_state)
 	if not eligible_recipes.is_empty():
 		var recipe: FusionRecipeDef = eligible_recipes[rng.pick_index(&"shop_rng", eligible_recipes.size())]
-		options.append(RunChoiceBuilder.option("buy_recipe_%s" % recipe.id, "%s — %d Gold" % [recipe.display_name, pool.fusion_price], "fusion", {"recipe_id": String(recipe.id), "price": pool.fusion_price}, run_state.gold >= pool.fusion_price))
+		options.append(RunChoiceBuilder.option("buy_recipe_%s" % recipe.id, "%s — %d Gold" % [RunContentDatabase.recipe_label(recipe), pool.fusion_price], "fusion", {"recipe_id": String(recipe.id), "price": pool.fusion_price}, run_state.gold >= pool.fusion_price))
 	if run_state.challenger_slots.size() < 6:
 		var consumables: Array[StringName] = RunContentDatabase.consumable_ids()
 		var item_id: StringName = consumables[rng.pick_index(&"shop_rng", consumables.size())] if not consumables.is_empty() else pool.consumable_id

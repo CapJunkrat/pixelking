@@ -20,9 +20,11 @@ func integrate(manager: AppRunManager, player_won: bool) -> BattleRunResult:
 	result.pending_type = StringName(str(manager.current_run.pending_choice.get("type", "")))
 	match result.pending_type:
 		&"battle_reward":
-			result.exit_text = "Choose Reward"
+			result.exit_text = ""
+			result.exit_text_key = &"BATTLE_RESULT_REWARD"
 		&"run_summary":
-			result.exit_text = "Run Summary"
+			result.exit_text = ""
+			result.exit_text_key = &"BATTLE_RESULT_SUMMARY"
 			if not player_won:
 				result.defeat_detail_key = &"BATTLE_DEFEAT_RUN_OVER"
 		_:

@@ -33,8 +33,10 @@ func load_settings() -> void:
 		return
 	music_volume = clampf(float(config.get_value("audio", "music_volume", DEFAULT_MUSIC_VOLUME)), 0.0, 1.0)
 	sfx_volume = clampf(float(config.get_value("audio", "sfx_volume", DEFAULT_SFX_VOLUME)), 0.0, 1.0)
-	var saved_locale: String = str(config.get_value("general", "locale", DEFAULT_LOCALE))
-	locale = saved_locale if not saved_locale.is_empty() else DEFAULT_LOCALE
+	# Until the player picks a language, follow the device: Chinese devices start in Chinese.
+	var device_locale: String = "zh_CN" if OS.get_locale_language() == "zh" else DEFAULT_LOCALE
+	var saved_locale: String = str(config.get_value("general", "locale", device_locale))
+	locale = saved_locale if not saved_locale.is_empty() else device_locale
 	short_battle_animations = bool(config.get_value("battle", "short_animations", false))
 	seen_tips.clear()
 	for tip: Variant in config.get_value("tips", "seen", []) as Array:
