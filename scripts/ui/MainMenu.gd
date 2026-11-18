@@ -128,6 +128,7 @@ func _build_codex_controls() -> void:
 	codex_grid.add_theme_constant_override("h_separation", 8)
 	codex_grid.add_theme_constant_override("v_separation", 8)
 	scroll.add_child(codex_grid)
+	DragScroll.enable(scroll)
 
 	codex_back_button = Button.new()
 	codex_back_button.custom_minimum_size = Vector2(0, 46)

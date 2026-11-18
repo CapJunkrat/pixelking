@@ -64,14 +64,24 @@ func _run() -> void:
 	var pattern: PanelContainer = details.find_child("PiecePattern", true, false) as PanelContainer
 	var lineup: Control = details.find_child("Lineup", true, false) as Control
 	_expect(not pattern.visible and lineup.visible, "no piece is explained until one is chosen")
+	var board_rect: Rect2 = board.get_global_rect()
 	(chips.get_child(0) as Button).pressed.emit()
 	await process_frame
-	_expect(pattern.visible and not lineup.visible, "tapping an enemy piece shows how it moves in place of the line-up")
-	_expect(not board.hints.is_empty(), "the chosen enemy's reach is marked on the board")
-	(pattern.find_child("ClosePattern", true, false) as Button).pressed.emit()
 	await process_frame
+	_expect(pattern.visible and not lineup.visible, "tapping an enemy piece shows how it moves in place of the line-up")
+	_expect(board.get_global_rect() == board_rect, "opening an explanation does not move the board")
+	_expect(pattern.find_child("ClosePattern", true, false) == null and pattern.find_child("CloseHint", true, false) != null, "no close button, only a quiet hint")
+	_expect(not board.hints.is_empty(), "the chosen enemy's reach is marked on the board")
+	await _tap(preview, Vector2(40, 600))
 	_expect(not pattern.visible and lineup.visible, "closing the explanation brings the line-up back")
 	_expect(board.hints.is_empty(), "closing it clears the marks")
+	await process_frame
+	_expect(board.get_global_rect() == board_rect, "closing it does not move the board either")
+	(chips.get_child(0) as Button).pressed.emit()
+	await process_frame
+	board.square_pressed.emit(Vector2i(0, 5))
+	await process_frame
+	_expect(not pattern.visible, "a tap on an empty square closes the explanation too")
 	manager.current_run.challenger_slots.append(&"holy_water")
 	preview._render_items()
 	var strip: HBoxContainer = details.find_child("ItemStrip", true, false) as HBoxContainer
@@ -79,8 +89,8 @@ func _run() -> void:
 	(strip.get_node("Item_holy_water") as Button).pressed.emit()
 	await process_frame
 	_expect(pattern.visible and preview.focus_id == "item:holy_water", "tapping an item explains it")
-	(pattern.find_child("ClosePattern", true, false) as Button).pressed.emit()
-	await process_frame
+	await _tap(preview, Vector2(40, 600))
+	_expect(preview.focus_id.is_empty(), "tapping the explanation closes it")
 	manager.current_run.challenger_slots.erase(&"holy_water")
 
 	# Bench a piece from the board and bring it back: the board is the battle line.
@@ -130,6 +140,12 @@ func _run() -> void:
 	manager.reset_deployment_formation()
 	_expect(manager.current_run.preferred_positions.is_empty(), "the formation can still be reset by the game")
 
+	# Back to the map and in again: the battle stays chosen and can be re-entered.
+	_expect(manager.leave_deployment() == OK and manager.current_run.phase == RunPhase.NODE_SELECTED, "leaving the preview returns the run to the map")
+	_expect(manager.resume_scene_path() == AppSceneRoutes.PATH_MAP, "after leaving, the game resumes on the map (not the preview)")
+	_expect(manager.current_run.current_node_id in manager.available_map_node_ids(), "the chosen battle can be tapped again on the map")
+	_expect(manager.begin_deployment() == OK and manager.current_run.phase == RunPhase.DEPLOYMENT, "entering it again prepares the battle again")
+	preview._render()
 	(preview.get_node("SafeArea/Layout/Actions/FightButton") as Button).pressed.emit()
 	await process_frame
 	_expect(manager.current_run.phase == RunPhase.BATTLE_ACTIVE, "Fight starts the battle in one tap")
@@ -150,6 +166,17 @@ func _prepare_battle_run(manager: AppRunManager) -> void:
 		if MapNodeDefDatabase.get_def(node.node_type_id).is_battle:
 			manager.select_map_node(node_id)
 			break
+
+## A tap (press and release on the same spot) on the open explanation.
+func _tap(preview: PreBattleScene, at: Vector2) -> void:
+	for pressed: bool in [true, false]:
+		var event: InputEventMouseButton = InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		event.global_position = at
+		event.position = at
+		preview._on_pattern_input(event)
+	await process_frame
 
 func _expect(condition: bool, message: String) -> void:
 	if condition:

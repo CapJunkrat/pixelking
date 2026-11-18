@@ -19,10 +19,13 @@ const TIER_COLORS := {&"normal_battle": Color("#e0b45c"), &"elite_battle": Color
 const PATTERN_COLORS := {"move": Color("#3fb6d8"), "attack": Color("#e07a6a"), "both": Color("#b07ae0")}
 const PATTERN_SIZE := 7
 const LINEUP_SLOTS := 6
-## Height of the enemy explanation, which scrolls when it is longer.
-const LINEUP_HEIGHT := 120.0
-## The item strip (34 px slots plus the row gap) that an enemy explanation takes over.
-const ITEM_STRIP_HEIGHT := 40.0
+## The area under the enemy icons: your reserve and items, or the explanation of
+## what you tapped. Fixed, so the board never moves when an explanation opens.
+const INFO_HEIGHT := 104.0
+const RESERVE_SLOT_HEIGHT := 54.0
+const ITEM_SLOT_HEIGHT := 44.0
+## A touch that moves less than this is a tap (it closes the explanation).
+const TAP_SLOP := 12.0
 const TIP_ID := "prebattle_arrange"
 
 @onready var run_manager: AppRunManager = get_node("/root/RunManager") as AppRunManager
@@ -53,6 +56,8 @@ var focus_id: String = ""
 ## ranks. 0 while no piece is picked up.
 var arrange_selected: int = 0
 var _starting: bool = false
+var _tap_from: Vector2 = Vector2.INF
+var _tap_scroll: int = 0
 
 func _ready() -> void:
 	_build()
@@ -69,7 +74,10 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
-		_return_to_map()
+		if not focus_id.is_empty():
+			_focus(focus_id)
+		else:
+			_return_to_map()
 
 # --- building ---------------------------------------------------------------------
 
@@ -144,18 +152,27 @@ func _build() -> void:
 	divider.custom_minimum_size = Vector2(0, 1)
 	details.add_child(divider)
 
+	var info_area: VBoxContainer = VBoxContainer.new()
+	info_area.name = "InfoArea"
+	info_area.custom_minimum_size = Vector2(0, INFO_HEIGHT)
+	info_area.add_theme_constant_override("separation", 6)
+	details.add_child(info_area)
 	pattern_scroll = ScrollContainer.new()
 	pattern_scroll.name = "PatternScroll"
 	pattern_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	pattern_scroll.custom_minimum_size = Vector2(0, LINEUP_HEIGHT)
+	pattern_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	pattern_scroll.visible = false
 	pattern_panel = PanelContainer.new()
 	pattern_panel.name = "PiecePattern"
 	pattern_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pattern_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	pattern_panel.add_theme_stylebox_override("panel", _box(Color("#1d1a2b"), ENEMY, 6))
 	pattern_panel.visible = false
+	# A tap on the explanation closes it; a drag scrolls it.
+	pattern_panel.gui_input.connect(_on_pattern_input)
 	pattern_scroll.add_child(pattern_panel)
-	details.add_child(pattern_scroll)
+	info_area.add_child(pattern_scroll)
+	DragScroll.enable(pattern_scroll)
 
 	lineup_box = VBoxContainer.new()
 	lineup_box.name = "Lineup"
@@ -166,11 +183,11 @@ func _build() -> void:
 	bench_row.name = "ReserveRow"
 	bench_row.add_theme_constant_override("separation", 5)
 	lineup_box.add_child(bench_row)
-	details.add_child(lineup_box)
+	info_area.add_child(lineup_box)
 	item_strip = HBoxContainer.new()
 	item_strip.name = "ItemStrip"
 	item_strip.add_theme_constant_override("separation", 5)
-	details.add_child(item_strip)
+	info_area.add_child(item_strip)
 
 	status_label = _label("", 12, ENEMY)
 	status_label.name = "StatusLabel"
@@ -305,14 +322,12 @@ func _render_foes() -> void:
 func _render_pattern() -> void:
 	for child: Node in pattern_panel.get_children():
 		child.queue_free()
+	# The explanation takes the whole info area (reserve and items) while it is open;
+	# the area keeps its height, so the board above stays where it is.
 	pattern_panel.visible = not focus_id.is_empty()
 	pattern_scroll.visible = pattern_panel.visible
 	lineup_box.visible = not pattern_panel.visible
-	# An enemy explanation takes the item strip's place too (an item card keeps it,
-	# so another item can be picked straight away).
-	var enemy_focus: bool = not focus_id.is_empty() and not focus_id.begins_with("item:")
-	item_strip.visible = not enemy_focus
-	pattern_scroll.custom_minimum_size = Vector2(0, LINEUP_HEIGHT + (ITEM_STRIP_HEIGHT if enemy_focus else 0.0))
+	item_strip.visible = not pattern_panel.visible
 	if focus_id.is_empty():
 		return
 	pattern_scroll.scroll_vertical = 0
@@ -332,7 +347,7 @@ func _render_pattern() -> void:
 	for y: int in range(-half, half + 1):
 		for x: int in range(-half, half + 1):
 			var cell: ColorRect = ColorRect.new()
-			cell.custom_minimum_size = Vector2(11, 11)
+			cell.custom_minimum_size = Vector2(9, 9)
 			var kind: String = str(pattern.get(Vector2i(x, y), ""))
 			cell.color = GOLD if x == 0 and y == 0 else PATTERN_COLORS.get(kind, Color("#2a3550"))
 			grid.add_child(cell)
@@ -343,23 +358,46 @@ func _render_pattern() -> void:
 	text.scroll_active = false
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.add_theme_font_size_override("normal_font_size", 11)
-	var lines: Array[String] = ["[b]%s[/b] · %s" % [_piece_name(focus_id), _text("PREBATTLE_VALUE") % definition.base_value]]
-	lines.append(_text(PieceRulePreview.move_key(definition)))
+	var lines: Array[String] = [_text(PieceRulePreview.move_key(definition))]
 	lines.append(_text(PieceRulePreview.attack_key(definition)))
 	for key: String in PieceRulePreview.ability_keys(definition):
 		if key != "CODEX_TRAIT_NONE":
 			lines.append("[color=#f5d58f]%s[/color]" % _text(key))
 	text.text = "\n".join(lines)
+	text.mouse_filter = Control.MOUSE_FILTER_PASS
 	row.add_child(text)
+	pattern_panel.add_child(_card_column("%s · %s" % [_piece_name(focus_id), _text("PREBATTLE_VALUE") % definition.base_value], row))
+
+## An explanation: its title with a quiet "tap to close" beside it, then `body`.
+## A tap anywhere on the card closes it (no button).
+func _card_column(title: String, body: Control) -> VBoxContainer:
 	var column: VBoxContainer = VBoxContainer.new()
-	column.add_theme_constant_override("separation", 4)
-	column.add_child(row)
-	var close: Button = _button(_text("PREBATTLE_CLOSE_INFO"), PANEL_2, LINE, INK)
-	close.name = "ClosePattern"
-	close.custom_minimum_size = Vector2(0, 30)
-	close.pressed.connect(_focus.bind(focus_id))
-	column.add_child(close)
-	pattern_panel.add_child(column)
+	column.add_theme_constant_override("separation", 3)
+	var head: HBoxContainer = HBoxContainer.new()
+	var name_label: Label = _label(title, 12, GOLD_SOFT)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.clip_text = true
+	head.add_child(name_label)
+	var hint: Label = _label(_text("PREBATTLE_TAP_TO_CLOSE"), 10, Color(MUTED, 0.75))
+	hint.name = "CloseHint"
+	head.add_child(hint)
+	column.add_child(head)
+	column.add_child(body)
+	return column
+
+## Closes the explanation on a tap; leaves drags to the scroll.
+func _on_pattern_input(event: InputEvent) -> void:
+	var button: InputEventMouseButton = event as InputEventMouseButton
+	if button == null or button.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if button.pressed:
+		_tap_from = button.global_position
+		_tap_scroll = pattern_scroll.scroll_vertical
+		return
+	var was_tap: bool = _tap_from != Vector2.INF and button.global_position.distance_to(_tap_from) <= TAP_SLOP and absi(pattern_scroll.scroll_vertical - _tap_scroll) <= 2
+	_tap_from = Vector2.INF
+	if was_tap and not focus_id.is_empty():
+		_focus.call_deferred(focus_id)
 
 ## Where every enemy piece of the chosen kind can move (blue) or capture (red) from
 ## where it stands now, rocks and all.
@@ -414,7 +452,7 @@ func _render_items() -> void:
 	var slots: Array[StringName] = run_manager.current_run.challenger_slots
 	for index: int in range(6):
 		var slot: Button = Button.new()
-		slot.custom_minimum_size = Vector2(0, 34)
+		slot.custom_minimum_size = Vector2(0, ITEM_SLOT_HEIGHT)
 		slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		slot.expand_icon = true
 		slot.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -453,17 +491,10 @@ func _render_item_card(item_id: StringName) -> void:
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.add_theme_font_size_override("normal_font_size", 11)
 	var usage: String = _text("ITEM_USAGE_CONSUMABLE") if item.is_consumable() else _text("ITEM_USAGE_PERSISTENT")
-	text.text = "[b]%s[/b]\n%s\n[color=#9aa8bf]%s[/color]" % [_text(String(item.display_name_key)), _text(String(item.description_key)), usage]
+	text.text = "%s\n[color=#9aa8bf]%s[/color]" % [_text(String(item.description_key)), usage]
+	text.mouse_filter = Control.MOUSE_FILTER_PASS
 	row.add_child(text)
-	var column: VBoxContainer = VBoxContainer.new()
-	column.add_theme_constant_override("separation", 4)
-	column.add_child(row)
-	var close: Button = _button(_text("PREBATTLE_CLOSE_INFO"), PANEL_2, LINE, INK)
-	close.name = "ClosePattern"
-	close.custom_minimum_size = Vector2(0, 30)
-	close.pressed.connect(_focus.bind(focus_id))
-	column.add_child(close)
-	pattern_panel.add_child(column)
+	pattern_panel.add_child(_card_column(_text(String(item.display_name_key)), row))
 
 func _render_lineup() -> void:
 	for child: Node in bench_row.get_children():
@@ -485,7 +516,7 @@ func _render_lineup() -> void:
 func _empty_reserve_slot(index: int) -> Button:
 	var button: Button = Button.new()
 	button.name = "ReserveSlot_%d" % index
-	button.custom_minimum_size = Vector2(44, 44)
+	button.custom_minimum_size = Vector2(44, RESERVE_SLOT_HEIGHT)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var holding: bool = _holding_benchable()
 	var border: Color = GOLD_SOFT if holding else LINE
@@ -508,7 +539,7 @@ func _empty_reserve_slot(index: int) -> Button:
 
 func _slot(piece: PieceInstanceState, active: bool) -> Button:
 	var button: Button = Button.new()
-	button.custom_minimum_size = Vector2(44, 44)
+	button.custom_minimum_size = Vector2(44, RESERVE_SLOT_HEIGHT)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.expand_icon = true
 	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -557,6 +588,9 @@ func _on_square_pressed(square: Vector2i) -> void:
 			focus_id = ""
 			_focus(str(placement.get("piece_def_id", "")))
 			return
+	# A tap on an empty square closes an open explanation.
+	if not focus_id.is_empty():
+		_focus(focus_id)
 
 ## Handles a tap that picks up, moves or puts down one of your pieces. Returns false when the
 ## tap was not about arranging.
@@ -677,9 +711,13 @@ func _start_battle() -> void:
 		game_state.set("entry_snapshot", ImageTexture.create_from_image(frame) if frame != null else null)
 	get_tree().change_scene_to_file(AppSceneRoutes.BATTLE)
 
+## Steps back to the map. The battle stays chosen, so tapping it on the map comes
+## straight back here.
 func _return_to_map() -> void:
-	if not _starting:
-		get_tree().change_scene_to_file(AppSceneRoutes.PATH_MAP)
+	if _starting:
+		return
+	run_manager.leave_deployment()
+	get_tree().change_scene_to_file(AppSceneRoutes.PATH_MAP)
 
 ## Says "not possible" without words: a quick shake and a red flash.
 func _nudge(target: Control) -> void:

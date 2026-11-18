@@ -8,8 +8,9 @@ const TRANSITIONS: Dictionary = {
 	RunPhaseType.MAP: [RunPhaseType.NODE_SELECTED],
 	RunPhaseType.NODE_SELECTED: [RunPhaseType.MAP, RunPhaseType.NODE_INTERACTION, RunPhaseType.DEPLOYMENT],
 	RunPhaseType.NODE_INTERACTION: [RunPhaseType.MAP, RunPhaseType.FUSION_CONFIRMATION],
-	RunPhaseType.DEPLOYMENT: [RunPhaseType.BATTLE_READY],
-	RunPhaseType.BATTLE_READY: [RunPhaseType.DEPLOYMENT, RunPhaseType.BATTLE_ACTIVE],
+	# Back to NODE_SELECTED when the player steps back from the pre-battle screen.
+	RunPhaseType.DEPLOYMENT: [RunPhaseType.BATTLE_READY, RunPhaseType.NODE_SELECTED],
+	RunPhaseType.BATTLE_READY: [RunPhaseType.DEPLOYMENT, RunPhaseType.BATTLE_ACTIVE, RunPhaseType.NODE_SELECTED],
 	RunPhaseType.BATTLE_ACTIVE: [RunPhaseType.BATTLE_READY, RunPhaseType.DEPLOYMENT, RunPhaseType.POST_BATTLE_CHOICE, RunPhaseType.RUN_SUMMARY, RunPhaseType.MAP],
 	RunPhaseType.POST_BATTLE_CHOICE: [RunPhaseType.MAP, RunPhaseType.ROSTER_OVERFLOW, RunPhaseType.FUSION_CONFIRMATION],
 	RunPhaseType.ROSTER_OVERFLOW: [RunPhaseType.MAP],

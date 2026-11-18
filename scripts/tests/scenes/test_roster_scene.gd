@@ -23,24 +23,33 @@ func _run() -> void:
 	var roster_scene: RosterScene = scene.instantiate() as RosterScene
 	root.add_child(roster_scene)
 	await process_frame
-	var active_list: VBoxContainer = roster_scene.get_node("SafeArea/Layout/Columns/ActivePanel/Content/ActiveList") as VBoxContainer
-	var reserve_list: VBoxContainer = roster_scene.get_node("SafeArea/Layout/Columns/ReservePanel/Content/ReserveList") as VBoxContainer
-	_expect(active_list.get_child_count() == 6, "roster scene displays King plus five active slots")
-	_expect(reserve_list.get_child_count() == 5, "roster scene displays five reserve slots")
-	var king_card: Button = active_list.get_child(0) as Button
-	_expect(king_card.disabled and int(king_card.get_meta("instance_id", 0)) > 0, "King card is visible and locked active")
-	var reserve_card: Button = null
-	for child: Node in reserve_list.get_children():
-		var button: Button = child as Button
-		if button != null and button.has_meta("instance_id"):
-			reserve_card = button
-			break
-	_expect(reserve_card != null and not reserve_card.disabled, "owned reserve piece is actionable")
-	var selected_id: int = int(reserve_card.get_meta("instance_id", 0))
-	reserve_card.pressed.emit()
+	var line_grid: GridContainer = roster_scene.line_grid
+	var reserve_grid: GridContainer = roster_scene.reserve_grid
+	_expect(line_grid.get_child_count() == 6, "the battle line shows the King plus five places")
+	_expect(reserve_grid.get_child_count() == 5, "the reserve shows five places")
+	_expect(roster_scene.item_row.get_child_count() == 6, "the six item slots are shown")
+	_expect(roster_scene.detail_scroll.has_node("DragScroll"), "the explanation card scrolls by dragging its text")
+	var king_tile: Button = line_grid.get_child(0) as Button
+	_expect(int(king_tile.get_meta("instance_id", 0)) == manager.current_run.active_piece_ids[0], "the King is first on the battle line")
+	king_tile.pressed.emit()
 	await process_frame
-	_expect(selected_id in manager.current_run.active_piece_ids, "tapping reserve card transactionally activates piece")
-	_expect(selected_id not in manager.current_run.reserve_piece_ids, "activated piece leaves reserve")
+	_expect(roster_scene.selected.begins_with("piece:") and not roster_scene.move_button.visible, "the King is explained but cannot be benched")
+	var reserve_tile: Button = null
+	for child: Node in reserve_grid.get_children():
+		if child.has_meta("instance_id"):
+			reserve_tile = child as Button
+			break
+	_expect(reserve_tile != null, "the benched piece has a reserve tile")
+	var selected_id: int = int(reserve_tile.get_meta("instance_id", 0))
+	reserve_tile.pressed.emit()
+	await process_frame
+	_expect(selected_id in manager.current_run.reserve_piece_ids, "tapping a tile only explains it")
+	_expect(roster_scene.move_button.visible, "a reserve piece can be sent to the battle line")
+	roster_scene.move_button.pressed.emit()
+	await process_frame
+	_expect(selected_id in manager.current_run.active_piece_ids, "sending it moves it to the battle line")
+	_expect(selected_id not in manager.current_run.reserve_piece_ids, "and out of the reserve")
+	_expect(roster_scene.selected == "piece:%d" % selected_id, "the piece stays chosen after moving")
 	roster_scene.queue_free()
 	manager.abandon_run()
 	_cleanup()

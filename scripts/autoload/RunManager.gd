@@ -231,6 +231,32 @@ func begin_deployment() -> Error:
 		deployment_changed.emit(current_run)
 	return commit_error
 
+## Steps back from the pre-battle screen to the map: the battle stays the chosen node
+## (tapping it again prepares it again) and the run resumes on the map. The enemy
+## formation and rocks come from the encounter seed, so they are the same next time;
+## hand-placed squares are kept in preferred_positions.
+func leave_deployment() -> Error:
+	_ensure_services()
+	if current_run == null:
+		return ERR_DOES_NOT_EXIST
+	if _phase_is([RunPhase.NODE_SELECTED]):
+		return OK
+	if not _phase_is([RunPhase.DEPLOYMENT, RunPhase.BATTLE_READY]):
+		return ERR_UNAVAILABLE
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var leave_run: RunState = transaction["run"] as RunState
+	var leave_rng: RunRngService = transaction["rng"] as RunRngService
+	leave_run.deployment_state = null
+	var error: Error = flow_state_machine.transition(leave_run, RunPhase.NODE_SELECTED)
+	if error != OK:
+		return error
+	var commit_error: Error = _commit_transaction(leave_run, leave_rng)
+	if commit_error == OK:
+		deployment_changed.emit(current_run)
+	return commit_error
+
 func move_deployed_piece(instance_id: int, target: Vector2i) -> Error:
 	_ensure_services()
 	if current_run == null:

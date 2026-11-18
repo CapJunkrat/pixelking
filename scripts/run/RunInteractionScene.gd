@@ -75,6 +75,7 @@ func _build() -> void:
 	choices.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	choices.add_theme_constant_override("separation", 8)
 	scroll.add_child(choices)
+	DragScroll.enable(scroll)
 	layout.add_child(scroll)
 	layout.move_child(scroll, index)
 	_style_button(leave_button, false)
