@@ -262,8 +262,10 @@ func _submit(choice_id: String) -> void:
 	var was_type: String = str(run_manager.current_run.pending_choice.get("type", "")) if run_manager.current_run != null else ""
 	var error: Error = run_manager.submit_run_interaction(choice_id)
 	if error != OK:
-		status_label.text = "That choice is unavailable."
+		status_label.text = _localized("INTERACTION_UNAVAILABLE")
+		_sfx(&"error")
 		return
+	_sfx(&"coins" if was_type == "shop" else &"confirm")
 	var outcome: String = ""
 	if run_manager.current_run != null and was_type in ["event", "rest"]:
 		outcome = str(run_manager.current_run.run_statistics.get("last_outcome", ""))
@@ -401,3 +403,8 @@ func _formatted(key: String, args: Variant) -> String:
 	if args is Array and not (args as Array).is_empty():
 		return text % (args as Array)
 	return text
+
+func _sfx(name: StringName) -> void:
+	var audio: Node = get_node_or_null("/root/AudioManager")
+	if audio != null:
+		audio.call("play_sfx", name)

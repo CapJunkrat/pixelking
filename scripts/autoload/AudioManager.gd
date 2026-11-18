@@ -15,6 +15,17 @@ const SCENE_TRACKS := {
 	"res://scenes/run/RunInteractionScene.tscn": &"rest",
 }
 const DEFAULT_TRACK := &"explore"
+## Sound effects (CC0 by Kenney, see assets/audio/sfx/CREDITS.md): name -> variant
+## count; a random variant plays each time, slightly re-pitched so repeats differ.
+const SFX_DIR := "res://assets/audio/sfx/"
+const SFX := {
+	&"move": 5, &"capture": 4, &"explode": 2, &"rock": 2, &"shell": 1, &"check": 1,
+	&"shot": 2, &"coins": 2, &"page": 1, &"item": 1, &"select": 1, &"click": 1,
+	&"error": 1, &"confirm": 1, &"victory": 1, &"defeat": 1,
+}
+## Jingles keep their pitch; everything else varies a little.
+const SFX_STEADY: Array[StringName] = [&"victory", &"defeat", &"check"]
+const SFX_VOICES := 8
 const FADE_SECONDS := 0.8
 const SILENT_DB := -40.0
 
@@ -23,6 +34,9 @@ var current_track: StringName = &""
 var _fade: Tween = null
 var _last_scene: Node = null
 var _streams: Dictionary = {}
+var _sfx_cache: Dictionary = {}
+var _sfx_players: Array[AudioStreamPlayer] = []
+var _sfx_next: int = 0
 @onready var settings_manager: AppSettingsManager = get_node("/root/SettingsManager") as AppSettingsManager
 
 func _ready() -> void:
@@ -30,6 +44,13 @@ func _ready() -> void:
 	music_player.name = "Music"
 	music_player.bus = &"Music"
 	add_child(music_player)
+	for index: int in range(SFX_VOICES):
+		var voice: AudioStreamPlayer = AudioStreamPlayer.new()
+		voice.name = "Sfx%d" % index
+		voice.bus = &"SFX"
+		add_child(voice)
+		_sfx_players.append(voice)
+	get_tree().node_added.connect(_on_node_added)
 	play_track(DEFAULT_TRACK, true)
 
 ## Follows scene changes (change_scene_to_* swaps current_scene between frames).
@@ -87,6 +108,42 @@ func _stream(track: StringName) -> AudioStream:
 		stream = wave
 	_streams[track] = stream
 	return stream
+
+## Plays sound effect `name` (a key of SFX) on the next free voice.
+func play_sfx(name: StringName, volume_db: float = 0.0) -> void:
+	var count: int = int(SFX.get(name, 0))
+	if count <= 0 or _sfx_players.is_empty():
+		return
+	var path: String = "%s%s_%d.ogg" % [SFX_DIR, String(name), randi() % count]
+	if not _sfx_cache.has(path):
+		_sfx_cache[path] = load(path)
+	var stream: AudioStream = _sfx_cache[path] as AudioStream
+	if stream == null:
+		return
+	var voice: AudioStreamPlayer = _sfx_players[_sfx_next]
+	_sfx_next = (_sfx_next + 1) % _sfx_players.size()
+	voice.stream = stream
+	voice.volume_db = volume_db
+	voice.pitch_scale = 1.0 if name in SFX_STEADY else randf_range(0.93, 1.07)
+	voice.play()
+
+## Plays `name` after `seconds` (to land on an animation's hit).
+func play_sfx_later(name: StringName, seconds: float, volume_db: float = 0.0) -> void:
+	if seconds <= 0.0:
+		play_sfx(name, volume_db)
+		return
+	get_tree().create_timer(seconds).timeout.connect(play_sfx.bind(name, volume_db))
+
+## Every button in the game clicks when pressed (unless it opts out with the
+## "silent" meta, e.g. when it plays its own sound).
+func _on_node_added(node: Node) -> void:
+	var button: BaseButton = node as BaseButton
+	if button != null and not button.pressed.is_connected(_on_button_pressed):
+		button.pressed.connect(_on_button_pressed.bind(button))
+
+func _on_button_pressed(button: BaseButton) -> void:
+	if is_instance_valid(button) and not button.has_meta("silent"):
+		play_sfx(&"click", -6.0)
 
 func set_music_volume(value: float) -> void:
 	settings_manager.set_music_volume(value)

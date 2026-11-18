@@ -139,6 +139,7 @@ func _on_battle_events_emitted(events: Array[BattleEvent]) -> void:
 	animation_player.enqueue_events(events)
 	board_view.present_events(events, animation_player.playback_speed)
 	battle_log.consume(events)
+	_play_event_sounds(events, animation_player.playback_speed)
 	_refresh_board()
 	_refresh_challenger_slots()
 	_await_presentation_completion(generation)
@@ -157,6 +158,54 @@ func _on_board_focus_changed(square: Vector2i) -> void:
 		battle_log.clear_piece()
 	else:
 		battle_log.show_piece(piece, piece.color != GameState.player_color)
+		_sfx(&"select", -4.0)
+
+## Sounds for what just happened on the board, timed to the animation: the move at
+## once, the hit when the strike lands, the jingle once the battle is decided.
+func _play_event_sounds(events: Array[BattleEvent], speed: float) -> void:
+	var hit_delay: float = 0.22 / maxf(0.25, speed)
+	var played: Dictionary = {}
+	for event: BattleEvent in events:
+		var sound: StringName = &""
+		var delay: float = 0.0
+		match event.event_type:
+			BattleCommandProcessor.EVENT_PIECE_MOVED:
+				sound = &"shot" if bool(event.payload.get("ranged", false)) else &"move"
+			BattleCommandProcessor.EVENT_PIECE_CAPTURED:
+				sound = &"capture"
+				delay = hit_delay
+			BattleCommandProcessor.EVENT_PIECE_DESTROYED, BattleCommandProcessor.EVENT_KING_EXECUTION:
+				sound = &"explode"
+				delay = hit_delay
+			BattleCommandProcessor.EVENT_ROCK_BROKEN:
+				sound = &"rock"
+				delay = hit_delay
+			BattleCommandProcessor.EVENT_SHELL_BROKEN:
+				sound = &"shell"
+				delay = hit_delay
+			BattleCommandProcessor.EVENT_CHECK_DECLARED:
+				if not bool(event.payload.get("checkmate", false)):
+					sound = &"check"
+					delay = hit_delay * 2.0
+			BattleCommandProcessor.EVENT_ITEM_USED:
+				sound = &"item"
+			BattleCommandProcessor.EVENT_ACTION_REJECTED:
+				sound = &"error"
+			BattleCommandProcessor.EVENT_BATTLE_ENDED:
+				var won: bool = int(event.payload.get("winner", -1)) == GameState.player_color
+				sound = &"victory" if won else &"defeat"
+				delay = 0.7 / maxf(0.25, speed)
+		if sound.is_empty() or played.has(sound):
+			continue
+		played[sound] = true
+		var audio: Node = get_node_or_null("/root/AudioManager")
+		if audio != null:
+			audio.call("play_sfx_later", sound, delay)
+
+func _sfx(name: StringName, volume_db: float = 0.0) -> void:
+	var audio: Node = get_node_or_null("/root/AudioManager")
+	if audio != null:
+		audio.call("play_sfx", name, volume_db)
 
 func _on_piece_info_requested(square: Vector2i) -> void:
 	piece_info.show_piece(GameState.board, square, GameState.player_color)

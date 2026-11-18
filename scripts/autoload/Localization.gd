@@ -245,6 +245,7 @@ const LOCALES := {
 			"MAP_TITLE": "The Crown Road",
 			"MAP_PROGRESS": "Layer %d / %d",
 			"MAP_ACT": "Act %d",
+			"INTERACTION_UNAVAILABLE": "That choice is unavailable.",
 			"LOG_HINT": "Tap a piece to see what it does. Hold it for full details.",
 			"LOG_MOVED": "%s → %s",
 			"LOG_CAPTURED": "%s is captured",

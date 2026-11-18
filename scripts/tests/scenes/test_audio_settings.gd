@@ -13,6 +13,20 @@ func _run() -> void:
 	var music_player: AudioStreamPlayer = audio_manager.get("music_player") as AudioStreamPlayer
 	_expect(music_player != null and music_player.stream != null and music_player.playing, "background music is loaded and playing")
 	_expect(AppAudioManager.track_for_scene("res://scenes/battle/BattleScene.tscn") == &"battle" and AppAudioManager.track_for_scene("res://scenes/run/PathMapScene.tscn") == &"explore" and AppAudioManager.track_for_scene("res://scenes/run/RunInteractionScene.tscn") == &"rest", "each screen picks its track")
+	# Every sound effect variant exists and plays on the SFX bus.
+	var missing: Array[String] = []
+	for sound: StringName in AppAudioManager.SFX:
+		for variant: int in range(int(AppAudioManager.SFX[sound])):
+			var path: String = "%s%s_%d.ogg" % [AppAudioManager.SFX_DIR, String(sound), variant]
+			if not ResourceLoader.exists(path):
+				missing.append(path)
+	_expect(missing.is_empty(), "every sound effect file exists (%s)" % ", ".join(missing))
+	var sfx_manager: AppAudioManager = root.get_node("AudioManager") as AppAudioManager
+	sfx_manager.play_sfx(&"capture")
+	var busy: bool = false
+	for voice: AudioStreamPlayer in sfx_manager._sfx_players:
+		busy = busy or (voice.playing and voice.bus == &"SFX")
+	_expect(busy, "a sound effect plays on the SFX bus")
 	_expect((music_player.stream as AudioStreamWAV).loop_mode != AudioStreamWAV.LOOP_DISABLED, "the music loops")
 	original_music = float(settings_manager.get("music_volume"))
 	original_sfx = float(settings_manager.get("sfx_volume"))
