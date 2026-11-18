@@ -3,6 +3,9 @@ extends RefCounted
 
 ## Compatibility facade and thin interaction coordinator.
 ## Concrete behavior lives in focused services under scripts/run/content.
+
+## Node interactions the player may walk away from without choosing.
+const LEAVABLE_TYPES: Array[String] = ["shop", "event", "rest"]
 const INTERACTION_SCENE := AppSceneRoutes.RUN_INTERACTION
 
 var fusion_service: FusionService
@@ -160,14 +163,18 @@ func _desert(run_state: RunState, rng: RunRngService) -> String:
 	reward_service.remove_piece(run_state, leaving.instance_id)
 	return name
 
+## Walks away from a shop, event or rest site without choosing anything, so a node can
+## never trap the player (no gold, nothing to sell, no piece that can grow...).
+## Events and rest sites always allow it, also in saves made before they offered it.
 func leave(run_state: RunState, progress: MapProgressService) -> Error:
 	if run_state == null or run_state.pending_choice.is_empty():
 		return ERR_DOES_NOT_EXIST
-	if not bool(run_state.pending_choice.get("allow_leave", false)):
+	var pending_type: String = str(run_state.pending_choice.get("type", ""))
+	if pending_type not in LEAVABLE_TYPES:
 		return ERR_UNAUTHORIZED
-	if str(run_state.pending_choice.get("type", "")) != "shop":
+	if pending_type == "shop" and not bool(run_state.pending_choice.get("allow_leave", false)):
 		return ERR_UNAUTHORIZED
-	return _resolve_interaction_node(run_state, progress, {"outcome": "left_shop"})
+	return _resolve_interaction_node(run_state, progress, {"outcome": "left_%s" % pending_type})
 
 func _submit_shop(run_state: RunState, progress: MapProgressService, pending: Dictionary, choice_id: String, payload: Dictionary) -> Error:
 	var price: int = int(payload.get("price", 0))

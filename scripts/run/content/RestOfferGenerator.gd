@@ -18,7 +18,7 @@ func generate(run_state: RunState, reward_service: RunRewardService) -> Error:
 		options.append(RunChoiceBuilder.option("rest_train", "Drill a piece", "train", {"instance_id": 0, "detail": "None of your pieces can grow through drill."}, false))
 	options[0]["payload"]["detail"] = "Gain %d Gold for the road ahead." % definition.supplies_gold
 	options[1]["payload"]["detail"] = "Get your one retry back."
-	run_state.pending_choice = RunChoiceBuilder.pending("rest", definition.title, definition.description, options, false)
+	run_state.pending_choice = RunChoiceBuilder.pending("rest", definition.title, definition.description, options, true)
 	return OK
 
 ## The growing piece closest to its next form (Squire, Crystal Mage...).

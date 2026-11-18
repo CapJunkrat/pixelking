@@ -26,7 +26,7 @@ func generate(run_state: RunState, rng: RunRngService, reward_service: RunReward
 		# Older event data without options: the original gold choices.
 		options.append(RunChoiceBuilder.option("safe_gold", "Take %d Gold" % definition.safe_gold, "gold", {"amount": definition.safe_gold}))
 		options.append(RunChoiceBuilder.option("risky_gold", "Gain %d Gold" % definition.risky_gold, "gold", {"amount": definition.risky_gold}))
-	run_state.pending_choice = RunChoiceBuilder.pending("event", definition.title, definition.description, options, false)
+	run_state.pending_choice = RunChoiceBuilder.pending("event", definition.title, definition.description, options, true)
 	run_state.pending_choice["event_id"] = String(event_id)
 	return OK
 

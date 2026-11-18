@@ -38,6 +38,8 @@ func _run() -> void:
 	_expect(reward.apply(run, {"kind": "train", "instance_id": squire.instance_id}) == OK and squire.piece_def_id == &"squire_lv2", "drilling a Squire counts as its first capture and levels it")
 	var rest: RestOfferGenerator = RestOfferGenerator.new()
 	rest.generate(run, reward)
+	_expect(bool(run.pending_choice.get("allow_leave", false)), "a rest site can be left without choosing")
+	_test_walk_away(content)
 	var drill: Dictionary = RunChoiceBuilder.find_option(run.pending_choice, "rest_train")
 	_expect(bool(drill.get("enabled", false)) and int((drill["payload"] as Dictionary).get("instance_id", 0)) == squire.instance_id, "the rest site offers to drill the growing piece")
 	_test_event_content(generator, content, reward)
@@ -108,6 +110,27 @@ func _test_event_content(generator: EventOfferGenerator, content: RunContentServ
 			var shown: String = str(option["label"]) + str((option["payload"] as Dictionary).get("detail", ""))
 			_expect(not "{" in shown, "%s/%s names everything it touches" % [id, option["id"]])
 		tour.pending_choice.clear()
+
+## Records the node as resolved without needing a whole map.
+class StubProgress extends MapProgressService:
+	var resolved_with: Dictionary = {}
+	func resolve_current_node(_run_state: RunState, payload: Dictionary = {}) -> Error:
+		resolved_with = payload
+		return OK
+
+## With no gold, nothing to sell and no piece that can grow, an event must still let
+## the player go (it used to trap them).
+func _test_walk_away(content: RunContentService) -> void:
+	var broke: RunState = _run_state()
+	broke.gold = 0
+	var progress: StubProgress = StubProgress.new()
+	broke.pending_choice = RunChoiceBuilder.pending("event", "Alchemist's Cart", "x", [RunChoiceBuilder.option("buy", "Buy", "item", {"item_id": "holy_water"}, false)], true)
+	_expect(content.leave(broke, progress) == OK and broke.pending_choice.is_empty() and str(progress.resolved_with.get("outcome", "")) == "left_event", "a stuck event can always be walked away from")
+	# Saves made before events offered leaving still let the player go.
+	broke.pending_choice = RunChoiceBuilder.pending("event", "Old save", "x", [], false)
+	_expect(content.leave(broke, progress) == OK, "an older saved event can be left too")
+	broke.pending_choice = RunChoiceBuilder.pending("battle_reward", "Reward", "x", [], false)
+	_expect(content.leave(broke, progress) == ERR_UNAUTHORIZED, "a battle reward still has to be chosen")
 
 func _run_state() -> RunState:
 	var run: RunState = RunState.new()

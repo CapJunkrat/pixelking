@@ -116,8 +116,8 @@ func _render() -> void:
 	for option_value: Variant in pending.get("options", []) as Array:
 		if option_value is Dictionary:
 			choices.add_child(_card(option_value as Dictionary))
-	leave_button.visible = bool(pending.get("allow_leave", false)) or type == "run_summary"
-	leave_button.text = "Finish Run" if type == "run_summary" else "Leave"
+	leave_button.visible = bool(pending.get("allow_leave", false)) or type in RunContentService.LEAVABLE_TYPES or type == "run_summary"
+	leave_button.text = "Finish Run" if type == "run_summary" else ("Walk Away" if type in ["event", "rest"] else "Leave")
 
 ## One choice: a picture, what it is, what it does, and its price or risk.
 func _card(option: Dictionary) -> Button:
