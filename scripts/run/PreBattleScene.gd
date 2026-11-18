@@ -41,7 +41,12 @@ var bench_row: HBoxContainer = null
 var status_label: Label = null
 var back_button: Button = null
 var fight_button: Button = null
+var arrange_button: Button = null
+var auto_button: Button = null
 var focus_id: String = ""
+## Arranging by hand: tap one of your pieces, then a square in your two ranks.
+var arranging: bool = false
+var arrange_selected: int = 0
 var _starting: bool = false
 
 func _ready() -> void:
@@ -94,6 +99,22 @@ func _build() -> void:
 	board_view.deploy_rows = 0
 	board_view.square_pressed.connect(_on_square_pressed)
 	layout.add_child(board_view)
+
+	var arrange_row: HBoxContainer = HBoxContainer.new()
+	arrange_row.name = "ArrangeRow"
+	arrange_row.add_theme_constant_override("separation", 6)
+	arrange_button = _button(_text("PREBATTLE_ARRANGE"), PANEL_2, LINE, INK)
+	arrange_button.name = "ArrangeButton"
+	arrange_button.custom_minimum_size = Vector2(0, 32)
+	arrange_button.toggle_mode = true
+	arrange_button.toggled.connect(_set_arranging)
+	auto_button = _button(_text("PREBATTLE_AUTO_FORMATION"), PANEL_2, LINE, INK)
+	auto_button.name = "AutoFormationButton"
+	auto_button.custom_minimum_size = Vector2(0, 32)
+	auto_button.pressed.connect(_reset_formation)
+	arrange_row.add_child(arrange_button)
+	arrange_row.add_child(auto_button)
+	layout.add_child(arrange_row)
 
 	var power: HBoxContainer = HBoxContainer.new()
 	power.add_theme_constant_override("separation", 8)
@@ -246,11 +267,13 @@ func _render_board() -> void:
 	var deployment: DeploymentState = run_manager.current_run.deployment_state
 	var pieces: Dictionary = {}
 	var focus_square: Vector2i = DeploymentBoardView.NO_SQUARE
+	if arranging and arrange_selected > 0:
+		focus_square = deployment.player_position(arrange_selected)
 	for placement: Dictionary in deployment.enemy_placements:
 		var square: Vector2i = DeploymentState.position_from_value(placement.get("position", {}))
 		var id: String = str(placement.get("piece_def_id", ""))
 		pieces[square] = {"texture": _texture(&"black", id), "player": false}
-		if id == focus_id and focus_square == DeploymentBoardView.NO_SQUARE:
+		if id == focus_id and focus_square == DeploymentBoardView.NO_SQUARE and not arranging:
 			focus_square = square
 	for instance_id: int in run_manager.current_run.active_piece_ids:
 		var piece: PieceInstanceState = run_manager.current_run.get_piece_state(instance_id)
@@ -405,11 +428,55 @@ func _focus(id: String) -> void:
 	_render_pattern()
 
 func _on_square_pressed(square: Vector2i) -> void:
+	if arranging and _arrange_at(square):
+		return
 	for placement: Dictionary in run_manager.current_run.deployment_state.enemy_placements:
 		if DeploymentState.position_from_value(placement.get("position", {})) == square:
 			focus_id = ""
 			_focus(str(placement.get("piece_def_id", "")))
 			return
+
+func _set_arranging(enabled: bool) -> void:
+	arranging = enabled
+	arrange_selected = 0
+	board_view.deploy_rows = 2 if enabled else 0
+	if enabled:
+		_show_status(_text("PREBATTLE_ARRANGE_HINT"))
+		status_label.add_theme_color_override("font_color", GOLD_SOFT)
+	else:
+		status_label.visible = false
+		status_label.add_theme_color_override("font_color", ENEMY)
+	_render_board()
+
+## Handles a tap while arranging. Returns false when the tap was not about arranging.
+func _arrange_at(square: Vector2i) -> bool:
+	var deployment: DeploymentState = run_manager.current_run.deployment_state
+	var own: int = deployment.player_at(square)
+	if arrange_selected <= 0:
+		if own <= 0:
+			return false
+		arrange_selected = own
+		_render_board()
+		return true
+	if own == arrange_selected:
+		arrange_selected = 0
+		_render_board()
+		return true
+	if square.y > 1:
+		return false
+	if run_manager.move_deployed_piece(arrange_selected, square) != OK:
+		_show_status(_text("PREBATTLE_ARRANGE_ROWS"))
+		return true
+	arrange_selected = 0
+	_render_board()
+	return true
+
+func _reset_formation() -> void:
+	if run_manager.reset_deployment_formation() != OK:
+		_show_status(_text("PREBATTLE_LINEUP_ERROR"))
+		return
+	arrange_selected = 0
+	_render_board()
 
 func _toggle_piece(instance_id: int, to_active: bool) -> void:
 	if to_active and _active_non_king() >= run_manager.current_run.max_active_pieces():

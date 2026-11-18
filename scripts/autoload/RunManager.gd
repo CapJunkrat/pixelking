@@ -253,6 +253,29 @@ func move_deployed_piece(instance_id: int, target: Vector2i) -> Error:
 		deployment_changed.emit(current_run)
 	return commit_error
 
+## Clears the player's hand-placed formation for this Run and places pieces automatically.
+func reset_deployment_formation() -> Error:
+	_ensure_services()
+	if current_run == null:
+		return ERR_DOES_NOT_EXIST
+	if not _phase_is([RunPhase.DEPLOYMENT, RunPhase.BATTLE_READY]):
+		return ERR_UNAVAILABLE
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var deployment_run: RunState = transaction["run"] as RunState
+	var deployment_rng: RunRngService = transaction["rng"] as RunRngService
+	var error: Error = deployment_service.reset_formation(deployment_run)
+	if error != OK:
+		return error
+	error = flow_state_machine.transition(deployment_run, RunPhase.DEPLOYMENT)
+	if error != OK:
+		return error
+	var commit_error: Error = _commit_transaction(deployment_run, deployment_rng)
+	if commit_error == OK:
+		deployment_changed.emit(current_run)
+	return commit_error
+
 func confirm_deployment() -> Error:
 	_ensure_services()
 	if current_run == null:

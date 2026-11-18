@@ -13,9 +13,13 @@ extends RefCounted
 const PLAYER_RANKS := 2
 
 ## Returns {instance_id (int): Vector2i} for every active piece.
-static func arrange(run_state: RunState, board_size: int) -> Dictionary:
+## `fixed` maps instance ids to squares the player chose; they are kept as they are.
+static func arrange(run_state: RunState, board_size: int, fixed: Dictionary = {}) -> Dictionary:
 	var result: Dictionary = {}
 	var occupied: Dictionary = {}
+	for instance_id: Variant in fixed:
+		result[int(instance_id)] = fixed[instance_id]
+		occupied[fixed[instance_id]] = true
 	var centre: int = floori(float(board_size) / 2.0)
 	var middle_out: Array[int] = _middle_out(board_size, centre)
 	var corners: Array[int] = _corners_in(board_size)
@@ -24,12 +28,14 @@ static func arrange(run_state: RunState, board_size: int) -> Dictionary:
 	var others: Array[PieceInstanceState] = []
 	for instance_id: int in run_state.active_piece_ids:
 		var piece: PieceInstanceState = run_state.get_piece_state(instance_id)
-		if piece == null:
+		if piece == null or result.has(instance_id):
 			continue
 		var definition: PieceDef = PieceDefDatabase.get_def(String(piece.piece_def_id))
-		if piece.is_king:
+		if piece.is_king and not occupied.has(Vector2i(centre, 0)):
 			result[instance_id] = Vector2i(centre, 0)
 			occupied[Vector2i(centre, 0)] = true
+		elif piece.is_king:
+			result[instance_id] = _take(occupied, [[middle_out, 0], [middle_out, 1]], board_size)
 		elif definition != null and moves_forward_only(definition):
 			forward.append(piece)
 		elif definition != null and definition.weight_class == PieceDef.WeightClass.HEAVY:

@@ -38,7 +38,7 @@ func synchronize_with_roster(run_state: RunState) -> Error:
 		return ERR_DOES_NOT_EXIST
 	var deployment: DeploymentState = run_state.deployment_state
 	deployment.player_positions = {}
-	var formation: Dictionary = DeploymentFormation.arrange(run_state, deployment.board_size)
+	var formation: Dictionary = DeploymentFormation.arrange(run_state, deployment.board_size, _chosen_squares(run_state, deployment.board_size))
 	for instance_id: int in run_state.active_piece_ids:
 		var position: Vector2i = formation.get(instance_id, Vector2i(-1, -1))
 		if position == Vector2i(-1, -1):
@@ -58,10 +58,34 @@ func move_piece(run_state: RunState, instance_id: int, target: Vector2i) -> Erro
 		return ERR_INVALID_DATA
 	var occupant_id: int = deployment.player_at(target)
 	deployment.set_player_position(instance_id, target)
+	run_state.preferred_positions[str(instance_id)] = DeploymentState.position_value(target)
 	if occupant_id > 0 and occupant_id != instance_id:
 		deployment.set_player_position(occupant_id, source)
+		run_state.preferred_positions[str(occupant_id)] = DeploymentState.position_value(source)
 	deployment.confirmed = false
 	return OK if deployment.is_valid(run_state) else ERR_INVALID_DATA
+
+## Forgets every hand-placed square and lays the army out automatically again.
+func reset_formation(run_state: RunState) -> Error:
+	if run_state == null:
+		return ERR_DOES_NOT_EXIST
+	run_state.preferred_positions = {}
+	return synchronize_with_roster(run_state) if run_state.deployment_state != null else OK
+
+## The player's remembered squares that still fit: active pieces, own two ranks, no clashes.
+func _chosen_squares(run_state: RunState, board_size: int) -> Dictionary:
+	var result: Dictionary = {}
+	var taken: Dictionary = {}
+	for instance_id: int in run_state.active_piece_ids:
+		var value: Variant = run_state.preferred_positions.get(str(instance_id), null)
+		if value == null:
+			continue
+		var square: Vector2i = DeploymentState.position_from_value(value)
+		if square.x < 0 or square.x >= board_size or square.y < 0 or square.y > 1 or taken.has(square):
+			continue
+		taken[square] = true
+		result[instance_id] = square
+	return result
 
 func confirm(run_state: RunState) -> Error:
 	if run_state == null or run_state.deployment_state == null or not run_state.deployment_state.is_valid(run_state):

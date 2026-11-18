@@ -38,6 +38,9 @@ var deployment_state: DeploymentState = null
 var pending_choice: Dictionary = {}
 var run_statistics: Dictionary = {}
 var next_piece_instance_id: int = 1
+## Squares the player chose by hand, kept for every later battle of this Run:
+## str(instance_id) -> {"x", "y"}. Pieces without one are placed automatically.
+var preferred_positions: Dictionary = {}
 
 func initialize_new(seed_value: int, mode_value: String = MODE_STANDARD) -> void:
 	run_version = CURRENT_RUN_VERSION
@@ -193,6 +196,7 @@ func to_dictionary() -> Dictionary:
 		"pending_choice": pending_choice.duplicate(true),
 		"run_statistics": run_statistics.duplicate(true),
 		"next_piece_instance_id": next_piece_instance_id,
+		"preferred_positions": preferred_positions.duplicate(true),
 	}
 
 func load_from_dictionary(data: Dictionary, normalize_active_battle: bool = true) -> bool:
@@ -253,6 +257,7 @@ func load_from_dictionary(data: Dictionary, normalize_active_battle: bool = true
 	pending_choice = _dictionary_value(data, "pending_choice")
 	run_statistics = _dictionary_value(data, "run_statistics")
 	next_piece_instance_id = int(data.get("next_piece_instance_id", 1))
+	preferred_positions = _dictionary_value(data, "preferred_positions")
 	var legacy_sacrifice: bool = str(pending_choice.get("type", "")) == "sacrifice"
 	if legacy_sacrifice:
 		# Older saves could stop on the removed sacrifice screen; send the player back to the battle node.
