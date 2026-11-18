@@ -32,6 +32,7 @@ rules = Array[Resource]([SubResource("Rule1"), SubResource("Rule2"), SubResource
 script = ExtResource("1_piece")
 id = "thousand_faces"
 display_name_key = &"PIECE_THOUSAND_FACES"
+strike_type = 19
 weight_class = 1
 movement_profile = SubResource("MovementProfile")
 motion_profile = ExtResource("6_motion")

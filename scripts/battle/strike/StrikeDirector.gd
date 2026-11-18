@@ -112,6 +112,10 @@ class Body:
 	var released: bool = false
 
 var fx: StrikeFx = StrikeFx.new()
+## Attacks and reactions of the pieces from plan §27.
+var _extra: NewPieceStrikes = NewPieceStrikes.new()
+## The captured piece drawn in the attacker's colours (Thousand Faces wears it briefly).
+var mimic_texture: Texture2D = null
 
 var _view: BattleBoardView = null
 var _proj: BoardProjection = null
@@ -180,11 +184,12 @@ var _pose: Pose = Pose.new()
 
 func setup(view: BattleBoardView) -> void:
 	_view = view
+	_extra.d = self
 	view.ground_canvas().draw.connect(_draw_ground)
 	view.air_canvas().draw.connect(_draw_air)
 
 static func can_play(attacker_id: StringName, strike_type: int) -> bool:
-	return strike_type != PieceDef.StrikeType.NONE and ATTACKS.has(attacker_id)
+	return strike_type != PieceDef.StrikeType.NONE and (ATTACKS.has(attacker_id) or NewPieceStrikes.has_attack(attacker_id))
 
 ## Which attack plays for this move: [attack id, strike type]. Hybrid pieces that make a
 ## knight-shaped move borrow the knight's stomp; everything else keeps its own attack.
@@ -201,7 +206,8 @@ func is_playing() -> bool:
 ## Starts a strike. `victim_square` differs from `to` only for en passant.
 ## The board is expected to already hold the post-capture position.
 ## `corner_square` is the turning square of a bent move (gryphon, manticore), if known.
-func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: Texture2D, from: Vector2i, to: Vector2i, strike_type: int, attacker_weight: int, victim_weight: int, speed: float, victim_square: Vector2i = Vector2i(-1, -1), corner_square: Vector2i = Vector2i(-1, -1)) -> void:
+## `victim_id` lets pieces with their own capture reaction (Powder Keg, Gargoyle...) play it.
+func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: Texture2D, from: Vector2i, to: Vector2i, strike_type: int, attacker_weight: int, victim_weight: int, speed: float, victim_square: Vector2i = Vector2i(-1, -1), corner_square: Vector2i = Vector2i(-1, -1), victim_id: StringName = &"") -> void:
 	_clear_actors()
 	_reset_camera()
 	_proj = _view.projection
@@ -211,7 +217,8 @@ func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: 
 	fx.projection = _proj
 	fx.unit = _unit
 	_attack_id = attacker_id
-	_attack = ATTACKS[attacker_id]
+	_attack = ATTACKS[attacker_id] if ATTACKS.has(attacker_id) else NewPieceStrikes.ATTACKS[attacker_id]
+	_extra.reset()
 	_strike_type = strike_type
 	_speed = maxf(speed, 0.1)
 	_to_square = to
@@ -220,6 +227,9 @@ func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: 
 	_power = 1.0 if attacker_weight >= victim_weight else 0.45
 	_victim_weight = clampi(victim_weight, 0, 2)
 	_reaction = reaction_for(strike_type, attacker_weight, victim_weight)
+	var own_reaction: StringName = NewPieceStrikes.victim_reaction(victim_id)
+	if not own_reaction.is_empty():
+		_reaction = own_reaction
 	_underdog = _reaction == &"underdog"
 
 	_a = _proj.square_world(from)
@@ -325,6 +335,9 @@ static func reaction_for(strike_type: int, attacker_weight: int, victim_weight: 
 			return &"venom"
 		PieceDef.StrikeType.ARCANE:
 			return &"arcane"
+	var extra: StringName = NewPieceStrikes.reaction_for_type(strike_type)
+	if not extra.is_empty():
+		return extra
 	if weight == 0:
 		return &"blunt_fly"
 	if weight == 1:
@@ -351,6 +364,8 @@ func _split_time() -> float:
 		&"rake": return 0.1
 		&"venom": return 0.25 + _melt_duration()
 		&"arcane": return _arcane_duration()
+	if _extra.handles(_reaction):
+		return _extra.split_time()
 	return 0.1
 
 # --- frame loop ---------------------------------------------------------------
@@ -446,6 +461,7 @@ func _clear_actors() -> void:
 	_holder = null
 	_attacker = null
 	_victim = null
+	_extra.clear()
 	_slash_age = -1.0
 
 func _physics(dt: float) -> void:
@@ -850,6 +866,8 @@ func _reaction_tick() -> void:
 	match _reaction:
 		&"venom", &"arcane":
 			_special_reaction_tick()
+		_ when _extra.handles(_reaction):
+			_extra.reaction_tick()
 		&"crush_collapse":
 			var rows: int = _collapsed_rows()
 			while _rows_broken < rows:
@@ -1190,9 +1208,9 @@ func _render() -> void:
 	_pose = _compute_pose(_t)
 	_place_pose(_attacker, _pose, true)
 	_attacker_material.set_shader_parameter(&"flash", _pose.white)
-	_attacker_material.set_shader_parameter(&"alpha", _pose.alpha)
+	_attacker_material.set_shader_parameter(&"alpha", 0.0 if _extra.attacker_gone else _pose.alpha)
 	var trail_limit: int = MAX_GHOSTS if _attack_id == &"bishop" else 7
-	if _pose.trail and _hs <= 0.0:
+	if _pose.trail and _hs <= 0.0 and not _extra.attacker_gone:
 		_trail.append(_pose)
 		if _trail.size() > trail_limit:
 			_trail.pop_front()
@@ -1271,6 +1289,14 @@ func _update_victim() -> void:
 				position = _proj.project(ground + Vector3(0.0, _arcane_lift(), 0.0))
 				_set_tint(material, ARCANE_COLOR, (0.25 + 0.5 * q) * (0.7 + 0.3 * sin(_rt * 60.0)))
 				jitter = roundf(randf_range(-1.0, 1.0) * (0.3 + q * 1.6))
+			_ when _extra.handles(_reaction):
+				var state: Dictionary = _extra.victim_state(material)
+				if state.has("world"):
+					var world: Vector3 = state["world"]
+					position = _proj.project(world)
+				stretch = state.get("stretch", stretch)
+				jitter = float(state.get("jitter", jitter))
+				_victim.rotation = float(state.get("rot", 0.0))
 	_victim.position = position + Vector2(jitter * _unit, 0.0)
 	_victim.scale = Vector2(scale_value, scale_value) * stretch
 
@@ -1321,6 +1347,7 @@ func _draw_ground() -> void:
 	if _phase != Phase.PLAYING:
 		return
 	_draw_special_ground(canvas)
+	_extra.draw_ground(canvas)
 	if _pose.alpha > 0.05:
 		_draw_shadow(canvas, _pose.x, _pose.z, _pose.y, 1.0, _pose.alpha)
 	if not _split:
@@ -1348,6 +1375,7 @@ func _draw_air() -> void:
 			&"queen": _draw_lance(canvas)
 			&"king": _draw_judgment(canvas)
 			_: _draw_special_air(canvas)
+		_extra.draw_air(canvas)
 		if _slash_age >= 0.0:
 			_draw_slash(canvas)
 		if _pose.dizzy:
@@ -1485,7 +1513,8 @@ func _apply_dynamic_timing() -> void:
 			_impact_time = 0.2 + 0.32 * clampf(hit, 0.2, 1.0)
 			_done_time = maxf(_done_time, _impact_time + 0.9)
 		_:
-			return
+			if not _extra.dynamic_timing():
+				return
 	_end_time = maxf(_end_time, _done_time + 0.8)
 
 func _special_events() -> Array:
@@ -1507,7 +1536,7 @@ func _special_events() -> Array:
 		&"portal_mage":
 			var vanish: float = _portal_vanish()
 			return [[vanish, _event_puff.bind(_up(_a, 3.0), 8, 0.7)], [vanish + 0.25, _event_portal_arrive]]
-	return []
+	return _extra.events()
 
 func _event_puff(at: Vector3, count: int, big: float) -> void:
 	fx.puff(at, count, big)
@@ -1545,6 +1574,7 @@ func _special_pose(u: float, o: Pose) -> void:
 		&"gryphon": _pose_gryphon(u, o)
 		&"manticore": _pose_manticore(u, o)
 		&"archmage": _pose_archmage(u, o)
+		_: _extra.pose(u, o)
 
 ## Vanishes in smoke, reappears behind the target and cuts backhanded.
 func _pose_assassin(u: float, o: Pose) -> void:
@@ -1907,6 +1937,8 @@ func _special_impact() -> void:
 		&"archmage":
 			fx.ring(_b.x, _b.z, _cell * 0.9, 0.4, ARCANE_COLOR)
 			fx.spark_burst(_up(_b, 8.0), 8, Vector2.ZERO, 0.0, 0.5, ARCANE_COLOR)
+		_:
+			_extra.impact()
 
 func _arcane_lift() -> float:
 	var q: float = clampf(_rt / _arcane_duration(), 0.0, 1.0)
@@ -1961,6 +1993,8 @@ func _special_split() -> void:
 			fx.puff(Vector3(_b.x, lift + 4.0 * _unit, _b.z), 8, 1.1)
 			_flash = maxf(_flash, 0.7)
 			_shake = maxf(_shake, 0.9)
+		_:
+			_extra.on_split()
 
 ## Dragged into the void gate: struggles (heavy only), then spins, shrinks and vanishes.
 func _step_vortex(body: Body, dt: float) -> void:

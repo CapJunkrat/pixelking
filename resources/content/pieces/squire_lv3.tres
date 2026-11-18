@@ -29,6 +29,7 @@ rules = Array[Resource]([SubResource("Rule1"), SubResource("Rule2")])
 script = ExtResource("1_piece")
 id = "squire_lv3"
 display_name_key = &"PIECE_SQUIRE_LV3"
+strike_type = 3
 weight_class = 0
 movement_profile = SubResource("MovementProfile")
 motion_profile = ExtResource("5_motion")

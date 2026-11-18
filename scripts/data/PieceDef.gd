@@ -23,6 +23,18 @@ enum StrikeType {
 	GRAB,
 	VENOM,
 	ARCANE,
+	## Hit types of the pieces from plan §27 (see NewPieceStrikes).
+	DEVOUR,
+	HOLY,
+	RESONANCE,
+	BURN,
+	ERUPT,
+	TOSS,
+	FLATTEN,
+	BLAST,
+	SKEWER,
+	INFERNO,
+	MIMIC,
 }
 
 ## Visual mass. Presentation-only: together with the attacker's StrikeType it decides

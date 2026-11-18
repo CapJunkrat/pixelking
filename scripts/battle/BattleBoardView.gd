@@ -430,6 +430,7 @@ func _on_skin_changed(_skin_id: StringName) -> void:
 func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 	var move_event: BattleEvent = null
 	var capture_event: BattleEvent = null
+	var shell_event: BattleEvent = null
 	var castled: bool = false
 	_pending_promotion = NO_SQUARE
 	_pending_check = {}
@@ -445,7 +446,12 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 				castled = true
 			BattleCommandProcessor.EVENT_PIECE_DESTROYED:
 				_pending_bursts.append(event.payload.get("position", NO_SQUARE))
-			BattleCommandProcessor.EVENT_SHELL_BROKEN, BattleCommandProcessor.EVENT_LAST_STAND:
+			BattleCommandProcessor.EVENT_SHELL_BROKEN:
+				if shell_event == null:
+					shell_event = event
+				else:
+					_pending_rings.append(event.payload.get("position", NO_SQUARE))
+			BattleCommandProcessor.EVENT_LAST_STAND:
 				_pending_rings.append(event.payload.get("position", NO_SQUARE))
 			BattleCommandProcessor.EVENT_PIECE_REVIVED, BattleCommandProcessor.EVENT_PIECE_EVOLVED, BattleCommandProcessor.EVENT_FORM_CHANGED, BattleCommandProcessor.EVENT_MOVE_LEARNED:
 				_pending_rings.append(event.payload.get("position", NO_SQUARE))
@@ -469,6 +475,16 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 	var piece_id: String = str(data.get("piece_def_id", "queen"))
 	if captured and _present_strike(data, capture_event.payload, speed * (SHORT_STRIKE_SPEED if short else 1.0)):
 		return
+	# A shell that absorbed the blow: the strike plays, the victim stays, the attacker bounces back.
+	if not captured and shell_event != null:
+		var shelled_square: Vector2i = shell_event.payload.get("position", NO_SQUARE)
+		var shelled: ChessPiece = board.get_piece(shelled_square)
+		if shelled != null and shelled_square == data.get("target", NO_SQUARE):
+			var shell_data: Dictionary = {"position": shelled_square, "piece_def_id": shelled.def.id, "color": shelled.color}
+			if _present_strike(data, shell_data, speed * (SHORT_STRIKE_SPEED if short else 1.0)):
+				_hidden_squares[shelled_square] = true
+				return
+		_pending_rings.append(shelled_square)
 	if short:
 		speed *= SHORT_MOVE_SPEED
 	var proxy: Sprite2D = _make_piece_sprite(_texture_for(int(data.get("color", player_color)), piece_id))
@@ -595,8 +611,10 @@ func _present_strike(move_data: Dictionary, capture_data: Dictionary, speed: flo
 	var attacker_def: PieceDef = PieceDefDatabase.get_def(attacker_id)
 	if attacker_def == null:
 		return false
+	# Forms of one piece (Squire levels, tide states) share that piece's attack.
 	# Hybrids moving like a knight borrow the knight's stomp (see StrikeDirector.resolve_attack).
-	var attack: Array = StrikeDirector.resolve_attack(StringName(attacker_id), attacker_def.strike_type, from, to)
+	var aim: Vector2i = move_data.get("target", to)
+	var attack: Array = StrikeDirector.resolve_attack(StringName(attacker_def.art_key()), attacker_def.strike_type, from, aim)
 	var attack_id: StringName = attack[0]
 	var strike_type: int = attack[1]
 	if not StrikeDirector.can_play(attack_id, strike_type):
@@ -610,7 +628,8 @@ func _present_strike(move_data: Dictionary, capture_data: Dictionary, speed: flo
 	var corner: Vector2i = NO_SQUARE
 	if presentation_kind_for(attacker_def) == &"bent_ray":
 		corner = _bent_corner_square(attacker_def, from, to)
-	_strike.play(attack_id, attacker_texture, victim_texture, from, to, strike_type, attacker_def.weight_class, victim_def.weight_class, speed, victim_square, corner)
+	_strike.mimic_texture = _texture_for(int(move_data.get("color", player_color)), str(capture_data.get("piece_def_id", "")))
+	_strike.play(attack_id, attacker_texture, victim_texture, from, to, strike_type, attacker_def.weight_class, victim_def.weight_class, speed, victim_square, corner, StringName(victim_def.id))
 	return true
 
 func _on_strike_finished() -> void:

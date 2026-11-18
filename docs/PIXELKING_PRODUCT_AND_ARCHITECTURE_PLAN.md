@@ -1294,6 +1294,41 @@ scenes/run/RunSummaryScene.tscn
 
 - [x] 规则草案与融合配方（本节）。
 - [x] 26 个新棋子的攻击、受击演出样机。
-- [ ] 制作人最终确认规则。
-- [ ] 新棋子出图（Gemini 提示词）。
-- [ ] 规则、融合与演出接入游戏代码。
+- [x] 新棋子出图（carved_figurine 皮肤，白黑各 26 张）。
+- [x] 规则、融合与演出接入游戏代码（2026-11-18）。
+- [ ] 制作人在真机上试玩确认。
+
+### 27.9 实现说明（2026-11-18）
+
+规则全部做成通用能力，写在棋子数据上（`resources/content/pieces/*.tres`），代码不按棋子 id 写特例：
+
+| 能力 | 数据字段 / 规则 | 用到的棋子 |
+|---|---|---|
+| 只能往前 | `SlideMovementRule.relative_to_color` | 先锋、侍从 1 级 |
+| 远程原地吃子 | `SlideMovementRule.ranged` | 鹰隼猎手、游侠、石像守卫、天鹰射手、爆破投石车 |
+| 沿外圈滑行 | `EdgeSlideMovementRule` | 游侠 |
+| 限距瞬移 | `RangeTeleportMovementRule`（同色格 / 只去安全格 / 每场一次） | 日月僧侣、隐王 |
+| 照搬上一步 | `MimicLastMoveMovementRule` | 回声、千面者 |
+| 学来的走法 | `LearnedMovesMovementRule` + `learn_capacity` | 变色龙、千面者 |
+| 与王换位 | `SwapWithKingMovementRule`（每场一次） | 替身 |
+| 被吃爆炸 | `explodes_when_captured` | 火药桶兵 |
+| 被吃护盾 | `shields_allies_when_captured` | 殉道者 |
+| 邻格免定身 | `protects_adjacent_from_immobilization` | 提灯人 |
+| 外壳 | `shell_hits`（每场恢复） | 石像守卫 1、石巨人 2 |
+| 复活 | `revive_after_turns`（每场一次） | 余烬鸟 2、炎凰 1 |
+| 成长 / 进化 | `evolve_at_captures` + `evolves_into` | 侍从各级、水晶法师 |
+| 交替形态 | `alternate_form_id` / `base_form_id` | 潮汐骑士 |
+| 非兵升变 | `promotes_to` | 先锋 → 枪骑兵 |
+| 一回合两次行动 | `extra_move_always`（刺客为 `extra_move_on_capture`） | 疾风信使、刺客 |
+| 溅射 | `splash_on_ranged_capture` | 爆破投石车 |
+| 破将死 | `survives_checkmate_once` | 护盾王 |
+
+定下的细节：
+- 第二次行动只能由获得它的那枚棋子使用；玩家可以点「End Turn」放弃。一回合最多两次行动。
+- 护盾持续到对手的下一个回合结束。
+- 爆炸和溅射也会被外壳挡下一次。
+- 复活：余烬鸟错过己方 2 个回合，在第 3 个回合开始时回到起始格；炎凰错过 1 个。起始格被占时，从己方底线左角开始逐行找第一个空格。
+- 只有打赢的战斗，侍从等级、变色龙学到的走法和水晶法师的进化才会保留到整局 run（存在 `PieceInstanceState`）。
+- 千面者由变色龙融合而来时继承它学会的走法，超过 3 种时丢掉最早的。
+
+打击演出在 `scripts/battle/strike/NewPieceStrikes.gd`（由 `StrikeDirector` 调用）。截帧检查工具：`scripts/visual_review/capture_new_strikes.gd`（需要非 headless 运行）。

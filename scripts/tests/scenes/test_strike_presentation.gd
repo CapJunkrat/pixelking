@@ -18,6 +18,29 @@ const SPECIAL_MOVES: Dictionary = {
 	"manticore": [Vector2i(4, 5)],
 	"archmage": [Vector2i(5, 5)],
 }
+## Pieces from plan §27: attacker -> [destination, capture square] from (2, 2). Ranged
+## attackers stay on their square, so their destination is (2, 2) itself.
+const NEW_MOVES: Dictionary = {
+	"swift_courier": [Vector2i(4, 4), Vector2i(4, 4)], "tide_knight": [Vector2i(3, 4), Vector2i(3, 4)],
+	"echo": [Vector2i(3, 3), Vector2i(3, 3)], "chameleon": [Vector2i(3, 3), Vector2i(3, 3)],
+	"sentry": [Vector2i(2, 4), Vector2i(2, 4)], "falconer": [Vector2i(2, 2), Vector2i(2, 5)],
+	"vanguard": [Vector2i(3, 3), Vector2i(3, 3)], "squire_lv3": [Vector2i(3, 4), Vector2i(3, 4)],
+	"stand_in": [Vector2i(4, 4), Vector2i(4, 4)], "powder_keg": [Vector2i(3, 3), Vector2i(3, 3)],
+	"ember_bird": [Vector2i(4, 4), Vector2i(4, 4)], "gargoyle": [Vector2i(2, 2), Vector2i(2, 4)],
+	"crystal_mage": [Vector2i(4, 4), Vector2i(4, 4)], "ranger": [Vector2i(2, 2), Vector2i(4, 4)],
+	"sun_moon_monk": [Vector2i(3, 3), Vector2i(3, 3)], "antelope": [Vector2i(5, 3), Vector2i(5, 3)],
+	"war_king": [Vector2i(2, 4), Vector2i(2, 4)], "shadow_king": [Vector2i(3, 3), Vector2i(3, 3)],
+	"shield_king": [Vector2i(3, 3), Vector2i(3, 3)], "lantern_bearer": [Vector2i(3, 3), Vector2i(3, 3)],
+	"martyr": [Vector2i(2, 4), Vector2i(2, 4)], "stone_giant": [Vector2i(2, 5), Vector2i(2, 5)],
+	"blast_catapult": [Vector2i(2, 2), Vector2i(2, 5)], "sky_archer": [Vector2i(2, 2), Vector2i(5, 5)],
+	"flame_phoenix": [Vector2i(3, 5), Vector2i(3, 5)], "thousand_faces": [Vector2i(3, 3), Vector2i(3, 3)],
+	"tide_knight_ebb": [Vector2i(4, 4), Vector2i(4, 4)],
+}
+## Light, medium and heavy victims, plus every piece that plays its own capture reaction.
+const NEW_VICTIMS: Array[String] = ["pawn", "knight", "rook", "powder_keg", "ember_bird", "crystal_mage", "martyr", "flame_phoenix"]
+## Pieces whose shell survives the hit.
+const SHELL_VICTIMS: Array[String] = ["gargoyle", "stone_giant"]
+
 ## One victim per weight class plus special pieces as victims.
 const SPECIAL_VICTIMS: Array[String] = ["pawn", "knight", "rook", "bowman", "gryphon", "manticore", "royal_guard"]
 
@@ -95,6 +118,39 @@ func _run() -> void:
 				var playing: bool = view.get_node("StrikeDirector").is_playing()
 				await _settle(view)
 				_expect(playing and not view.is_presenting() and layer.get_child_count() == 32, "%s to %s capturing %s plays its strike and cleans up" % [attacker, to, victim])
+
+	for attacker: String in NEW_MOVES:
+		var definition: PieceDef = PieceDefDatabase.get_def(attacker)
+		_expect(StrikeDirector.can_play(StringName(definition.art_key()), definition.strike_type), "%s has a strike animation" % attacker)
+		var landing: Vector2i = NEW_MOVES[attacker][0]
+		var target: Vector2i = NEW_MOVES[attacker][1]
+		for victim: String in NEW_VICTIMS:
+			view.present_events([
+				BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_MOVED, 1, 1, {"from": Vector2i(2, 2), "to": landing, "target": target, "piece_def_id": attacker, "color": GameRules.PieceColor.WHITE}),
+				BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_CAPTURED, 2, 1, {"position": target, "piece_def_id": victim, "color": GameRules.PieceColor.BLACK}),
+			] as Array[BattleEvent], 8.0)
+			var playing: bool = view.get_node("StrikeDirector").is_playing()
+			await _settle(view)
+			_expect(playing and not view.is_presenting() and layer.get_child_count() == 32, "%s capturing %s plays its strike and cleans up" % [attacker, victim])
+
+	# A shell absorbs the blow: the strike plays, the victim stays, the attacker bounces back.
+	for shelled: String in SHELL_VICTIMS:
+		var shell_board: BoardState = BoardState.new()
+		shell_board.clear_for_setup()
+		shell_board.place_piece_for_setup(Vector2i(4, 0), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.WHITE))
+		shell_board.place_piece_for_setup(Vector2i(4, 7), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.BLACK))
+		shell_board.place_piece_for_setup(Vector2i(2, 2), ChessPiece.new(PieceDefDatabase.get_def("rook"), GameRules.PieceColor.WHITE))
+		shell_board.place_piece_for_setup(Vector2i(2, 5), ChessPiece.new(PieceDefDatabase.get_def(shelled), GameRules.PieceColor.BLACK))
+		view.refresh(shell_board)
+		view.present_events([
+			BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_MOVED, 1, 1, {"from": Vector2i(2, 2), "to": Vector2i(2, 2), "target": Vector2i(2, 5), "piece_def_id": "rook", "color": GameRules.PieceColor.WHITE}),
+			BattleEvent.new(BattleCommandProcessor.EVENT_SHELL_BROKEN, 2, 1, {"position": Vector2i(2, 5), "left": 0}),
+		] as Array[BattleEvent], 8.0)
+		var shell_playing: bool = view.get_node("StrikeDirector").is_playing()
+		await _settle(view)
+		_expect(shell_playing and not view.is_presenting() and view.standing_sprites().has(Vector2i(2, 5)), "breaking the %s shell plays a strike and the piece stays standing" % shelled)
+	view.refresh(game_state.board)
+	await process_frame
 
 	# En passant: the victim stands beside the pawn, not on the destination square.
 	view.present_events([
