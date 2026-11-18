@@ -63,9 +63,21 @@ func _run() -> void:
 	(chips.get_child(0) as Button).pressed.emit()
 	await process_frame
 	_expect(pattern.visible and not lineup.visible, "tapping an enemy piece shows how it moves in place of the line-up")
+	_expect(not board.hints.is_empty(), "the chosen enemy's reach is marked on the board")
 	(pattern.find_child("ClosePattern", true, false) as Button).pressed.emit()
 	await process_frame
 	_expect(not pattern.visible and lineup.visible, "closing the explanation brings the line-up back")
+	_expect(board.hints.is_empty(), "closing it clears the marks")
+	manager.current_run.challenger_slots.append(&"holy_water")
+	preview._render_items()
+	var strip: HBoxContainer = details.find_child("ItemStrip", true, false) as HBoxContainer
+	_expect(strip != null and strip.get_child_count() == 6, "your six item slots are shown before the battle")
+	(strip.get_node("Item_holy_water") as Button).pressed.emit()
+	await process_frame
+	_expect(pattern.visible and preview.focus_id == "item:holy_water", "tapping an item explains it")
+	(pattern.find_child("ClosePattern", true, false) as Button).pressed.emit()
+	await process_frame
+	manager.current_run.challenger_slots.erase(&"holy_water")
 
 	# Bench a piece from the board and bring it back: the board is the battle line.
 	var moved_id: int = manager.current_run.active_piece_ids[1]

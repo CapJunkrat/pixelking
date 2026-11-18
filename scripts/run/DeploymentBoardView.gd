@@ -24,6 +24,10 @@ var _sprites: Dictionary = {}
 var _drop_square: Vector2i = NO_SQUARE
 ## Rock squares (Vector2i -> true), drawn as boulders; taps on them are ignored.
 var rocks: Dictionary = {}
+## Squares to mark for a previewed enemy piece: "move" (blue dot) or "attack" (red tile).
+var hints: Dictionary = {}
+const HINT_MOVE := Color(0.25, 0.71, 0.85, 0.75)
+const HINT_ATTACK := Color(0.88, 0.40, 0.35, 0.5)
 
 func _ready() -> void:
 	_piece_layer = Node2D.new()
@@ -147,6 +151,12 @@ func _draw() -> void:
 			BoardPainter.draw_marker(self, projection, square, ZONE_TINT)
 			if selected_square != NO_SQUARE and not _pieces.has(square):
 				BoardPainter.draw_ground_ellipse(self, projection, square, projection.cell * 0.2, TARGET_DOT)
+	for hint_value: Variant in hints:
+		var hint_square: Vector2i = hint_value
+		if str(hints[hint_square]) == "attack":
+			BoardPainter.draw_marker(self, projection, hint_square, HINT_ATTACK)
+		else:
+			BoardPainter.draw_ground_ellipse(self, projection, hint_square, projection.cell * 0.18, HINT_MOVE)
 	if selected_square != NO_SQUARE:
 		BoardPainter.draw_marker(self, projection, selected_square, SELECTED_TINT)
 	for rock_value: Variant in rocks:

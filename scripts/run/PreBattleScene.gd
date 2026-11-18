@@ -37,6 +37,8 @@ var pattern_scroll: ScrollContainer = null
 var lineup_box: VBoxContainer = null
 var count_label: Label = null
 var count_badge: PanelContainer = null
+## Your items and relics, as in battle; tapping one explains it in the info area.
+var item_strip: HBoxContainer = null
 var tip_bubble: Control = null
 ## Pieces' pictures cropped to the figure, so every icon fills its box the same way.
 var _icon_cache: Dictionary = {}
@@ -163,6 +165,10 @@ func _build() -> void:
 	bench_row.add_theme_constant_override("separation", 5)
 	lineup_box.add_child(bench_row)
 	details.add_child(lineup_box)
+	item_strip = HBoxContainer.new()
+	item_strip.name = "ItemStrip"
+	item_strip.add_theme_constant_override("separation", 5)
+	details.add_child(item_strip)
 
 	status_label = _label("", 12, ENEMY)
 	status_label.name = "StatusLabel"
@@ -240,6 +246,7 @@ func _render() -> void:
 	if limit_label.visible:
 		limit_label.text = _text("PREBATTLE_TURN_LIMIT") % encounter.turn_limit
 	_render_lineup()
+	_render_items()
 
 func _render_board() -> void:
 	var deployment: DeploymentState = run_manager.current_run.deployment_state
@@ -261,6 +268,7 @@ func _render_board() -> void:
 	for instance_id: int in run_manager.current_run.active_piece_ids:
 		var piece: PieceInstanceState = run_manager.current_run.get_piece_state(instance_id)
 		pieces[deployment.player_position(instance_id)] = {"texture": _texture(&"white", String(piece.piece_def_id)), "player": true}
+	board_view.hints = _threat_hints() if arrange_selected <= 0 else {}
 	board_view.show_position(deployment.board_size, pieces, focus_square)
 
 func _render_foes() -> void:
@@ -301,6 +309,9 @@ func _render_pattern() -> void:
 	if focus_id.is_empty():
 		return
 	pattern_scroll.scroll_vertical = 0
+	if focus_id.begins_with("item:"):
+		_render_item_card(StringName(focus_id.trim_prefix("item:")))
+		return
 	var definition: PieceDef = PieceDefDatabase.get_def(focus_id)
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
@@ -332,6 +343,108 @@ func _render_pattern() -> void:
 		if key != "CODEX_TRAIT_NONE":
 			lines.append("[color=#f5d58f]%s[/color]" % _text(key))
 	text.text = "\n".join(lines)
+	row.add_child(text)
+	var column: VBoxContainer = VBoxContainer.new()
+	column.add_theme_constant_override("separation", 4)
+	column.add_child(row)
+	var close: Button = _button(_text("PREBATTLE_CLOSE_INFO"), PANEL_2, LINE, INK)
+	close.name = "ClosePattern"
+	close.custom_minimum_size = Vector2(0, 30)
+	close.pressed.connect(_focus.bind(focus_id))
+	column.add_child(close)
+	pattern_panel.add_child(column)
+
+## Where every enemy piece of the chosen kind can move (blue) or capture (red) from
+## where it stands now, rocks and all.
+func _threat_hints() -> Dictionary:
+	var hints: Dictionary = {}
+	if focus_id.is_empty() or focus_id.begins_with("item:"):
+		return hints
+	var board: BoardState = _preview_board()
+	if board == null:
+		return hints
+	for placement: Dictionary in run_manager.current_run.deployment_state.enemy_placements:
+		if str(placement.get("piece_def_id", "")) != focus_id:
+			continue
+		var square: Vector2i = DeploymentState.position_from_value(placement.get("position", {}))
+		for target: Vector2i in MoveGenerator.generate_pseudo_legal(board, square):
+			var occupant: ChessPiece = board.get_piece(target)
+			if occupant == null:
+				hints[target] = "move"
+			elif occupant.color == GameRules.PieceColor.WHITE:
+				hints[target] = "attack"
+		for target: Vector2i in MoveGenerator.get_attack_squares(board, square):
+			var occupant: ChessPiece = board.get_piece(target)
+			if occupant == null or occupant.color == GameRules.PieceColor.WHITE:
+				hints[target] = "attack" if occupant != null or not hints.has(target) else hints[target]
+	return hints
+
+## The coming battle's opening position, for previews.
+func _preview_board() -> BoardState:
+	var run: RunState = run_manager.current_run
+	var deployment: DeploymentState = run.deployment_state
+	var board: BoardState = BoardState.new(deployment.board_size, false)
+	board.clear_for_setup()
+	for instance_id: int in run.active_piece_ids:
+		var piece: PieceInstanceState = run.get_piece_state(instance_id)
+		if piece != null:
+			board.place_piece_for_setup(deployment.player_position(instance_id), piece.to_chess_piece(GameRules.PieceColor.WHITE))
+	for placement: Dictionary in deployment.enemy_placements:
+		var definition: PieceDef = PieceDefDatabase.get_def(str(placement.get("piece_def_id", "")))
+		if definition != null:
+			board.place_piece_for_setup(DeploymentState.position_from_value(placement.get("position", {})), ChessPiece.new(definition, GameRules.PieceColor.BLACK))
+	if not board.finalize_setup(GameRules.PieceColor.BLACK):
+		return null
+	board.set_rocks(deployment.rocks)
+	return board
+
+func _render_items() -> void:
+	for child: Node in item_strip.get_children():
+		item_strip.remove_child(child)
+		child.queue_free()
+	var slots: Array[StringName] = run_manager.current_run.challenger_slots
+	for index: int in range(6):
+		var slot: Button = Button.new()
+		slot.custom_minimum_size = Vector2(0, 34)
+		slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		slot.expand_icon = true
+		slot.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		slot.add_theme_constant_override("icon_max_width", 24)
+		var item: ChallengerItemDef = ChallengerItemDatabase.get_def(slots[index]) if index < slots.size() else null
+		var chosen: bool = item != null and focus_id == "item:%s" % item.id
+		var border: Color = GOLD if chosen else (Color(GOLD, 0.45) if item != null and not item.is_consumable() else LINE)
+		for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
+			slot.add_theme_stylebox_override(state, _box(Color("#1a1626") if item != null else Color(PANEL_2, 0.35), border, 6))
+		if item == null:
+			slot.disabled = true
+		else:
+			slot.name = "Item_%s" % item.id
+			slot.icon = item.icon
+			slot.pressed.connect(_focus.bind("item:%s" % item.id))
+		item_strip.add_child(slot)
+
+func _render_item_card(item_id: StringName) -> void:
+	var item: ChallengerItemDef = ChallengerItemDatabase.get_def(item_id)
+	if item == null:
+		return
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var picture: TextureRect = TextureRect.new()
+	picture.texture = item.icon
+	picture.custom_minimum_size = Vector2(40, 40)
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	picture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	picture.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_child(picture)
+	var text: RichTextLabel = RichTextLabel.new()
+	text.bbcode_enabled = true
+	text.fit_content = true
+	text.scroll_active = false
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.add_theme_font_size_override("normal_font_size", 11)
+	var usage: String = _text("ITEM_USAGE_CONSUMABLE") if item.is_consumable() else _text("ITEM_USAGE_PERSISTENT")
+	text.text = "[b]%s[/b]\n%s\n[color=#9aa8bf]%s[/color]" % [_text(String(item.display_name_key)), _text(String(item.description_key)), usage]
 	row.add_child(text)
 	var column: VBoxContainer = VBoxContainer.new()
 	column.add_theme_constant_override("separation", 4)
@@ -422,6 +535,7 @@ func _focus(id: String) -> void:
 	_render_board()
 	_render_foes()
 	_render_pattern()
+	_render_items()
 
 func _on_square_pressed(square: Vector2i) -> void:
 	if _arrange_at(square):
@@ -531,11 +645,28 @@ func _start_battle() -> void:
 	if not is_inside_tree() or DisplayServer.get_name() == "headless":
 		get_tree().change_scene_to_file(AppSceneRoutes.BATTLE)
 		return
-	board_view.pivot_offset = board_view.size * 0.5
-	var zoom: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	zoom.tween_property(board_view, "scale", Vector2(1.25, 1.25), 0.3)
-	zoom.parallel().tween_property(self, "modulate:a", 0.0, 0.3)
-	zoom.tween_callback(func() -> void: get_tree().change_scene_to_file(AppSceneRoutes.BATTLE))
+	# Everything but the board slides away; the battle screen then grows out of the
+	# board exactly where it stands (BattleController._play_intro).
+	arrange_selected = 0
+	focus_id = ""
+	_render_board()
+	var leaving: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	var layout: Control = $SafeArea/Layout
+	for child: Node in layout.get_children():
+		if child == board_view or not child is Control:
+			continue
+		var part: Control = child as Control
+		var drop: float = -24.0 if part.get_index() < board_view.get_index() else 24.0
+		leaving.parallel().tween_property(part, "modulate:a", 0.0, 0.22)
+		leaving.parallel().tween_property(part, "position:y", part.position.y + drop, 0.22)
+	await leaving.finished
+	await get_tree().process_frame
+	var game_state: Node = get_node_or_null("/root/GameState")
+	if game_state != null:
+		game_state.set("entry_board_rect", board_view.get_global_rect())
+		var frame: Image = get_viewport().get_texture().get_image()
+		game_state.set("entry_snapshot", ImageTexture.create_from_image(frame) if frame != null else null)
+	get_tree().change_scene_to_file(AppSceneRoutes.BATTLE)
 
 func _return_to_map() -> void:
 	if not _starting:
