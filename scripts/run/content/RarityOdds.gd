@@ -55,14 +55,11 @@ static func pick(ids: Array, rng: RunRngService, stream: StringName, progress: f
 			return str(bucket[rng.pick_index(stream, bucket.size())])
 	return "pawn"
 
-## How far through the map the Run is, from 0 to 1.
+## How far through the whole Run (all three acts) the player is, from 0 to 1.
 static func run_progress(run_state: RunState) -> float:
-	if run_state == null or run_state.map_state == null:
+	if run_state == null:
 		return 0.0
-	var node: MapNodeState = run_state.map_state.get_node(run_state.current_node_id)
-	if node == null:
-		return 0.0
-	return clampf(float(node.layer_index) / float(maxi(1, run_state.map_state.total_layers - 1)), 0.0, 1.0)
+	return clampf(run_state.run_stage(), 0.0, 1.0)
 
 static func rarity_of(id: String) -> int:
 	var definition: PieceDef = PieceDefDatabase.get_def(id)

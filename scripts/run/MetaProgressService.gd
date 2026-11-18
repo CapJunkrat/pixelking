@@ -17,6 +17,17 @@ func unlock_endless() -> Error:
 	data["endless_unlocked"] = true
 	return _save_data(data)
 
+## The most acts cleared in one endless run.
+func best_endless_acts() -> int:
+	return int(_load_data().get("best_endless_acts", 0))
+
+func record_endless_acts(acts: int) -> Error:
+	if acts <= best_endless_acts():
+		return OK
+	var data: Dictionary = _load_data()
+	data["best_endless_acts"] = acts
+	return _save_data(data)
+
 func discovered_piece_ids() -> Array[String]:
 	var result: Array[String] = []
 	var stored: Variant = _load_data().get("discovered_piece_ids", [])

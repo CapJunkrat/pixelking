@@ -5,8 +5,8 @@
 [resource]
 script = ExtResource("1_script")
 id = &"standard_region"
-min_layers = 6
-max_layers = 8
+min_layers = 5
+max_layers = 6
 min_nodes_per_layer = 2
 max_nodes_per_layer = 3
 boss_node_type_id = &"boss"

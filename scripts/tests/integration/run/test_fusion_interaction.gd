@@ -105,8 +105,7 @@ func _fusion_ready_run(source_type: String) -> RunState:
 		var selected_id: StringName = available[0]
 		if source_type == "shop":
 			for node_id: StringName in available:
-				var candidate: MapNodeState = run_state.map_state.get_node(node_id)
-				if candidate != null and candidate.node_type_id == &"shop":
+				if _leads_to_shop(run_state.map_state, node_id):
 					selected_id = node_id
 					break
 		assert(progress.select_node(run_state, rng, selected_id) == OK)
@@ -149,3 +148,15 @@ func _piece_count(run_state: RunState, id: StringName) -> int:
 		if piece.piece_def_id == id:
 			count += 1
 	return count
+
+## Whether the shop can still be reached through `node_id` (the node itself or later).
+func _leads_to_shop(map_state: MapState, node_id: StringName) -> bool:
+	var node: MapNodeState = map_state.get_node(node_id)
+	if node == null:
+		return false
+	if node.node_type_id == &"shop":
+		return true
+	for next_id: StringName in node.outgoing_node_ids:
+		if _leads_to_shop(map_state, next_id):
+			return true
+	return false

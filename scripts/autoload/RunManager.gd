@@ -111,15 +111,17 @@ func ensure_run_map() -> Error:
 	if not _phase_is([RunPhase.MAP]):
 		return ERR_UNAVAILABLE
 	var had_map: bool = current_run.map_state != null
+	var act_cleared: bool = map_progress_service.is_act_cleared(current_run)
 	var transaction: Dictionary = _clone_transaction()
 	if transaction.is_empty():
 		return ERR_INVALID_DATA
 	var map_run: RunState = transaction["run"] as RunState
 	var map_rng: RunRngService = transaction["rng"] as RunRngService
-	var error: Error = map_progress_service.ensure_map(map_run, map_rng)
+	# Back on the map after an act's Boss: the next act begins on a new map.
+	var error: Error = map_progress_service.advance_act(map_run, map_rng) if act_cleared else map_progress_service.ensure_map(map_run, map_rng)
 	if error != OK:
 		return error
-	if had_map:
+	if had_map and not act_cleared:
 		return OK
 	var commit_error: Error = _commit_transaction(map_run, map_rng)
 	if commit_error == OK:
@@ -528,7 +530,13 @@ func finish_run_summary() -> Error:
 		var unlock_error: Error = meta_progress_service.unlock_endless()
 		if unlock_error != OK:
 			return unlock_error
+	if current_run.mode == RunState.MODE_ENDLESS:
+		meta_progress_service.record_endless_acts(int(current_run.run_statistics.get("acts_cleared", 0)))
 	return abandon_run()
+
+func best_endless_acts() -> int:
+	_ensure_services()
+	return meta_progress_service.best_endless_acts()
 
 func resume_scene_path() -> String:
 	if current_run == null:

@@ -3,11 +3,12 @@ extends RefCounted
 
 const RNG_STREAM: StringName = &"map_rng"
 
-func generate(template: MapTemplateDef, rng: RunRngService) -> MapState:
+## `act` (0 = Act 1) keeps node ids of later acts apart from earlier ones.
+func generate(template: MapTemplateDef, rng: RunRngService, act: int = 0) -> MapState:
 	if template == null or rng == null or not template.is_valid() or not rng.has_stream(RNG_STREAM):
 		return null
 	var generated: MapState = MapState.new()
-	generated.map_id = StringName("map.%s" % String(template.id))
+	generated.map_id = StringName("map.%s" % String(template.id)) if act <= 0 else StringName("map.%s.act_%d" % [String(template.id), act + 1])
 	generated.template_id = template.id
 	generated.total_layers = rng.randi_range(RNG_STREAM, template.min_layers, template.max_layers)
 	_create_skeleton(generated, template, rng)

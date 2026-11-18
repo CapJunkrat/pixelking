@@ -43,7 +43,6 @@ func _ready() -> void:
 	continue_button.pressed.connect(_on_continue_pressed)
 	$SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton.pressed.connect(_on_settings_pressed)
 	codex_button.pressed.connect(_open_codex)
-	$SafeArea/Layout/MenuPanel/MenuButtons/QuitButton.pressed.connect(_on_quit_pressed)
 	title_logo.gui_input.connect(_on_title_logo_input)
 	codex_back_button.pressed.connect(_close_codex)
 	_setup_menu_button_visuals()
@@ -84,7 +83,6 @@ func _build_codex_controls() -> void:
 	codex_button = settings_button.duplicate() as Button
 	codex_button.name = "CodexButton"
 	menu_buttons.add_child(codex_button)
-	menu_buttons.move_child(codex_button, menu_buttons.get_node("QuitButton").get_index())
 	var codex_label: Label = codex_button.get_node("Content/Group/Label") as Label
 	codex_label.text = "MENU_CODEX"
 
@@ -315,7 +313,6 @@ func _apply_locale(_locale: String) -> void:
 	$SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton/Content/Group/Label.text = Localization.text("MENU_SETTINGS")
 	var codex_label: Label = codex_button.get_node("Content/Group/Label") as Label
 	codex_label.text = Localization.text("MENU_CODEX")
-	$SafeArea/Layout/MenuPanel/MenuButtons/QuitButton/Content/Group/Label.text = Localization.text("MENU_QUIT")
 	codex_title_label.text = Localization.text("CODEX_TITLE")
 	codex_back_button.text = Localization.text("COMMON_BACK")
 	debug_badge.text = Localization.text("DEBUG_ENABLED")
@@ -556,5 +553,3 @@ func _close_settings() -> void:
 	settings_overlay.visible = false
 	$SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton.grab_focus()
 
-func _on_quit_pressed() -> void:
-	get_tree().quit()

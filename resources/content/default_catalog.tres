@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="ContentCatalog" load_steps=103 format=3]
+[gd_resource type="Resource" script_class="ContentCatalog" load_steps=111 format=3]
 
 [ext_resource type="Script" path="res://scripts/content/ContentCatalog.gd" id="1_catalog"]
 [ext_resource type="Resource" path="res://resources/content/motion_profiles/pawn.tres" id="2_motion_pawn"]
@@ -56,6 +56,14 @@
 [ext_resource type="Resource" path="res://resources/content/encounters/normal_standard.tres" id="37_encounter_normal"]
 [ext_resource type="Resource" path="res://resources/content/encounters/elite_standard.tres" id="38_encounter_elite"]
 [ext_resource type="Resource" path="res://resources/content/encounters/boss_royal_guard.tres" id="39_encounter_boss"]
+[ext_resource type="Resource" path="res://resources/content/encounters/boss_bandit_captain.tres" id="39_boss_bandit_captain"]
+[ext_resource type="Resource" path="res://resources/content/encounters/boss_siege_master.tres" id="39_boss_siege_master"]
+[ext_resource type="Resource" path="res://resources/content/encounters/boss_tide_lord.tres" id="39_boss_tide_lord"]
+[ext_resource type="Resource" path="res://resources/content/encounters/boss_beast_tamer.tres" id="39_boss_beast_tamer"]
+[ext_resource type="Resource" path="res://resources/content/encounters/boss_sky_warden.tres" id="39_boss_sky_warden"]
+[ext_resource type="Resource" path="res://resources/content/encounters/boss_war_king.tres" id="39_boss_war_king"]
+[ext_resource type="Resource" path="res://resources/content/encounters/boss_shadow_king.tres" id="39_boss_shadow_king"]
+[ext_resource type="Resource" path="res://resources/content/encounters/boss_stone_fortress.tres" id="39_boss_stone_fortress"]
 
 [ext_resource type="Resource" path="res://resources/content/pieces/vanguard.tres" id="p0_vanguard"]
 [ext_resource type="Resource" path="res://resources/content/pieces/sentry.tres" id="p1_sentry"]
@@ -119,4 +127,4 @@ events = Array[Resource]([ExtResource("25_event_merchant"), ExtResource("26_even
 rest_site = ExtResource("29_rest")
 map_node_defs = Array[Resource]([ExtResource("30_node_normal"), ExtResource("31_node_elite"), ExtResource("32_node_shop"), ExtResource("33_node_event"), ExtResource("34_node_rest"), ExtResource("35_node_boss")])
 map_templates = Array[Resource]([ExtResource("36_map_standard")])
-encounters = Array[Resource]([ExtResource("37_encounter_normal"), ExtResource("38_encounter_elite"), ExtResource("39_encounter_boss")])
+encounters = Array[Resource]([ExtResource("37_encounter_normal"), ExtResource("38_encounter_elite"), ExtResource("39_encounter_boss"), ExtResource("39_boss_bandit_captain"), ExtResource("39_boss_siege_master"), ExtResource("39_boss_tide_lord"), ExtResource("39_boss_beast_tamer"), ExtResource("39_boss_sky_warden"), ExtResource("39_boss_war_king"), ExtResource("39_boss_shadow_king"), ExtResource("39_boss_stone_fortress")])

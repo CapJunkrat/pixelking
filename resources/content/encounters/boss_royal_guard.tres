@@ -6,7 +6,9 @@
 script = ExtResource("1_script")
 id = &"boss_royal_guard"
 board_size = 8
-enemy_placements = Array[Dictionary]([{"placement_id": "boss_0", "piece_def_id": "catapult", "position": {"x": 7, "y": 7}}, {"placement_id": "boss_1", "piece_def_id": "manticore", "position": {"x": 3, "y": 7}}, {"placement_id": "boss_2", "piece_def_id": "royal_guard", "position": {"x": 4, "y": 7}}, {"placement_id": "boss_3", "piece_def_id": "king", "position": {"x": 5, "y": 7}}, {"placement_id": "boss_4", "piece_def_id": "royal_guard", "position": {"x": 6, "y": 7}}, {"placement_id": "boss_5", "piece_def_id": "gryphon", "position": {"x": 7, "y": 6}}, {"placement_id": "boss_6", "piece_def_id": "pawn", "position": {"x": 4, "y": 6}}, {"placement_id": "boss_7", "piece_def_id": "pawn", "position": {"x": 5, "y": 6}}, {"placement_id": "boss_8", "piece_def_id": "pawn", "position": {"x": 6, "y": 6}}])
+enemy_placements = Array[Dictionary]([{"placement_id": "boss_1", "piece_def_id": "manticore", "position": {"x": 3, "y": 7}}, {"placement_id": "boss_2", "piece_def_id": "royal_guard", "position": {"x": 4, "y": 7}}, {"placement_id": "boss_3", "piece_def_id": "king", "position": {"x": 5, "y": 7}}, {"placement_id": "boss_4", "piece_def_id": "royal_guard", "position": {"x": 6, "y": 7}}, {"placement_id": "boss_5", "piece_def_id": "gryphon", "position": {"x": 7, "y": 6}}, {"placement_id": "boss_6", "piece_def_id": "pawn", "position": {"x": 4, "y": 6}}, {"placement_id": "boss_7", "piece_def_id": "pawn", "position": {"x": 5, "y": 6}}, {"placement_id": "boss_8", "piece_def_id": "pawn", "position": {"x": 6, "y": 6}}])
 turn_limit = 0
 reward_tier = &"boss"
 is_boss = true
+act = 2
+display_name_key = &"BOSS_ROYAL_GUARD"

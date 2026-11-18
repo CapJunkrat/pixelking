@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="EncounterDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/content/EncounterDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"boss_bandit_captain"
+board_size = 8
+enemy_placements = Array[Dictionary]([{"placement_id": "boss_0", "piece_def_id": "king", "position": {"x": 5, "y": 7}}, {"placement_id": "boss_1", "piece_def_id": "rook", "position": {"x": 7, "y": 7}}, {"placement_id": "boss_2", "piece_def_id": "knight", "position": {"x": 4, "y": 7}}, {"placement_id": "boss_3", "piece_def_id": "knight", "position": {"x": 6, "y": 7}}, {"placement_id": "boss_5", "piece_def_id": "pawn", "position": {"x": 4, "y": 6}}, {"placement_id": "boss_6", "piece_def_id": "pawn", "position": {"x": 5, "y": 6}}, {"placement_id": "boss_7", "piece_def_id": "pawn", "position": {"x": 6, "y": 6}}, {"placement_id": "boss_8", "piece_def_id": "vanguard", "position": {"x": 7, "y": 6}}])
+turn_limit = 0
+reward_tier = &"boss"
+is_boss = true
+act = 1
+display_name_key = &"BOSS_BANDIT_CAPTAIN"

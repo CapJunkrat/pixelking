@@ -21,9 +21,30 @@ func test_default_catalog_is_valid_and_resource_backed() -> void:
 	assert(registry.default_shop_pool() != null and registry.default_shop_pool().piece_price == 25)
 	assert(registry.ordered_map_nodes().size() == 6)
 	assert(registry.map_template(&"standard_region") != null)
-	assert(registry.ordered_encounters().size() == 3)
+	assert(registry.ordered_encounters().size() == 11)
+	for act: int in range(3):
+		assert(EncounterDefDatabase.bosses_for_act(act).size() == 3)
+	assert(EncounterDefDatabase.bosses_for_act(3).size() == 9)
+	# Endless: no act is ever the last, and Bosses past Act 3 bring reinforcements.
+	var endless: RunState = RunState.new()
+	endless.initialize_new(5, RunState.MODE_ENDLESS)
+	endless.act_index = 5
+	assert(not endless.is_final_act())
+	var standard: RunState = RunState.new()
+	standard.initialize_new(5)
+	standard.act_index = 2
+	assert(standard.is_final_act())
+	for boss: EncounterDef in EncounterDefDatabase.bosses_for_act(0) + EncounterDefDatabase.bosses_for_act(1) + EncounterDefDatabase.bosses_for_act(2):
+		assert(boss.is_valid())
+		var reinforced: Array[Dictionary] = EncounterGenerator.reinforce(boss.enemy_placements, 12, 77)
+		assert(reinforced.size() > boss.enemy_placements.size())
+		var squares: Dictionary = {}
+		for placement: Dictionary in reinforced:
+			var square: Vector2i = DeploymentState.position_from_value(placement.get("position", {}))
+			assert(DeploymentState.is_enemy_zone(square, 8) and not squares.has(square))
+			squares[square] = true
 	assert(registry.map_node(&"boss").encounter_def_id == &"boss_royal_guard")
-	assert(registry.encounter(&"boss_royal_guard").enemy_placements.size() == 9)
+	assert(registry.encounter(&"boss_royal_guard").enemy_placements.size() == 8)
 
 func test_special_pieces_are_deployed_across_enemy_encounters() -> void:
 	# Normal and elite armies are generated, so every special piece must be reachable

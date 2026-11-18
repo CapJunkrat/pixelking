@@ -12,9 +12,11 @@ const KING_FILES: Array[int] = [5]
 const BACK_RANK := 7
 const FRONT_RANK := 6
 const THIRD_RANK := 5
-## Strength (sum of piece values, King excluded) at the first and last battle layer.
-const NORMAL_BUDGET := Vector2(7.0, 20.0)
-const ELITE_BUDGET := Vector2(14.0, 26.0)
+## Strength (sum of piece values, King excluded) at the start of Act 1 and the end of
+## Act 3. Endless acts past that add ENDLESS_STEP per act.
+const NORMAL_BUDGET := Vector2(7.0, 24.0)
+const ELITE_BUDGET := Vector2(14.0, 30.0)
+const ENDLESS_STEP := 5.0
 ## Early battles never field more than this multiple of the player's own strength.
 const EARLY_CAP_MULTIPLIER := 1.0
 const EARLY_LAYERS := 2
@@ -34,18 +36,27 @@ static func progress(layer: int, total_layers: int) -> float:
 	return clampf(float(layer) / float(maxi(1, total_layers - 2)), 0.0, 1.0)
 
 static func budget(tier: StringName, layer: int, total_layers: int, player_strength: int) -> int:
+	return budget_at(tier, progress(layer, total_layers), layer < EARLY_LAYERS, player_strength)
+
+## The budget `stage` of the way through the run (RunState.run_stage: 0 to 1 over the
+## three acts, more in endless). `early` caps it by the player's own strength.
+static func budget_at(tier: StringName, stage: float, early: bool, player_strength: int) -> int:
 	var curve: Vector2 = ELITE_BUDGET if tier == &"elite" else NORMAL_BUDGET
-	var value: float = lerpf(curve.x, curve.y, progress(layer, total_layers))
-	if layer < EARLY_LAYERS and player_strength > 0:
+	var value: float = lerpf(curve.x, curve.y, clampf(stage, 0.0, 1.0))
+	if stage > 1.0:
+		value += (stage - 1.0) * float(RunState.ACT_COUNT) * ENDLESS_STEP
+	if early and player_strength > 0:
 		value = minf(value, maxf(6.0, player_strength * EARLY_CAP_MULTIPLIER))
 	return roundi(value)
 
 ## Placements in EncounterDef format: [{"placement_id", "piece_def_id", "position"}].
 static func generate(tier: StringName, layer: int, total_layers: int, seed_value: int, player_strength: int) -> Array[Dictionary]:
+	return generate_at(tier, progress(layer, total_layers), layer < EARLY_LAYERS, seed_value, player_strength)
+
+static func generate_at(tier: StringName, stage: float, early: bool, seed_value: int, player_strength: int) -> Array[Dictionary]:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed_value
-	var remaining: int = budget(tier, layer, total_layers, player_strength)
-	var stage: float = progress(layer, total_layers)
+	var remaining: int = budget_at(tier, stage, early, player_strength)
 	var pool: Array[String] = []
 	for band: Dictionary in POOLS:
 		if stage >= float(band["from"]):
@@ -102,6 +113,43 @@ static func _place(army: Array[String], king_file: int, guards: int) -> Array[Di
 			continue
 		taken[square] = true
 		result.append(_placement(id, square, index + 1))
+	return result
+
+## Endless Bosses: adds pieces worth about `extra` to a fixed Boss army, on free squares
+## of the enemy corner (the most valuable first, while room lasts).
+static func reinforce(placements: Array[Dictionary], extra: int, seed_value: int) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var taken: Dictionary = {}
+	for placement: Dictionary in placements:
+		result.append(placement.duplicate(true))
+		taken[DeploymentState.position_from_value(placement.get("position", {}))] = true
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var pool: Array[String] = []
+	for band: int in [1, 2]:
+		for id: String in POOLS[band]["ids"]:
+			pool.append(id)
+	var remaining: int = extra
+	var index: int = 0
+	while remaining > 0:
+		var affordable: Array[String] = []
+		for id: String in pool:
+			if _value(id) <= remaining:
+				affordable.append(id)
+		if affordable.is_empty():
+			break
+		var square: Vector2i = _free(taken, [3, 4, 5, 6, 7], THIRD_RANK)
+		if square.x < 0:
+			square = _free(taken, [3, 4, 5, 6, 7], FRONT_RANK)
+		if square.x < 0:
+			square = _free(taken, [3, 4, 5, 6, 7], BACK_RANK)
+		if square.x < 0:
+			break
+		var pick: String = affordable[rng.randi_range(0, affordable.size() - 1)]
+		taken[square] = true
+		result.append({"placement_id": "endless_%d" % index, "piece_def_id": pick, "position": {"x": square.x, "y": square.y}})
+		remaining -= _value(pick)
+		index += 1
 	return result
 
 static func _free(taken: Dictionary, files: Array[int], rank: int) -> Vector2i:

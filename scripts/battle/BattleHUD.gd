@@ -163,10 +163,14 @@ func _load_encounter() -> void:
 		return
 	_tier_color = TIER_COLORS.get(definition.id, GOLD)
 	enemy_label.text = _text(String(definition.display_name_key)).to_upper()
+	var encounter: EncounterDef = EncounterDefDatabase.for_current(run_manager.get("current_run") as RunState)
+	if encounter != null and encounter.is_boss and not encounter.display_name_key.is_empty():
+		enemy_label.text = _text(String(encounter.display_name_key)).to_upper()
 	enemy_label.add_theme_color_override("font_color", _tier_color)
 	var map_state: Variant = (run_manager.get("current_run") as RunState).map_state
 	if map_state != null:
-		layer_label.text = _text("MAP_PROGRESS") % [node.layer_index + 1, (map_state as MapState).total_layers]
+		var act: int = (run_manager.get("current_run") as RunState).act_index + 1
+		layer_label.text = "%s · %s" % [_text("MAP_ACT") % act, _text("MAP_PROGRESS") % [node.layer_index + 1, (map_state as MapState).total_layers]]
 		layer_label.visible = true
 	var frame: PanelContainer = find_child("BossPortrait", true, false) as PanelContainer
 	var frame_style: StyleBoxFlat = frame.get_theme_stylebox("panel") as StyleBoxFlat

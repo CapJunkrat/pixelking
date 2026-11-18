@@ -17,12 +17,11 @@ var mode_option: OptionButton
 func _ready() -> void:
 	mode_option = OptionButton.new()
 	mode_option.name = "ModeOption"
-	mode_option.add_item("Standard Journey")
+	mode_option.add_item("")
 	mode_option.set_item_metadata(0, RunState.MODE_STANDARD)
-	mode_option.add_item("Endless Journey")
+	mode_option.add_item("")
 	mode_option.set_item_metadata(1, RunState.MODE_ENDLESS)
-	var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
-	mode_option.set_item_disabled(1, manager == null or not manager.endless_unlocked())
+	_refresh_modes()
 	$Center/Panel/Content.add_child(mode_option)
 	$Center/Panel/Content.move_child(mode_option, 2)
 	random_button.pressed.connect(_fill_random_seed)
@@ -32,7 +31,26 @@ func _ready() -> void:
 	_apply_locale()
 	hide()
 
+## Endless opens once a standard journey is won; it shows the best endless result.
+func _refresh_modes() -> void:
+	var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
+	var unlocked: bool = manager != null and manager.endless_unlocked()
+	mode_option.set_item_text(0, _text("SETUP_MODE_STANDARD"))
+	var endless_text: String = _text("SETUP_MODE_ENDLESS_LOCKED")
+	if unlocked:
+		var best: int = manager.best_endless_acts()
+		endless_text = _text("SETUP_MODE_ENDLESS_BEST") % best if best > 0 else _text("SETUP_MODE_ENDLESS")
+	mode_option.set_item_text(1, endless_text)
+	mode_option.set_item_disabled(1, not unlocked)
+	if not unlocked:
+		mode_option.select(0)
+
+func _text(key: String) -> String:
+	var localization: Node = get_node_or_null("/root/Localization")
+	return str(localization.call("text", key)) if localization != null else key
+
 func show_setup() -> void:
+	_refresh_modes()
 	error_label.text = ""
 	seed_input.text = ""
 	show()

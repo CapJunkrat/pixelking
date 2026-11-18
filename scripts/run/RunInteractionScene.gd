@@ -106,11 +106,12 @@ func _render() -> void:
 	if event_def != null:
 		_vignette.show_event(event_def)
 	var title_key: String = str(pending.get("title_key", ""))
-	title_label.text = _localized(title_key) if not title_key.is_empty() else str(pending.get("title", type.replace("_", " ").capitalize()))
+	title_label.text = _formatted(title_key, pending.get("title_args", [])) if not title_key.is_empty() else str(pending.get("title", type.replace("_", " ").capitalize()))
 	var description: String = str(pending.get("description", "Choose one option."))
 	var description_key: String = str(pending.get("description_key", ""))
 	if not description_key.is_empty():
-		description = "%s\n\n%s" % [_localized(description_key), description]
+		var keyed: String = _formatted(description_key, pending.get("description_args", []))
+		description = keyed if description.is_empty() else "%s\n\n%s" % [keyed, description]
 	status_label.text = description
 	_gold_label.text = "%d Gold" % run.gold
 	for option_value: Variant in pending.get("options", []) as Array:
@@ -393,3 +394,10 @@ func _style_button(button: Button, primary: bool) -> void:
 
 func _localized(key: String) -> String:
 	return str(localization.call("text", key)) if localization != null else key
+
+## A localized text with its %-placeholders filled from `args` (when there are any).
+func _formatted(key: String, args: Variant) -> String:
+	var text: String = _localized(key)
+	if args is Array and not (args as Array).is_empty():
+		return text % (args as Array)
+	return text

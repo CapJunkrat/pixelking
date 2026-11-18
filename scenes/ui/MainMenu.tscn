@@ -10,7 +10,6 @@
 [ext_resource type="Texture2D" uid="uid://dpvnf7l6wts57" path="res://assets/ui/menu/icons/new_journey.png" id="9_icon_new"]
 [ext_resource type="Texture2D" uid="uid://dtkqfua868g20" path="res://assets/ui/menu/icons/continue.png" id="10_icon_continue"]
 [ext_resource type="Texture2D" uid="uid://cjayecxxem0jc" path="res://assets/ui/menu/icons/settings.png" id="11_icon_settings"]
-[ext_resource type="Texture2D" uid="uid://ch60csfluh606" path="res://assets/ui/menu/icons/quit.png" id="12_icon_quit"]
 [ext_resource type="Shader" uid="uid://cyxb7pyf7jsns" path="res://assets/shaders/main_menu_background.gdshader" id="13_bg_shader"]
 [ext_resource type="Texture2D" uid="uid://2pv3mwhn4ov2" path="res://assets/ui/effects/menu_spark.png" id="14_spark"]
 [ext_resource type="Texture2D" uid="uid://ct57h3b5gkicn" path="res://assets/ui/main_menu_flags.png" id="15_flags"]
@@ -374,44 +373,6 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.94, 0.9, 0.78, 1)
 theme_override_font_sizes/font_size = 24
 text = "MENU_SETTINGS"
-vertical_alignment = 1
-
-[node name="QuitButton" type="Button" parent="SafeArea/Layout/MenuPanel/MenuButtons" unique_id=1962372393]
-custom_minimum_size = Vector2(280, 48)
-layout_mode = 2
-theme_override_styles/normal = SubResource("StyleChessNormal")
-theme_override_styles/pressed = SubResource("StyleChessPressed")
-theme_override_styles/hover = SubResource("StyleChessHover")
-theme_override_styles/focus = SubResource("StyleChessHover")
-
-[node name="Content" type="CenterContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton" unique_id=2092613678]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-
-[node name="Group" type="HBoxContainer" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton/Content" unique_id=1468785558]
-layout_mode = 2
-mouse_filter = 2
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="Icon" type="TextureRect" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton/Content/Group" unique_id=1728595479]
-custom_minimum_size = Vector2(30, 30)
-layout_mode = 2
-mouse_filter = 2
-texture = ExtResource("12_icon_quit")
-expand_mode = 1
-stretch_mode = 5
-
-[node name="Label" type="Label" parent="SafeArea/Layout/MenuPanel/MenuButtons/QuitButton/Content/Group" unique_id=347100095]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.94, 0.9, 0.78, 1)
-theme_override_font_sizes/font_size = 24
-text = "MENU_QUIT"
 vertical_alignment = 1
 
 [node name="SettingsOverlay" type="ColorRect" parent="." unique_id=1329766734]

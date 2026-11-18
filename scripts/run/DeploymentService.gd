@@ -10,8 +10,7 @@ func ensure_deployment(run_state: RunState) -> Error:
 		# Development saves from the former 5x5 prototype are safely rebuilt.
 		run_state.deployment_state = null
 	var current: MapNodeState = run_state.map_state.get_node(run_state.current_node_id)
-	var node_definition: MapNodeDef = MapNodeDefDatabase.get_def(current.node_type_id) if current != null else null
-	var encounter: EncounterDef = EncounterDefDatabase.get_def(node_definition.encounter_def_id) if node_definition != null else null
+	var encounter: EncounterDef = EncounterDefDatabase.for_node(run_state, current)
 	if encounter == null:
 		return ERR_DOES_NOT_EXIST
 	var deployment: DeploymentState = DeploymentState.new()
@@ -19,12 +18,18 @@ func ensure_deployment(run_state: RunState) -> Error:
 	deployment.board_size = encounter.board_size
 	deployment.enemy_placements = encounter.placement_copies()
 	if encounter.procedural and run_state.map_state != null:
-		deployment.enemy_placements = EncounterGenerator.generate(
+		deployment.enemy_placements = EncounterGenerator.generate_at(
 			encounter.reward_tier,
-			current.layer_index,
-			run_state.map_state.total_layers,
+			run_state.run_stage(),
+			run_state.act_index == 0 and current.layer_index < EncounterGenerator.EARLY_LAYERS,
 			run_state.current_encounter_seed,
 			EncounterGenerator.player_strength(run_state))
+	elif encounter.is_boss and run_state.act_index >= RunState.ACT_COUNT:
+		# Endless: each act past the third brings the Boss more reinforcements.
+		deployment.enemy_placements = EncounterGenerator.reinforce(
+			deployment.enemy_placements,
+			(run_state.act_index - RunState.ACT_COUNT + 1) * 6,
+			run_state.current_encounter_seed)
 	if current != null and run_state.map_state != null:
 		deployment.rocks = RockLayout.generate(run_state.current_encounter_seed, current.layer_index, run_state.map_state.total_layers, deployment.board_size)
 	run_state.deployment_state = deployment

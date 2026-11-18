@@ -19,8 +19,14 @@ func _run() -> void:
 		_expect(manager.submit_opening_draft_choice(str(candidates[0])) == OK, "draft choice commits")
 	_expect(manager.ensure_run_map() == OK, "route map is generated")
 	var guard: int = 0
-	while str(manager.current_run.pending_choice.get("type", "")) != "run_summary" and guard < 20:
+	var acts_seen: Array[int] = []
+	while str(manager.current_run.pending_choice.get("type", "")) != "run_summary" and guard < 60:
 		guard += 1
+		# The map screen does this on every visit; after a Boss it starts the next act.
+		if manager.current_run.phase == RunPhase.MAP:
+			_expect(manager.ensure_run_map() == OK, "the map is ready")
+		if manager.current_run.act_index not in acts_seen:
+			acts_seen.append(manager.current_run.act_index)
 		var available: Array[StringName] = manager.available_map_node_ids()
 		_expect(not available.is_empty(), "route exposes a next node")
 		if available.is_empty():
@@ -36,7 +42,9 @@ func _run() -> void:
 		else:
 			_expect(manager.begin_current_run_interaction() == OK, "non-battle interaction is staged")
 		_resolve_pending(manager)
-	_expect(str(manager.current_run.pending_choice.get("type", "")) == "run_summary", "boss victory reaches run summary")
+	_expect(acts_seen == ([0, 1, 2] as Array[int]), "the run goes through three acts, each on its own map")
+	_expect(int(manager.current_run.run_statistics.get("acts_cleared", 0)) == 3, "all three acts are cleared")
+	_expect(str(manager.current_run.pending_choice.get("type", "")) == "run_summary", "the third Boss's defeat reaches the run summary")
 	_expect(bool(manager.current_run.run_statistics.get("run_won", false)), "summary records a won run")
 	_expect(manager.resume_scene_path() == RunContentService.INTERACTION_SCENE, "summary is resumable")
 	_expect(manager.finish_run_summary() == OK, "summary finalization commits meta progression")
@@ -46,10 +54,16 @@ func _run() -> void:
 	_cleanup()
 	_finish()
 
+## Answers whatever the run asks until nothing is pending (a reward can lead to a
+## fusion confirmation or a full-reserve choice).
 func _resolve_pending(manager: AppRunManager) -> void:
-	var pending: Dictionary = manager.current_run.pending_choice
-	if pending.is_empty() or str(pending.get("type", "")) == "run_summary":
-		return
+	for _step: int in range(5):
+		var pending: Dictionary = manager.current_run.pending_choice
+		if pending.is_empty() or str(pending.get("type", "")) == "run_summary":
+			return
+		_answer(manager, pending)
+
+func _answer(manager: AppRunManager, pending: Dictionary) -> void:
 	var options: Array = pending.get("options", []) as Array
 	for value: Variant in options:
 		if value is Dictionary and bool((value as Dictionary).get("enabled", true)):

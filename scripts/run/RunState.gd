@@ -10,6 +10,9 @@ const MAX_RESERVE_PIECES := 5
 ## Each run gets one free retry. A defeat with a retry left sends the player back to
 ## redeploy; a defeat with none left ends the run.
 const MAX_RETRIES := 1
+## A standard run is three acts, each its own map ending in a Boss. Endless runs go on
+## after the third act with ever stronger enemies.
+const ACT_COUNT := 3
 const FusionPlanType = preload("res://scripts/run/FusionPlan.gd")
 const RunPhaseType = preload("res://scripts/run/RunPhase.gd")
 
@@ -41,6 +44,22 @@ var next_piece_instance_id: int = 1
 ## Squares the player chose by hand, kept for every later battle of this Run:
 ## str(instance_id) -> {"x", "y"}. Pieces without one are placed automatically.
 var preferred_positions: Dictionary = {}
+## The act being played, from 0 (Act 1). Endless runs count past ACT_COUNT - 1.
+var act_index: int = 0
+
+## Whether the current act is the run's last one (never in endless mode).
+func is_final_act() -> bool:
+	return mode != MODE_ENDLESS and act_index >= ACT_COUNT - 1
+
+## How far through the whole run the current battle is: 0 at the first layer of Act 1,
+## 1 at the end of Act 3, and above 1 in endless acts beyond it.
+func run_stage() -> float:
+	var local: float = 0.0
+	if map_state != null:
+		var node: MapNodeState = map_state.get_node(current_node_id)
+		if node != null:
+			local = clampf(float(node.layer_index) / float(maxi(1, map_state.total_layers - 1)), 0.0, 1.0)
+	return (float(act_index) + local) / float(ACT_COUNT)
 
 func initialize_new(seed_value: int, mode_value: String = MODE_STANDARD) -> void:
 	run_version = CURRENT_RUN_VERSION
@@ -51,6 +70,7 @@ func initialize_new(seed_value: int, mode_value: String = MODE_STANDARD) -> void
 	rng_stream_states.clear()
 	current_map_id = &""
 	map_state = null
+	act_index = 0
 	current_node_id = &""
 	visited_node_ids.clear()
 	resolved_node_payloads.clear()
@@ -197,6 +217,7 @@ func to_dictionary() -> Dictionary:
 		"run_statistics": run_statistics.duplicate(true),
 		"next_piece_instance_id": next_piece_instance_id,
 		"preferred_positions": preferred_positions.duplicate(true),
+		"act_index": act_index,
 	}
 
 func load_from_dictionary(data: Dictionary, normalize_active_battle: bool = true) -> bool:
@@ -258,6 +279,7 @@ func load_from_dictionary(data: Dictionary, normalize_active_battle: bool = true
 	run_statistics = _dictionary_value(data, "run_statistics")
 	next_piece_instance_id = int(data.get("next_piece_instance_id", 1))
 	preferred_positions = _dictionary_value(data, "preferred_positions")
+	act_index = maxi(0, int(data.get("act_index", 0)))
 	var legacy_sacrifice: bool = str(pending_choice.get("type", "")) == "sacrifice"
 	if legacy_sacrifice:
 		# Older saves could stop on the removed sacrifice screen; send the player back to the battle node.

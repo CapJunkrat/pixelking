@@ -58,7 +58,7 @@ func _render() -> void:
 	var current: MapNodeState = run_manager.current_map_node()
 	var reached_layer: int = current.layer_index + 1 if current != null else 0
 	_retry_ready = run_state.retries_left > 0
-	progress_label.text = "%s   ·   %s" % [_text("MAP_PROGRESS") % [reached_layer, run_state.map_state.total_layers], _text("MAP_RETRY_READY" if _retry_ready else "MAP_RETRY_SPENT")]
+	progress_label.text = "%s · %s   ·   %s" % [_text("MAP_ACT") % (run_state.act_index + 1), _text("MAP_PROGRESS") % [reached_layer, run_state.map_state.total_layers], _text("MAP_RETRY_READY" if _retry_ready else "MAP_RETRY_SPENT")]
 	_reached_layer = reached_layer
 	_total_layers = run_state.map_state.total_layers
 	_progress_pips.queue_redraw()

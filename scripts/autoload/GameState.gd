@@ -77,9 +77,7 @@ func start_run_battle(run_state: RunState) -> bool:
 			return false
 		challenger_items.append(item_definition)
 	var turn_limit: int = 0
-	var current_node: MapNodeState = run_state.map_state.get_node(run_state.current_node_id) if run_state.map_state != null else null
-	var node_definition: MapNodeDef = MapNodeDefDatabase.get_def(current_node.node_type_id) if current_node != null else null
-	var encounter: EncounterDef = EncounterDefDatabase.get_def(node_definition.encounter_def_id) if node_definition != null else null
+	var encounter: EncounterDef = EncounterDefDatabase.for_current(run_state)
 	if encounter != null:
 		turn_limit = encounter.turn_limit
 	board = run_board

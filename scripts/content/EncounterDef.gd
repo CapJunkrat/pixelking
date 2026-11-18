@@ -10,6 +10,13 @@ extends Resource
 ## Generated per battle by EncounterGenerator from a budget that grows with the map
 ## layer; enemy_placements then only serve as a fallback example.
 @export var procedural: bool = false
+## Bosses only: the act (1, 2 or 3) whose final battle this boss can be, and its name.
+@export var act: int = 0
+@export var display_name_key: StringName = &""
+
+## The King forms an encounter may be led by (checked by id: this runs while the
+## content registry is still being built, before pieces can be looked up).
+const KING_IDS: Array[StringName] = [&"king", &"war_king", &"shadow_king", &"shield_king"]
 
 func is_valid() -> bool:
 	if id.is_empty() or board_size != BoardState.DEFAULT_SIZE or enemy_placements.is_empty() or turn_limit < 0 or reward_tier not in [&"normal", &"elite", &"boss"]:
@@ -29,7 +36,7 @@ func is_valid() -> bool:
 			return false
 		placement_ids[placement_id] = true
 		occupied[position] = true
-		king_count += 1 if piece_def_id == &"king" else 0
+		king_count += 1 if piece_def_id in KING_IDS else 0
 	return king_count == 1
 
 func placement_copies() -> Array[Dictionary]:

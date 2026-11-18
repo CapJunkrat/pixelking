@@ -251,13 +251,16 @@ func _render() -> void:
 	var run: RunState = run_manager.current_run
 	var node: MapNodeState = run_manager.current_map_node()
 	var node_def: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id) if node != null else null
-	var encounter: EncounterDef = EncounterDefDatabase.get_def(node_def.encounter_def_id) if node_def != null else null
+	var encounter: EncounterDef = EncounterDefDatabase.for_current(run)
 	if node_def != null:
 		var tier_color: Color = TIER_COLORS.get(node_def.id, GOLD)
-		tier_label.text = " %s " % _text(String(node_def.display_name_key)).to_upper()
+		var tier_name: String = _text(String(node_def.display_name_key))
+		if encounter != null and encounter.is_boss and not encounter.display_name_key.is_empty():
+			tier_name = _text(String(encounter.display_name_key))
+		tier_label.text = " %s " % tier_name.to_upper()
 		(tier_label.get_parent() as PanelContainer).add_theme_stylebox_override("panel", _box(tier_color, tier_color, 4))
 	if node != null and run.map_state != null:
-		layer_label.text = _text("MAP_PROGRESS") % [node.layer_index + 1, run.map_state.total_layers]
+		layer_label.text = "%s · %s" % [_text("MAP_ACT") % (run.act_index + 1), _text("MAP_PROGRESS") % [node.layer_index + 1, run.map_state.total_layers]]
 	_render_board()
 	_render_foes()
 	_render_pattern()

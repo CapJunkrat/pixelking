@@ -13,11 +13,9 @@ func _init() -> void:
 		"SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton",
 		"SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton",
 		"SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton",
-		"SafeArea/Layout/MenuPanel/MenuButtons/QuitButton",
 		"SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton/Content/Group/Label",
 		"SafeArea/Layout/MenuPanel/MenuButtons/ContinueButton/Content/Group/Label",
 		"SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton/Content/Group/Label",
-		"SafeArea/Layout/MenuPanel/MenuButtons/QuitButton/Content/Group/Label",
 		"SettingsOverlay/SettingsPanel/SettingsContent/Title",
 		"SettingsOverlay/SettingsPanel/SettingsContent/LanguageOption",
 		"SettingsOverlay/SettingsPanel/SettingsContent/BackButton",
@@ -35,7 +33,7 @@ func _init() -> void:
 	if not is_equal_approx(menu_panel.size.x, 280.0):
 		push_error("Menu panel width must be 280px, got %s" % menu_panel.size.x)
 		ok = false
-	for button_name in ["NewGameButton", "ContinueButton", "SettingsButton", "QuitButton"]:
+	for button_name in ["NewGameButton", "ContinueButton", "SettingsButton"]:
 		var button := menu.get_node("SafeArea/Layout/MenuPanel/MenuButtons/" + button_name) as Button
 		var icon := button.get_node("Content/Group/Icon") as TextureRect
 		var label := button.get_node("Content/Group/Label") as Label
