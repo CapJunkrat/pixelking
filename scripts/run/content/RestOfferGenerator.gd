@@ -23,6 +23,9 @@ func generate(run_state: RunState, reward_service: RunRewardService) -> Error:
 
 ## The growing piece closest to its next form (Squire, Crystal Mage...).
 func _trainee(run_state: RunState) -> PieceInstanceState:
+	return best_trainee(run_state)
+
+static func best_trainee(run_state: RunState) -> PieceInstanceState:
 	var best: PieceInstanceState = null
 	var best_gap: int = 1000
 	for piece: PieceInstanceState in run_state.player_roster:

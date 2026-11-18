@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EventDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/content/EventDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"hooded_gambler"
+title = "Hooded Gambler"
+description = "A stranger shuffles three cups on an upturned crate. \"Find the coin, double your purse.\""
+safe_gold = 12
+risky_gold = 25
+can_offer_relic = true
+options = Array[Dictionary]([{"id": "bet", "label": "Bet 15 Gold", "detail": "50%: win 35 Gold back. 50%: lose your stake.", "cost": 15, "kind": "gold", "amount": 35, "chance": 0.5, "fail": {"kind": "nothing"}, "success_text": "The coin is under the middle cup. You win 35 Gold!", "fail_text": "Empty. The stranger pockets your 15 Gold."}, {"id": "stake_item", "label": "Stake your {lost}", "detail": "Give up your {lost}. 55%: win {reward}.", "kind": "random_relic", "chance": 0.55, "fail": {"kind": "nothing"}, "pay": [{"kind": "lose_item"}], "success_text": "You win %s!", "fail_text": "The cups never lie, they say. Your item is gone."}, {"id": "leave", "label": "Walk on", "detail": "Nothing happens.", "kind": "nothing", "success_text": "You keep your purse and your pride."}])
+min_layer = 1
+sky_top = Color(0.0706, 0.0471, 0.1176, 1)
+sky_bottom = Color(0.2275, 0.1020, 0.2275, 1)
+glow = Color(0.7725, 0.5490, 1.0000, 1)
+props = Array[String](["table", "enemy:assassin"])

@@ -16,7 +16,7 @@ func test_default_catalog_is_valid_and_resource_backed() -> void:
 	assert(registry.recipe(&"pawn_knight_lancer") != null)
 	assert(registry.relic_ids() == [&"iron_crown", &"lucky_coin", &"war_banner", &"glass_feather"])
 	assert(registry.consumable_ids() == [&"royal_bomb", &"holy_water", &"freeze_charm", &"second_wind"])
-	assert(registry.event_ids() == [&"wandering_merchant", &"ancient_shrine", &"lost_patrol", &"golden_fork"])
+	assert(registry.event_ids().size() == 12 and registry.event_ids().slice(0, 4) == [&"wandering_merchant", &"ancient_shrine", &"lost_patrol", &"golden_fork"])
 	assert(registry.reward_table() != null and registry.reward_table().recruit_piece_ids[0] == &"pawn")
 	assert(registry.default_shop_pool() != null and registry.default_shop_pool().piece_price == 25)
 	assert(registry.ordered_map_nodes().size() == 6)

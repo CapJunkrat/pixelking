@@ -74,10 +74,12 @@ func submit(run_state: RunState, _rng: RunRngService, progress: MapProgressServi
 		"shop":
 			return _submit_shop(run_state, progress, pending, choice_id, payload)
 		"event", "rest":
+			var gold_before: int = run_state.gold
 			var outcome: Dictionary = _apply_chance_effect(run_state, _rng, payload)
 			if int(outcome.get("error", OK)) != OK:
 				return int(outcome["error"])
 			run_state.run_statistics["last_outcome"] = str(outcome.get("text", ""))
+			run_state.run_statistics["last_outcome_info"] = _outcome_info(run_state, payload, outcome, run_state.gold - gold_before)
 			return _resolve_interaction_node(run_state, progress, {"outcome": pending_type, "choice": choice_id, "success": bool(outcome.get("success", true))})
 		"fusion_confirmation":
 			return fusion_interaction_service.submit(run_state, progress, deployment, choice_id)
@@ -91,7 +93,15 @@ func _apply_chance_effect(run_state: RunState, rng: RunRngService, payload: Dict
 	if run_state.gold < cost:
 		return {"error": ERR_UNAVAILABLE}
 	var snapshot: int = run_state.gold
+	var slots_snapshot: Array[StringName] = run_state.challenger_slots.duplicate()
+	var retries_snapshot: int = run_state.retries_left
 	run_state.gold -= cost
+	for paid: Variant in payload.get("pay", []) as Array:
+		if reward_service.apply(run_state, paid as Dictionary) != OK:
+			run_state.gold = snapshot
+			run_state.challenger_slots = slots_snapshot
+			run_state.retries_left = retries_snapshot
+			return {"error": ERR_UNAVAILABLE}
 	var chance: float = float(payload.get("chance", 1.0))
 	var success: bool = chance >= 1.0 or rng == null or rng.randi_range(&"event_rng", 0, 99) < int(roundf(chance * 100.0))
 	var effect: Dictionary = payload if success else (payload.get("fail", {"kind": "nothing"}) as Dictionary)
@@ -104,9 +114,38 @@ func _apply_chance_effect(run_state: RunState, rng: RunRngService, payload: Dict
 		var error: Error = reward_service.apply(run_state, effect)
 		if error != OK:
 			run_state.gold = snapshot
+			run_state.challenger_slots = slots_snapshot
+			run_state.retries_left = retries_snapshot
 			return {"error": error}
 	var text: String = text_template % named if "%s" in text_template else text_template
-	return {"error": OK, "success": success, "text": text}
+	return {"error": OK, "success": success, "text": text, "effect": effect}
+
+## What the outcome card shows: whether luck held, the picture of what was gained, the
+## gold change and anything given up.
+func _outcome_info(run_state: RunState, payload: Dictionary, outcome: Dictionary, gold_delta: int) -> Dictionary:
+	var effect: Dictionary = outcome.get("effect", {}) as Dictionary
+	var info: Dictionary = {
+		"success": bool(outcome.get("success", true)),
+		"risky": float(payload.get("chance", 1.0)) < 1.0,
+		"kind": str(effect.get("kind", "nothing")),
+		"gold_delta": gold_delta,
+	}
+	for key: String in ["piece_def_id", "item_id", "relic_id"]:
+		if effect.has(key):
+			info[key] = str(effect[key])
+	if info["kind"] == "train":
+		var trained: PieceInstanceState = run_state.get_piece_state(int(effect.get("instance_id", 0)))
+		if trained != null:
+			info["piece_def_id"] = String(trained.piece_def_id)
+	var lost: Array[String] = []
+	for paid: Variant in payload.get("pay", []) as Array:
+		match str((paid as Dictionary).get("kind", "")):
+			"lose_item":
+				lost.append(str((paid as Dictionary).get("lost", "an item")))
+			"lose_retry":
+				lost.append("your retry")
+	info["lost"] = lost
+	return info
 
 ## A random non-King piece leaves the army. Returns its name ("nobody" if none).
 func _desert(run_state: RunState, rng: RunRngService) -> String:

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="ContentCatalog" load_steps=95 format=3]
+[gd_resource type="Resource" script_class="ContentCatalog" load_steps=103 format=3]
 
 [ext_resource type="Script" path="res://scripts/content/ContentCatalog.gd" id="1_catalog"]
 [ext_resource type="Resource" path="res://resources/content/motion_profiles/pawn.tres" id="2_motion_pawn"]
@@ -37,6 +37,14 @@
 [ext_resource type="Resource" path="res://resources/content/events/ancient_shrine.tres" id="26_event_shrine"]
 [ext_resource type="Resource" path="res://resources/content/events/lost_patrol.tres" id="27_event_patrol"]
 [ext_resource type="Resource" path="res://resources/content/events/golden_fork.tres" id="28_event_fork"]
+[ext_resource type="Resource" path="res://resources/content/events/training_grounds.tres" id="ev_training_grounds"]
+[ext_resource type="Resource" path="res://resources/content/events/hooded_gambler.tres" id="ev_hooded_gambler"]
+[ext_resource type="Resource" path="res://resources/content/events/village_militia.tres" id="ev_village_militia"]
+[ext_resource type="Resource" path="res://resources/content/events/sealed_armory.tres" id="ev_sealed_armory"]
+[ext_resource type="Resource" path="res://resources/content/events/mercenary_camp.tres" id="ev_mercenary_camp"]
+[ext_resource type="Resource" path="res://resources/content/events/fallen_knight.tres" id="ev_fallen_knight"]
+[ext_resource type="Resource" path="res://resources/content/events/alchemist_cart.tres" id="ev_alchemist_cart"]
+[ext_resource type="Resource" path="res://resources/content/events/wishing_well.tres" id="ev_wishing_well"]
 [ext_resource type="Resource" path="res://resources/content/rest_sites/standard_camp.tres" id="29_rest"]
 [ext_resource type="Resource" path="res://resources/content/maps/nodes/normal_battle.tres" id="30_node_normal"]
 [ext_resource type="Resource" path="res://resources/content/maps/nodes/elite_battle.tres" id="31_node_elite"]
@@ -107,7 +115,7 @@ fusion_recipes = Array[Resource]([ExtResource("16_recipe_lancer"), ExtResource("
 challenger_items = Array[Resource]([ExtResource("18_item_crown"), ExtResource("19_item_coin"), ExtResource("20_item_banner"), ExtResource("21_item_feather"), ExtResource("22_item_bomb"), ExtResource("i_holy_water"), ExtResource("i_freeze_charm"), ExtResource("i_second_wind")])
 battle_reward_table = ExtResource("23_reward")
 shop_pool = ExtResource("24_shop")
-events = Array[Resource]([ExtResource("25_event_merchant"), ExtResource("26_event_shrine"), ExtResource("27_event_patrol"), ExtResource("28_event_fork")])
+events = Array[Resource]([ExtResource("25_event_merchant"), ExtResource("26_event_shrine"), ExtResource("27_event_patrol"), ExtResource("28_event_fork"), ExtResource("ev_training_grounds"), ExtResource("ev_hooded_gambler"), ExtResource("ev_village_militia"), ExtResource("ev_sealed_armory"), ExtResource("ev_mercenary_camp"), ExtResource("ev_fallen_knight"), ExtResource("ev_alchemist_cart"), ExtResource("ev_wishing_well")])
 rest_site = ExtResource("29_rest")
 map_node_defs = Array[Resource]([ExtResource("30_node_normal"), ExtResource("31_node_elite"), ExtResource("32_node_shop"), ExtResource("33_node_event"), ExtResource("34_node_rest"), ExtResource("35_node_boss")])
 map_templates = Array[Resource]([ExtResource("36_map_standard")])

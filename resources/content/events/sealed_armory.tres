@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EventDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/content/EventDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"sealed_armory"
+title = "Sealed Armory"
+description = "Behind a rusted gate, weapons lie in rows. One blade glows with a cold light."
+safe_gold = 12
+risky_gold = 25
+can_offer_relic = true
+options = Array[Dictionary]([{"id": "blade", "label": "Take the cursed blade", "detail": "Gain {reward}, but lose your retry.", "kind": "random_relic", "pay": [{"kind": "lose_retry"}], "success_text": "%s is yours. You feel luck drain away."}, {"id": "crate", "label": "Pry open a crate", "detail": "Take {reward}.", "kind": "random_item", "success_text": "You take %s."}, {"id": "leave", "label": "Walk on", "detail": "Nothing happens.", "kind": "nothing", "success_text": "Some doors are best left shut."}])
+min_layer = 1
+sky_top = Color(0.0549, 0.0549, 0.1098, 1)
+sky_bottom = Color(0.1647, 0.1020, 0.2510, 1)
+glow = Color(0.6039, 0.4784, 1.0000, 1)
+props = Array[String](["chest", "banner"])

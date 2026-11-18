@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EventDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/content/EventDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"mercenary_camp"
+title = "Mercenary Camp"
+description = "Hardened sellswords sharpen blades around a fire. Everything here has a price."
+safe_gold = 12
+risky_gold = 25
+can_offer_relic = true
+options = Array[Dictionary]([{"id": "hire", "label": "Hire a captain", "detail": "{reward} joins your army.", "cost": 30, "kind": "random_piece", "pool": "rare", "success_text": "%s signs your contract."}, {"id": "swap", "label": "Trade your {target}", "detail": "Your {target} leaves; a {reward} takes its place.", "cost": 10, "kind": "trade_weakest", "success_text": "A fair trade. %s joins your line."}, {"id": "sell", "label": "Sell your {lost}", "detail": "Give up your {lost} for 22 Gold.", "kind": "gold", "amount": 22, "pay": [{"kind": "lose_item"}], "success_text": "The quartermaster pays 22 Gold."}])
+min_layer = 1
+sky_top = Color(0.1020, 0.0784, 0.1412, 1)
+sky_bottom = Color(0.4157, 0.2275, 0.1647, 1)
+glow = Color(1.0000, 0.5412, 0.2980, 1)
+props = Array[String](["tent", "campfire", "enemy:knight"])

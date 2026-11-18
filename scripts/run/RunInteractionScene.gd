@@ -29,6 +29,7 @@ var _badge: Control = null
 var _badge_type: StringName = &"event"
 var _gold_label: Label = null
 var _outcome: PanelContainer = null
+var _vignette: EventVignette = null
 
 func _ready() -> void:
 	_build()
@@ -57,6 +58,11 @@ func _build() -> void:
 	_badge.draw.connect(_draw_badge)
 	layout.add_child(_badge)
 	layout.move_child(_badge, 1)
+	_vignette = EventVignette.new()
+	_vignette.name = "EventScene"
+	_vignette.visible = false
+	layout.add_child(_vignette)
+	layout.move_child(_vignette, 2)
 	title_label.add_theme_color_override("font_color", GOLD_SOFT)
 	status_label.add_theme_color_override("font_color", MUTED)
 	status_label.add_theme_font_size_override("font_size", 13)
@@ -93,6 +99,11 @@ func _render() -> void:
 	var type: String = str(pending.get("type", "interaction"))
 	_badge_type = HEADER_ICON.get(type, &"event")
 	_badge.queue_redraw()
+	var event_def: EventDef = RunContentDatabase.event_def(StringName(str(pending.get("event_id", "")))) if type == "event" else null
+	_vignette.visible = event_def != null
+	_badge.visible = event_def == null
+	if event_def != null:
+		_vignette.show_event(event_def)
 	var title_key: String = str(pending.get("title_key", ""))
 	title_label.text = _localized(title_key) if not title_key.is_empty() else str(pending.get("title", type.replace("_", " ").capitalize()))
 	var description: String = str(pending.get("description", "Choose one option."))
@@ -165,6 +176,12 @@ func _card(option: Dictionary) -> Button:
 	var chance: float = float(payload.get("chance", 1.0))
 	if chance < 1.0:
 		tags.add_child(_chip("%d%%" % int(roundf(chance * 100.0)), DANGER))
+	for paid: Variant in payload.get("pay", []) as Array:
+		match str((paid as Dictionary).get("kind", "")):
+			"lose_item":
+				tags.add_child(_chip("-ITEM", DANGER))
+			"lose_retry":
+				tags.add_child(_chip("-RETRY", DANGER))
 	if tags.get_child_count() > 0:
 		row.add_child(tags)
 	card.add_child(row)
@@ -196,7 +213,7 @@ func _detail(kind: String, payload: Dictionary) -> String:
 func _option_icon(kind: String, payload: Dictionary) -> Control:
 	var texture: Texture2D = null
 	match kind:
-		"piece", "train":
+		"piece", "train", "transform":
 			texture = _piece_texture(str(payload.get("piece_def_id", "")))
 		"relic", "item":
 			var item: ChallengerItemDef = ChallengerItemDatabase.get_def(StringName(str(payload.get("relic_id", payload.get("item_id", "")))))
@@ -253,19 +270,50 @@ func _submit(choice_id: String) -> void:
 		return
 	_route_after_commit()
 
-## What happened, with a Continue button, before leaving an event or rest site.
+## What happened, with a Continue button, before leaving an event or rest site: a
+## lucky or unlucky banner for risky choices, what was gained, and what it cost.
 func _show_outcome(text: String) -> void:
 	for child: Node in choices.get_children():
 		child.queue_free()
 	leave_button.visible = false
 	for child: Node in _outcome.get_children():
 		child.queue_free()
+	var info: Dictionary = {}
+	if run_manager.current_run != null:
+		info = run_manager.current_run.run_statistics.get("last_outcome_info", {}) as Dictionary
+	var success: bool = bool(info.get("success", true))
+	var accent: Color = (TEAL if success else DANGER) if bool(info.get("risky", false)) else GOLD
+	_outcome.add_theme_stylebox_override("panel", _box(PANEL, accent, 8, 14))
 	var column: VBoxContainer = VBoxContainer.new()
+	column.name = "OutcomeColumn"
 	column.add_theme_constant_override("separation", 10)
+	if bool(info.get("risky", false)):
+		var banner: Label = _label("FORTUNE SMILES" if success else "LUCK RUNS OUT", 13, accent)
+		banner.name = "OutcomeBanner"
+		banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		column.add_child(banner)
+	var kind: String = str(info.get("kind", "nothing"))
+	var icon: Control = _option_icon(kind, info) if kind in ["piece", "train", "transform", "relic", "item", "gold", "restore_retry"] else null
+	if icon != null:
+		icon.name = "OutcomeIcon"
+		icon.custom_minimum_size = Vector2(64, 64)
+		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		column.add_child(icon)
 	var label: Label = _label(text, 15, INK)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(label)
+	var changes: HBoxContainer = HBoxContainer.new()
+	changes.name = "OutcomeChanges"
+	changes.alignment = BoxContainer.ALIGNMENT_CENTER
+	changes.add_theme_constant_override("separation", 6)
+	var gold_delta: int = int(info.get("gold_delta", 0))
+	if gold_delta != 0:
+		changes.add_child(_chip("%+d Gold" % gold_delta, GOLD if gold_delta > 0 else DANGER))
+	for lost: Variant in info.get("lost", []) as Array:
+		changes.add_child(_chip("Lost: %s" % str(lost), DANGER))
+	if changes.get_child_count() > 0:
+		column.add_child(changes)
 	var next: Button = Button.new()
 	next.name = "ContinueButton"
 	next.text = "Continue"

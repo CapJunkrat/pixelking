@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EventDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/content/EventDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"fallen_knight"
+title = "Fallen Knight"
+description = "A wounded knight lies beside the road, still clutching a broken lance."
+safe_gold = 12
+risky_gold = 25
+can_offer_relic = true
+options = Array[Dictionary]([{"id": "tend", "label": "Tend his wounds", "detail": "A Knight joins your army.", "cost": 12, "kind": "piece", "piece_def_id": "knight", "success_text": "He rises, bows to your King, and joins your army."}, {"id": "sword", "label": "Take his sword", "detail": "70%: take {reward}. 30%: his squire chases you off (lose 5 Gold).", "kind": "random_item", "chance": 0.7, "fail": {"kind": "lose_gold", "amount": 5}, "success_text": "You take %s.", "fail_text": "His squire chases you off. You drop 5 Gold."}, {"id": "leave", "label": "Walk on", "detail": "Nothing happens.", "kind": "nothing", "success_text": "You say a prayer and move on."}])
+min_layer = 0
+sky_top = Color(0.1647, 0.1647, 0.2667, 1)
+sky_bottom = Color(0.4784, 0.2902, 0.3529, 1)
+glow = Color(0.9608, 0.8353, 0.5608, 1)
+props = Array[String](["banner", "piece:knight"])

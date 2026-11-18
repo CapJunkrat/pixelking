@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EventDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/content/EventDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"village_militia"
+title = "Village Militia"
+description = "Farmers with pitchforks block the road, then cheer when they see your King."
+safe_gold = 12
+risky_gold = 25
+can_offer_relic = true
+options = Array[Dictionary]([{"id": "arm", "label": "Arm a Pawn", "detail": "One of your Pawns becomes a {reward}.", "cost": 15, "kind": "arm_pawn", "success_text": "The smith works all night. Your Pawn is now a %s."}, {"id": "volunteer", "label": "Accept a volunteer", "detail": "A Pawn joins your army.", "kind": "piece", "piece_def_id": "pawn", "success_text": "A brave farmhand joins your army."}, {"id": "feast", "label": "Share a feast", "detail": "Restore your retry.", "cost": 10, "kind": "restore_retry", "success_text": "Songs and bread. Your retry is restored."}])
+min_layer = 0
+sky_top = Color(0.2275, 0.3529, 0.5412, 1)
+sky_bottom = Color(0.7843, 0.6902, 0.4784, 1)
+glow = Color(1.0000, 0.8863, 0.5608, 1)
+props = Array[String](["tent", "piece:pawn", "piece:pawn"])

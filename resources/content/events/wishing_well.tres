@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EventDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/content/EventDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"wishing_well"
+title = "Wishing Well"
+description = "Starlight shimmers on dark water. Coins glint at the bottom."
+safe_gold = 12
+risky_gold = 25
+can_offer_relic = true
+options = Array[Dictionary]([{"id": "coin", "label": "Toss a coin", "detail": "35%: the well returns 30 Gold.", "cost": 5, "kind": "gold", "amount": 30, "chance": 0.35, "fail": {"kind": "nothing"}, "success_text": "The water bubbles up 30 Gold!", "fail_text": "Plink. The well keeps your coin."}, {"id": "offer", "label": "Offer your {lost}", "detail": "Give up your {lost}. 60%: receive {reward}.", "kind": "random_relic", "chance": 0.6, "fail": {"kind": "nothing"}, "pay": [{"kind": "lose_item"}], "success_text": "The well answers with %s.", "fail_text": "The water swallows it without a sound."}, {"id": "drink", "label": "Drink deeply", "detail": "Restore your retry.", "kind": "restore_retry", "success_text": "Cold and clear. Your retry is restored."}])
+min_layer = 0
+sky_top = Color(0.0235, 0.0392, 0.1176, 1)
+sky_bottom = Color(0.1020, 0.1647, 0.3529, 1)
+glow = Color(0.5608, 0.8471, 1.0000, 1)
+props = Array[String](["well"])

@@ -33,7 +33,26 @@ func apply(run_state: RunState, payload: Dictionary) -> Error:
 			var trainee: PieceInstanceState = run_state.get_piece_state(int(payload.get("instance_id", 0)))
 			if trainee == null:
 				return ERR_UNAVAILABLE
-			train(trainee)
+			for _drill: int in range(maxi(1, int(payload.get("times", 1)))):
+				train(trainee)
+		"transform":
+			# One of your pieces becomes another (an armed Pawn, a traded recruit).
+			var changed: PieceInstanceState = run_state.get_piece_state(int(payload.get("instance_id", 0)))
+			var into: PieceDef = PieceDefDatabase.get_def(str(payload.get("piece_def_id", "")))
+			if changed == null or changed.is_king or into == null or into.is_king:
+				return ERR_UNAVAILABLE
+			changed.piece_def_id = StringName(into.id)
+			changed.capture_count = 0
+			changed.learned_def_ids.clear()
+		"lose_item":
+			var lost: StringName = StringName(str(payload.get("item_id", "")))
+			if lost not in run_state.challenger_slots:
+				return ERR_UNAVAILABLE
+			run_state.challenger_slots.erase(lost)
+		"lose_retry":
+			if run_state.retries_left <= 0:
+				return ERR_UNAVAILABLE
+			run_state.retries_left = 0
 		"fusion":
 			return ERR_INVALID_PARAMETER
 		_:

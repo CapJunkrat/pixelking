@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EventDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/content/EventDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"alchemist_cart"
+title = "Alchemist's Cart"
+description = "Bubbling flasks clink on a painted cart. The alchemist offers a sip of something green."
+safe_gold = 12
+risky_gold = 25
+can_offer_relic = true
+options = Array[Dictionary]([{"id": "tonic", "label": "Buy a tonic", "detail": "Take {reward}.", "cost": 12, "kind": "random_item", "success_text": "You buy %s."}, {"id": "brew", "label": "Feed the brew to your {target}", "detail": "50%: your {target} trains twice. 50%: it just feels sick.", "kind": "train_best", "times": 2, "chance": 0.5, "fail": {"kind": "nothing"}, "success_text": "It glows, it grows. Two drills' worth in one gulp!", "fail_text": "A green face and nothing more."}, {"id": "reagent", "label": "Sell your {lost}", "detail": "Give up your {lost} for 18 Gold.", "kind": "gold", "amount": 18, "pay": [{"kind": "lose_item"}], "success_text": "The alchemist pays 18 Gold."}])
+min_layer = 1
+sky_top = Color(0.0627, 0.1412, 0.1176, 1)
+sky_bottom = Color(0.1647, 0.3529, 0.2275, 1)
+glow = Color(0.4784, 1.0000, 0.6039, 1)
+props = Array[String](["cart", "enemy:crystal_mage"])
