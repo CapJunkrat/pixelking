@@ -22,6 +22,8 @@ var _piece_layer: Node2D = null
 var _pieces: Dictionary = {}
 var _sprites: Dictionary = {}
 var _drop_square: Vector2i = NO_SQUARE
+## Rock squares (Vector2i -> true), drawn as boulders; taps on them are ignored.
+var rocks: Dictionary = {}
 
 func _ready() -> void:
 	_piece_layer = Node2D.new()
@@ -77,6 +79,8 @@ func square_at(point: Vector2) -> Vector2i:
 func press_square(square: Vector2i) -> void:
 	if square.x < 0 or square.y < 0 or square.x >= board_size or square.y >= board_size:
 		return
+	if rocks.has(square):
+		return
 	square_pressed.emit(square)
 
 func _gui_input(event: InputEvent) -> void:
@@ -98,6 +102,12 @@ func _rebuild() -> void:
 		_piece_layer.remove_child(child)
 		child.queue_free()
 	_sprites.clear()
+	for rock_value: Variant in rocks:
+		var rock_square: Vector2i = rock_value
+		var rock: Sprite2D = BoardPainter.make_sprite(RockArt.texture(), projection)
+		rock.name = "Rock_%d_%d" % [rock_square.x, rock_square.y]
+		BoardPainter.place_sprite(rock, projection, projection.square_world(rock_square))
+		_piece_layer.add_child(rock)
 	for square_value: Variant in _pieces:
 		var square: Vector2i = square_value
 		var entry: Dictionary = _pieces[square]
@@ -132,11 +142,15 @@ func _draw() -> void:
 	for rank: int in range(deploy_rows):
 		for file: int in range(board_size):
 			var square: Vector2i = Vector2i(file, rank)
+			if rocks.has(square):
+				continue
 			BoardPainter.draw_marker(self, projection, square, ZONE_TINT)
 			if selected_square != NO_SQUARE and not _pieces.has(square):
 				BoardPainter.draw_ground_ellipse(self, projection, square, projection.cell * 0.2, TARGET_DOT)
 	if selected_square != NO_SQUARE:
 		BoardPainter.draw_marker(self, projection, selected_square, SELECTED_TINT)
+	for rock_value: Variant in rocks:
+		BoardPainter.draw_ground_ellipse(self, projection, rock_value, projection.cell * 0.4, BoardPainter.SHADOW)
 	for square_value: Variant in _pieces:
 		var square: Vector2i = square_value
 		BoardPainter.draw_ground_ellipse(self, projection, square, projection.cell * (0.26 if square == selected_square else 0.33), BoardPainter.SHADOW)

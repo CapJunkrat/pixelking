@@ -32,6 +32,9 @@ var actions_this_turn: int = 0
 ## Run-wide growth produced this battle, by instance id (string key):
 ## {"def_id": String, "capture_count": int, "learned": Array[String]}.
 var growth: Dictionary = {}
+## Rock squares (Vector2i -> true): not part of the playable board. Nothing stands on,
+## moves to or targets a rock, sliding pieces stop in front of it, leapers hop over it.
+var rocks: Dictionary = {}
 
 func _init(p_board_size: int = DEFAULT_SIZE, setup_default: bool = true) -> void:
 	board_size = maxi(p_board_size, MIN_SIZE)
@@ -96,6 +99,7 @@ func _place(pos: Vector2i, def_id: String, color: int) -> void:
 
 func clear_for_setup() -> void:
 	_create_empty_grid()
+	rocks = {}
 	king_pos.clear()
 	turn = GameRules.PieceColor.WHITE
 	en_passant_target = Vector2i(-1, -1)
@@ -166,7 +170,18 @@ func get_lone_king_loser() -> int:
 	return -1
 
 func in_bounds(pos: Vector2i) -> bool:
-	return pos.x >= 0 and pos.x < board_size and pos.y >= 0 and pos.y < board_size
+	return pos.x >= 0 and pos.x < board_size and pos.y >= 0 and pos.y < board_size and not rocks.has(pos)
+
+func is_rock(pos: Vector2i) -> bool:
+	return rocks.has(pos)
+
+## Places rocks on empty squares (pieces are never buried).
+func set_rocks(squares: Array) -> void:
+	rocks = {}
+	for value: Variant in squares:
+		var square: Vector2i = value as Vector2i
+		if square.x >= 0 and square.x < board_size and square.y >= 0 and square.y < board_size and grid[square.x][square.y] == null:
+			rocks[square] = true
 
 func get_piece(pos: Vector2i) -> ChessPiece:
 	if not in_bounds(pos):
@@ -575,6 +590,7 @@ func _clone_with_history(preserve_history: bool) -> BoardState:
 	copy.bonus_instance_id = bonus_instance_id
 	copy.actions_this_turn = actions_this_turn
 	copy.growth = growth.duplicate(true)
+	copy.rocks = rocks
 	copy.pending_revivals = []
 	for entry: Dictionary in pending_revivals:
 		var waiting: ChessPiece = entry.get("piece") as ChessPiece

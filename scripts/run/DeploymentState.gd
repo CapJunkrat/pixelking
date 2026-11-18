@@ -2,6 +2,8 @@ class_name DeploymentState
 extends RefCounted
 
 const CURRENT_VERSION := 1
+## Each side deploys in its own three back ranks; the rows between are no-man's-land.
+const PLAYER_ROWS := 3
 
 var deployment_version: int = CURRENT_VERSION
 var encounter_id: StringName = &""
@@ -9,6 +11,8 @@ var board_size: int = BoardState.DEFAULT_SIZE
 var player_positions: Dictionary = {}
 var enemy_placements: Array[Dictionary] = []
 var confirmed: bool = false
+## Rock squares for this battle (see RockLayout); never inside a deployment zone.
+var rocks: Array[Vector2i] = []
 
 func player_position(instance_id: int) -> Vector2i:
 	var value: Variant = player_positions.get(str(instance_id), {})
@@ -68,6 +72,7 @@ func to_dictionary() -> Dictionary:
 		"player_positions": player_positions.duplicate(true),
 		"enemy_placements": enemy_data,
 		"confirmed": confirmed,
+		"rocks": rocks.map(func(square: Vector2i) -> Dictionary: return position_value(square)),
 	}
 
 func load_from_dictionary(data: Dictionary, run_state: RunState) -> bool:
@@ -87,19 +92,24 @@ func load_from_dictionary(data: Dictionary, run_state: RunState) -> bool:
 			return false
 		enemy_placements.append((placement_value as Dictionary).duplicate(true))
 	confirmed = bool(data.get("confirmed", false))
+	rocks.clear()
+	for rock_value: Variant in data.get("rocks", []) as Array:
+		var rock: Vector2i = position_from_value(rock_value)
+		if rock != Vector2i(-1, -1):
+			rocks.append(rock)
 	return is_valid(run_state)
 
 func set_player_position(instance_id: int, position: Vector2i) -> void:
 	player_positions[str(instance_id)] = _position_value(position)
 
 func _is_player_square(position: Vector2i) -> bool:
-	return position.x >= 0 and position.x < board_size and position.y >= 0 and position.y <= 1
+	return position.x >= 0 and position.x < board_size and position.y >= 0 and position.y < PLAYER_ROWS
 
 func _is_enemy_square(position: Vector2i) -> bool:
 	return (
 		position.x >= 0
 		and position.x < board_size
-		and position.y >= board_size - 2
+		and position.y >= board_size - PLAYER_ROWS
 		and position.y < board_size
 	)
 

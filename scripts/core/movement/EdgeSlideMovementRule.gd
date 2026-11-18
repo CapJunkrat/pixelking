@@ -18,7 +18,7 @@ func get_moves(board: BoardState, pos: Vector2i, _piece: ChessPiece) -> Array[Ve
 		for _i: int in range(ring.size() - 1):
 			index = posmod(index + step, ring.size())
 			var square: Vector2i = ring[index]
-			if square == pos or board.get_piece(square) != null:
+			if square == pos or not board.in_bounds(square) or board.get_piece(square) != null:
 				break
 			if square not in result:
 				result.append(square)

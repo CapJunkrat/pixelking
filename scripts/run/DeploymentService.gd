@@ -25,6 +25,8 @@ func ensure_deployment(run_state: RunState) -> Error:
 			run_state.map_state.total_layers,
 			run_state.current_encounter_seed,
 			EncounterGenerator.player_strength(run_state))
+	if current != null and run_state.map_state != null:
+		deployment.rocks = RockLayout.generate(run_state.current_encounter_seed, current.layer_index, run_state.map_state.total_layers, deployment.board_size)
 	run_state.deployment_state = deployment
 	var sync_error: Error = synchronize_with_roster(run_state)
 	if sync_error != OK:
@@ -51,7 +53,7 @@ func move_piece(run_state: RunState, instance_id: int, target: Vector2i) -> Erro
 	if run_state == null or run_state.deployment_state == null or instance_id not in run_state.active_piece_ids:
 		return ERR_INVALID_PARAMETER
 	var deployment: DeploymentState = run_state.deployment_state
-	if target.x < 0 or target.x >= deployment.board_size or target.y < 0 or target.y > 1:
+	if target.x < 0 or target.x >= deployment.board_size or target.y < 0 or target.y >= DeploymentState.PLAYER_ROWS:
 		return ERR_INVALID_PARAMETER
 	var source: Vector2i = deployment.player_position(instance_id)
 	if source == Vector2i(-1, -1):
@@ -72,7 +74,7 @@ func reset_formation(run_state: RunState) -> Error:
 	run_state.preferred_positions = {}
 	return synchronize_with_roster(run_state) if run_state.deployment_state != null else OK
 
-## The player's remembered squares that still fit: active pieces, own two ranks, no clashes.
+## The player's remembered squares that still fit: active pieces, own three ranks, no clashes.
 func _chosen_squares(run_state: RunState, board_size: int) -> Dictionary:
 	var result: Dictionary = {}
 	var taken: Dictionary = {}
@@ -81,7 +83,7 @@ func _chosen_squares(run_state: RunState, board_size: int) -> Dictionary:
 		if value == null:
 			continue
 		var square: Vector2i = DeploymentState.position_from_value(value)
-		if square.x < 0 or square.x >= board_size or square.y < 0 or square.y > 1 or taken.has(square):
+		if square.x < 0 or square.x >= board_size or square.y < 0 or square.y >= DeploymentState.PLAYER_ROWS or taken.has(square):
 			continue
 		taken[square] = true
 		result[instance_id] = square

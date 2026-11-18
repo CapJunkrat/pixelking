@@ -99,7 +99,7 @@ func _run() -> void:
 	# Arrange by hand: move the King one file left; the choice is kept for the Run.
 	_expect(preview.get_node_or_null("SafeArea/Layout/ArrangeRow/ArrangeButton") == null, "arranging needs no mode button")
 	board.square_pressed.emit(Vector2i(4, 0))
-	_expect(board.deploy_rows == 2 and board.selected_square == Vector2i(4, 0), "tapping your piece picks it up and lights your two ranks")
+	_expect(board.deploy_rows == DeploymentState.PLAYER_ROWS and board.selected_square == Vector2i(4, 0), "tapping your piece picks it up and lights your three ranks")
 	board.square_pressed.emit(Vector2i(5, 7))
 	_expect(preview.arrange_selected == 0 and board.deploy_rows == 0, "tapping elsewhere puts the piece back down")
 	board.square_pressed.emit(Vector2i(4, 0))

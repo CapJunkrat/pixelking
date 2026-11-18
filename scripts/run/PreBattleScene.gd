@@ -248,7 +248,10 @@ func _render_board() -> void:
 	if arrange_selected > 0:
 		focus_square = deployment.player_position(arrange_selected)
 	# The two ranks you may use light up only while a piece is in hand.
-	board_view.deploy_rows = 2 if arrange_selected > 0 else 0
+	board_view.deploy_rows = DeploymentState.PLAYER_ROWS if arrange_selected > 0 else 0
+	board_view.rocks = {}
+	for rock: Vector2i in deployment.rocks:
+		board_view.rocks[rock] = true
 	for placement: Dictionary in deployment.enemy_placements:
 		var square: Vector2i = DeploymentState.position_from_value(placement.get("position", {}))
 		var id: String = str(placement.get("piece_def_id", ""))
@@ -447,7 +450,7 @@ func _arrange_at(square: Vector2i) -> bool:
 	if own == arrange_selected:
 		_put_down()
 		return true
-	if square.y > 1:
+	if square.y >= DeploymentState.PLAYER_ROWS:
 		return false
 	if run_manager.move_deployed_piece(arrange_selected, square) != OK:
 		_nudge(board_view)

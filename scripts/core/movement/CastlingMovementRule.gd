@@ -20,6 +20,8 @@ func get_moves(board: BoardState, pos: Vector2i, piece: ChessPiece) -> Array[Vec
 		var path_is_safe := true
 		while x >= 0 and x < board.board_size:
 			var target := Vector2i(x, pos.y)
+			if not board.in_bounds(target):
+				break
 			var occupant := board.get_piece(target)
 			if occupant == null:
 				if board.is_square_attacked(target, enemy):

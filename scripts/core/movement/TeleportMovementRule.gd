@@ -11,7 +11,7 @@ func get_moves(board: BoardState, pos: Vector2i, piece: ChessPiece) -> Array[Vec
 	for x: int in range(board.board_size):
 		for y: int in range(board.board_size):
 			var target: Vector2i = Vector2i(x, y)
-			if target != pos and board.get_piece(target) == null:
+			if target != pos and board.in_bounds(target) and board.get_piece(target) == null:
 				moves.append(target)
 	for offset: Vector2i in capture_offsets:
 		var target: Vector2i = pos + offset

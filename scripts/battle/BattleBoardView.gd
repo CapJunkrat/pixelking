@@ -55,6 +55,7 @@ var _strike: StrikeDirector = null
 var _piece_layer: Node2D = null
 var _overlay: Control = null
 var _piece_sprites: Dictionary = {}
+var _rock_sprites: Array[Sprite2D] = []
 var _hidden_squares: Dictionary = {}
 var _presentation_tweens: Array[Tween] = []
 var _presentation_nodes: Array[Node] = []
@@ -334,6 +335,8 @@ func _draw_board() -> void:
 			var square: Vector2i = Vector2i(file, rank)
 			if board.get_piece(square) != null and not _hidden_squares.has(square):
 				_draw_ground_ellipse(square, projection.cell * 0.33, BoardPainter.SHADOW)
+	for rock_value: Variant in board.rocks:
+		_draw_ground_ellipse(rock_value, projection.cell * 0.4, BoardPainter.SHADOW)
 
 func _draw_square_marker(square: Vector2i, tint: Color) -> void:
 	BoardPainter.draw_marker(_board_canvas, projection, square, tint)
@@ -377,6 +380,18 @@ func _draw_overlay() -> void:
 # --- pieces -----------------------------------------------------------------
 
 func _rebuild_pieces() -> void:
+	for rock: Sprite2D in _rock_sprites:
+		if is_instance_valid(rock):
+			_piece_layer.remove_child(rock)
+			rock.queue_free()
+	_rock_sprites.clear()
+	for square_value: Variant in board.rocks:
+		var square: Vector2i = square_value
+		var rock: Sprite2D = _make_piece_sprite(RockArt.texture())
+		rock.name = "Rock_%d_%d" % [square.x, square.y]
+		_place_sprite(rock, projection.square_world(square))
+		_piece_layer.add_child(rock)
+		_rock_sprites.append(rock)
 	for sprite_value: Variant in _piece_sprites.values():
 		var old: Sprite2D = sprite_value as Sprite2D
 		if is_instance_valid(old):

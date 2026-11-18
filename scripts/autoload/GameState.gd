@@ -65,6 +65,7 @@ func start_run_battle(run_state: RunState) -> bool:
 			return false
 	if not run_board.finalize_setup(player_color):
 		return false
+	run_board.set_rocks(deployment.rocks)
 	challenger_items.clear()
 	for item_id: StringName in run_state.challenger_slots:
 		var item_definition: ChallengerItemDef = ChallengerItemDatabase.get_def(item_id)
