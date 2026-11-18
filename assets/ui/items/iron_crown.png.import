@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c7h4f3dyx7npv"
-path="res://.godot/imported/consumable_freeze_charm_frame_0.png-4c94fbbc16219b87612c19129659af48.ctex"
+uid="uid://c2ilva7hadcf3"
+path="res://.godot/imported/iron_crown.png-cd3c4f572e6ba220bc3bb019fc226e38.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/generated/consumable_freeze_charm_frame_0.png"
-dest_files=["res://.godot/imported/consumable_freeze_charm_frame_0.png-4c94fbbc16219b87612c19129659af48.ctex"]
+source_file="res://assets/ui/items/iron_crown.png"
+dest_files=["res://.godot/imported/iron_crown.png-cd3c4f572e6ba220bc3bb019fc226e38.ctex"]
 
 [params]
 

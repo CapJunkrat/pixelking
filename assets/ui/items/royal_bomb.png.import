@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://clbb0u52mv5ep"
-path="res://.godot/imported/relic_war_banner_frame_0.png-0ee224fc8b2663da0fbaac96d7e15b92.ctex"
+uid="uid://c3tmf7opv4bjb"
+path="res://.godot/imported/royal_bomb.png-a0e53b961557f815a4a5edcd4ba9a713.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/generated/relic_war_banner_frame_0.png"
-dest_files=["res://.godot/imported/relic_war_banner_frame_0.png-0ee224fc8b2663da0fbaac96d7e15b92.ctex"]
+source_file="res://assets/ui/items/royal_bomb.png"
+dest_files=["res://.godot/imported/royal_bomb.png-a0e53b961557f815a4a5edcd4ba9a713.ctex"]
 
 [params]
 

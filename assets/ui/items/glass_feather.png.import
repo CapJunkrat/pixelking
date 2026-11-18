@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c1b6geq0l76s7"
-path="res://.godot/imported/consumable_second_wind_frame_0.png-5cc600c8d618ed84fc262ec7fa54045b.ctex"
+uid="uid://tkhqyk8srihc"
+path="res://.godot/imported/glass_feather.png-34c288805d407a010c888f65e858a5fc.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/generated/consumable_second_wind_frame_0.png"
-dest_files=["res://.godot/imported/consumable_second_wind_frame_0.png-5cc600c8d618ed84fc262ec7fa54045b.ctex"]
+source_file="res://assets/ui/items/glass_feather.png"
+dest_files=["res://.godot/imported/glass_feather.png-34c288805d407a010c888f65e858a5fc.ctex"]
 
 [params]
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d1jdxyutvrjrt"
-path="res://.godot/imported/relic_war_banner_v2_frame_0.png-07910d1d1659b76c9668f1a153fc07f9.ctex"
+uid="uid://bqg4dl063uaof"
+path="res://.godot/imported/war_banner.png-9284bf493e8a3f63ebb1796988652b22.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/generated/relic_war_banner_v2_frame_0.png"
-dest_files=["res://.godot/imported/relic_war_banner_v2_frame_0.png-07910d1d1659b76c9668f1a153fc07f9.ctex"]
+source_file="res://assets/ui/items/war_banner.png"
+dest_files=["res://.godot/imported/war_banner.png-9284bf493e8a3f63ebb1796988652b22.ctex"]
 
 [params]
 

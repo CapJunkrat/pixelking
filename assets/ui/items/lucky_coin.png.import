@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c0ekyrfleqfwf"
-path="res://.godot/imported/relic_iron_crown_frame_0.png-15e636dd2526bdf44ddd3fd13ff63f2d.ctex"
+uid="uid://qvmcqhn5t3sv"
+path="res://.godot/imported/lucky_coin.png-cf896fd337b0616c7d57bfe858b8149e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/generated/relic_iron_crown_frame_0.png"
-dest_files=["res://.godot/imported/relic_iron_crown_frame_0.png-15e636dd2526bdf44ddd3fd13ff63f2d.ctex"]
+source_file="res://assets/ui/items/lucky_coin.png"
+dest_files=["res://.godot/imported/lucky_coin.png-cf896fd337b0616c7d57bfe858b8149e.ctex"]
 
 [params]
 
