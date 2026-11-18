@@ -3,6 +3,8 @@ extends RefCounted
 
 ## Explicit inventory: every automated test belongs to exactly one layer and domain.
 ## kind is either "scene_tree" (self-running process) or "node_methods".
+## "serial": true  shares state with other tests (user://settings.cfg), so it never runs
+##                 alongside them. "slow": true  is skipped by run_all_tests --quick.
 const TESTS = [
 	{"path": "res://scripts/tests/unit/chess/test_chess_rules.gd", "layer": "unit", "domain": "chess", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/chess/test_permissive_moves.gd", "layer": "unit", "domain": "chess", "kind": "scene_tree"},
@@ -32,14 +34,19 @@ const TESTS = [
 	{"path": "res://scripts/tests/integration/battle/test_battle_run_result_failure.gd", "layer": "integration", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/integration/battle/test_run_battle_setup.gd", "layer": "integration", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/integration/persistence/test_active_run_save.gd", "layer": "integration", "domain": "persistence", "kind": "scene_tree"},
-	{"path": "res://scripts/tests/integration/persistence/test_settings_persistence.gd", "layer": "integration", "domain": "persistence", "kind": "scene_tree"},
+	{"path": "res://scripts/tests/integration/persistence/test_settings_persistence.gd", "layer": "integration", "domain": "persistence", "kind": "scene_tree", "serial": true},
 	{"path": "res://scripts/tests/integration/run/test_fusion_interaction.gd", "layer": "integration", "domain": "run", "kind": "node_methods"},
 	{"path": "res://scripts/tests/integration/run/test_map_manager.gd", "layer": "integration", "domain": "run", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/integration/run/test_roster_manager.gd", "layer": "integration", "domain": "run", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/integration/run/test_run_manager.gd", "layer": "integration", "domain": "run", "kind": "scene_tree"},
-	{"path": "res://scripts/tests/scenes/test_audio_settings.gd", "layer": "scene", "domain": "ui", "kind": "scene_tree"},
+	{"path": "res://scripts/tests/scenes/test_audio_settings.gd", "layer": "scene", "domain": "ui", "kind": "scene_tree", "serial": true},
 	{"path": "res://scripts/tests/scenes/test_battle_scene.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/scenes/test_strike_presentation.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree"},
+	{"path": "res://scripts/tests/scenes/test_strike_special_pieces.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree", "slow": true},
+	{"path": "res://scripts/tests/scenes/test_strike_new_pieces_1.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree", "slow": true},
+	{"path": "res://scripts/tests/scenes/test_strike_new_pieces_2.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree", "slow": true},
+	{"path": "res://scripts/tests/scenes/test_strike_new_pieces_3.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree", "slow": true},
+	{"path": "res://scripts/tests/scenes/test_strike_new_pieces_4.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree", "slow": true},
 	{"path": "res://scripts/tests/scenes/test_codex_debug.gd", "layer": "scene", "domain": "ui", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/scenes/test_deployment_scene.gd", "layer": "scene", "domain": "run", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/scenes/test_fusion_interaction_scene.gd", "layer": "scene", "domain": "run", "kind": "scene_tree"},
@@ -48,10 +55,10 @@ const TESTS = [
 	{"path": "res://scripts/tests/scenes/test_path_map_scene.gd", "layer": "scene", "domain": "run", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/scenes/test_roster_scene.gd", "layer": "scene", "domain": "run", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/scenes/test_responsive_safe_area.gd", "layer": "scene", "domain": "ui", "kind": "scene_tree"},
-	{"path": "res://scripts/tests/smoke/test_autoload_smoke.gd", "layer": "smoke", "domain": "app", "kind": "scene_tree"},
+	{"path": "res://scripts/tests/smoke/test_autoload_smoke.gd", "layer": "smoke", "domain": "app", "kind": "scene_tree", "serial": true},
 	{"path": "res://scripts/tests/smoke/test_boss_piece_skin_fallback.gd", "layer": "smoke", "domain": "assets", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/smoke/test_challenger_item_icons.gd", "layer": "smoke", "domain": "assets", "kind": "scene_tree"},
-	{"path": "res://scripts/tests/smoke/test_localization_smoke.gd", "layer": "smoke", "domain": "localization", "kind": "scene_tree"},
+	{"path": "res://scripts/tests/smoke/test_localization_smoke.gd", "layer": "smoke", "domain": "localization", "kind": "scene_tree", "serial": true},
 	{"path": "res://scripts/tests/smoke/test_new_piece_visual_contract.gd", "layer": "smoke", "domain": "assets", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/smoke/test_piece_skin.gd", "layer": "smoke", "domain": "assets", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/smoke/test_scene_routes.gd", "layer": "smoke", "domain": "navigation", "kind": "scene_tree"},
@@ -62,10 +69,12 @@ const TESTS = [
 	{"path": "res://scripts/tests/e2e/test_main_menu_run_flow.gd", "layer": "e2e", "domain": "run", "kind": "scene_tree"},
 ]
 
-static func select(layer: String = "", domain: String = "") -> Array[Dictionary]:
+static func select(layer: String = "", domain: String = "", skip_slow: bool = false) -> Array[Dictionary]:
 	var selected: Array[Dictionary] = []
 	for entry_value: Variant in TESTS:
 		var entry: Dictionary = entry_value as Dictionary
+		if skip_slow and bool(entry.get("slow", false)):
+			continue
 		if not layer.is_empty() and str(entry.get("layer", "")) != layer:
 			continue
 		if not domain.is_empty() and str(entry.get("domain", "")) != domain:

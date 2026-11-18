@@ -49,9 +49,15 @@ godot --headless --path . --script res://scripts/tests/runner/run_all_tests.gd -
 
 # 只跑 battle 领域
 godot --headless --path . --script res://scripts/tests/runner/run_all_tests.gd -- --domain=battle
+
+# 快速档：跳过打击动画的全量检查（平时改规则用，约 17 秒；全量约 30 秒）
+godot --headless --path . --script res://scripts/tests/runner/run_all_tests.gd -- --quick
 ```
 
-Runner 会逐文件隔离执行，最后输出通过/失败文件数并返回可靠退出码。
+Runner 让每个测试文件在独立进程里运行，默认最多 6 个同时跑（`--jobs=N` 可改，`--jobs=1` 为逐个运行）。
+单个文件超过 120 秒仍未结束会被结束并记为失败（`--timeout=秒` 可改），不会再因为脚本编译失败而卡住。
+Manifest 中标记 `serial` 的测试会读写共享的设置文件，它们在并行批次之后逐个运行；标记 `slow` 的测试在快速档中跳过。
+最后输出通过/失败文件数和总用时，并返回可靠退出码。
 
 ## 目录结构
 
