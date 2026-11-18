@@ -109,16 +109,22 @@ func _generate_candidates(rng: RunRngService) -> Array[String]:
 func _weighted_pick(pool: Array[PieceDef], rng: RunRngService) -> PieceDef:
 	var total_weight: int = 0
 	for definition: PieceDef in pool:
-		total_weight += definition.opening_draft_weight
+		total_weight += _draft_weight(definition)
 	if total_weight <= 0:
 		return null
 	var roll: int = rng.randi_range(RNG_STREAM, 1, total_weight)
 	var cursor: int = 0
 	for definition: PieceDef in pool:
-		cursor += definition.opening_draft_weight
+		cursor += _draft_weight(definition)
 		if roll <= cursor:
 			return definition
 	return pool[-1] if not pool.is_empty() else null
+
+## Rare and rarer pieces are drafted far more often than their base weight says.
+const RARE_DRAFT_MULTIPLIER := 3
+
+func _draft_weight(definition: PieceDef) -> int:
+	return definition.opening_draft_weight * (RARE_DRAFT_MULTIPLIER if definition.is_rare_or_higher() else 1)
 
 func _shuffle(values: Array[PieceDef], rng: RunRngService) -> void:
 	for index: int in range(values.size() - 1, 0, -1):

@@ -17,8 +17,8 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 	if not eligible_recipes.is_empty():
 		var recipe: FusionRecipeDef = eligible_recipes[rng.pick_index(&"reward_rng", eligible_recipes.size())]
 		options.append(RunChoiceBuilder.option("recipe_%s" % recipe.id, recipe.display_name, "fusion", {"recipe_id": String(recipe.id)}))
-	var selected_piece_id: StringName = table.recruit_piece_ids[rng.pick_index(&"reward_rng", table.recruit_piece_ids.size())]
-	var piece_id: String = String(selected_piece_id)
+	var progress: float = RarityOdds.run_progress(run_state) + (RarityOdds.ELITE_BONUS if elite else 0.0)
+	var piece_id: String = RarityOdds.pick(table.recruit_piece_ids, rng, &"reward_rng", progress)
 	var item_roll_matches: bool = (
 		run_state.challenger_slots.size() < 6
 		and rng.randi_range(&"reward_rng", 0, table.consumable_roll_sides - 1) == table.consumable_roll_hit

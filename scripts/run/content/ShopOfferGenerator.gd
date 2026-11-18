@@ -11,9 +11,14 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 	var relic: StringName = reward_service.unowned_relic(run_state, rng, &"shop_rng")
 	if not relic.is_empty():
 		options.append(RunChoiceBuilder.option("buy_relic", "%s — %d Gold" % [RunContentDatabase.relic_label(relic), pool.relic_price], "relic", {"relic_id": String(relic), "price": pool.relic_price}, run_state.gold >= pool.relic_price and run_state.challenger_slots.size() < 6))
-	var selected_piece_id: StringName = pool.recruit_piece_ids[rng.pick_index(&"shop_rng", pool.recruit_piece_ids.size())]
-	var piece_id: String = String(selected_piece_id)
-	options.append(RunChoiceBuilder.option("buy_piece", "%s — %d Gold" % [reward_service.definition_label(piece_id), pool.piece_price], "piece", {"piece_def_id": piece_id, "price": pool.piece_price}, run_state.gold >= pool.piece_price and run_state.has_room_for_piece()))
+	# The shop draws from its own list and the reward list, so rarer pieces turn up too.
+	var stock: Array = pool.recruit_piece_ids.duplicate()
+	var table: BattleRewardTableDef = RunContentDatabase.battle_reward_table()
+	if table != null:
+		stock.append_array(table.recruit_piece_ids)
+	var piece_id: String = RarityOdds.pick(stock, rng, &"shop_rng", RarityOdds.run_progress(run_state))
+	var piece_price: int = roundi(pool.piece_price * RarityOdds.SHOP_PRICE_MULTIPLIER[RarityOdds.rarity_of(piece_id)])
+	options.append(RunChoiceBuilder.option("buy_piece", "%s — %d Gold" % [reward_service.definition_label(piece_id), piece_price], "piece", {"piece_def_id": piece_id, "price": piece_price}, run_state.gold >= piece_price and run_state.has_room_for_piece()))
 	var eligible_recipes: Array[FusionRecipeDef] = fusion_service.eligible_recipes(run_state)
 	if not eligible_recipes.is_empty():
 		var recipe: FusionRecipeDef = eligible_recipes[rng.pick_index(&"shop_rng", eligible_recipes.size())]

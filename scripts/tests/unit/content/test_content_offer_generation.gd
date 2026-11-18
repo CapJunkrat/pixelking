@@ -30,7 +30,9 @@ func test_shop_and_event_use_catalog_order_and_values() -> void:
 	var retry_option: Dictionary = shop_options[3] as Dictionary
 	assert(str((retry_option.get("payload", {}) as Dictionary).get("kind", "")) == "restore_retry")
 	assert(not bool(retry_option.get("enabled", true)), "a full retry cannot be bought again")
-	assert(int(((shop_options[1] as Dictionary).get("payload", {}) as Dictionary).get("price", -1)) == RunContentDatabase.shop_pool().piece_price)
+	var shop_piece: Dictionary = (shop_options[1] as Dictionary).get("payload", {}) as Dictionary
+	var multiplier: float = RarityOdds.SHOP_PRICE_MULTIPLIER[RarityOdds.rarity_of(str(shop_piece.get("piece_def_id", "")))]
+	assert(int(shop_piece.get("price", -1)) == roundi(RunContentDatabase.shop_pool().piece_price * multiplier), "rarer shop pieces cost more")
 	var event_run: RunState = _base_run(445566)
 	var event_rng: RunRngService = _rng(event_run.run_seed)
 	assert(event_generator.generate(event_run, event_rng, reward_service) == OK)

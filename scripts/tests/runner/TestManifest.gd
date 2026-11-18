@@ -12,6 +12,7 @@ const TESTS = [
 	{"path": "res://scripts/tests/unit/chess/test_new_piece_rules.gd", "layer": "unit", "domain": "chess", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/test_architecture/test_manifest_integrity.gd", "layer": "unit", "domain": "test_architecture", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/content/test_content_catalog.gd", "layer": "unit", "domain": "content", "kind": "node_methods"},
+	{"path": "res://scripts/tests/unit/content/test_rarity_odds.gd", "layer": "unit", "domain": "content", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/content/test_content_offer_generation.gd", "layer": "unit", "domain": "content", "kind": "node_methods"},
 	{"path": "res://scripts/tests/unit/battle/test_battle_command_processor.gd", "layer": "unit", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/battle/test_battle_effect_queue.gd", "layer": "unit", "domain": "battle", "kind": "scene_tree"},

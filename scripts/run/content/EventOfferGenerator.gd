@@ -116,7 +116,11 @@ func _resolve_effect(effect: Dictionary, run_state: RunState, rng: RunRngService
 		"random_piece":
 			var pool: Array[String] = reward_service.piece_pool(str(effect.get("pool", "common")))
 			result["kind"] = "piece"
-			result["piece_def_id"] = pool[rng.pick_index(&"event_rng", pool.size())] if not pool.is_empty() else "pawn"
+			if str(effect.get("pool", "common")) == "rare":
+				# Rare offers roll rarity too, so epics and legendaries do turn up.
+				result["piece_def_id"] = RarityOdds.pick(pool, rng, &"event_rng", RarityOdds.run_progress(run_state) + RarityOdds.ELITE_BONUS)
+			else:
+				result["piece_def_id"] = pool[rng.pick_index(&"event_rng", pool.size())] if not pool.is_empty() else "pawn"
 			result["reward_name"] = reward_service.definition_label(str(result["piece_def_id"]))
 			if not run_state.has_room_for_piece():
 				result["blocked"] = "Your army has no room for another piece."
@@ -149,7 +153,7 @@ func _resolve_effect(effect: Dictionary, run_state: RunState, rng: RunRngService
 			var weakest: PieceInstanceState = _weakest_piece(run_state)
 			var rares: Array[String] = reward_service.piece_pool("rare")
 			result["kind"] = "transform"
-			result["piece_def_id"] = rares[rng.pick_index(&"event_rng", rares.size())] if not rares.is_empty() else "knight"
+			result["piece_def_id"] = RarityOdds.pick(rares, rng, &"event_rng", RarityOdds.run_progress(run_state) + RarityOdds.ELITE_BONUS) if not rares.is_empty() else "knight"
 			result["reward_name"] = reward_service.definition_label(str(result["piece_def_id"]))
 			result["instance_id"] = weakest.instance_id if weakest != null else 0
 			result["target"] = reward_service.definition_label(String(weakest.piece_def_id)) if weakest != null else ""
