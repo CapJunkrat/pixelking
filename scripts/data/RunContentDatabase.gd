@@ -31,5 +31,12 @@ static func rest_site() -> RestSiteDefType:
 static func relic_label(id: StringName) -> String:
 	return String(id).replace("_", " ").capitalize()
 
+static func item_label(id: StringName) -> String:
+	var definition: ChallengerItemDef = ChallengerItemDatabase.get_def(id)
+	var localization: Node = Engine.get_main_loop().root.get_node_or_null("Localization") if Engine.get_main_loop() is SceneTree else null
+	if definition != null and localization != null:
+		return str(localization.call("text", String(definition.display_name_key)))
+	return String(id).replace("_", " ").capitalize()
+
 static func is_relic(id: StringName) -> bool:
 	return id in relic_ids()

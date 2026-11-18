@@ -25,11 +25,47 @@ func apply(run_state: RunState, payload: Dictionary) -> Error:
 			if run_state.has_full_retries():
 				return ERR_UNAVAILABLE
 			run_state.restore_retries()
+		"nothing":
+			pass
+		"lose_gold":
+			run_state.gold = maxi(0, run_state.gold - int(payload.get("amount", 0)))
+		"train":
+			var trainee: PieceInstanceState = run_state.get_piece_state(int(payload.get("instance_id", 0)))
+			if trainee == null:
+				return ERR_UNAVAILABLE
+			train(trainee)
 		"fusion":
 			return ERR_INVALID_PARAMETER
 		_:
 			return ERR_INVALID_PARAMETER
 	return OK
+
+## One capture's worth of experience, applying any growth it unlocks.
+func train(piece: PieceInstanceState) -> void:
+	piece.capture_count += 1
+	var definition: PieceDef = PieceDefDatabase.get_def(String(piece.piece_def_id))
+	while definition != null and definition.evolve_at_captures > 0 and piece.capture_count >= definition.evolve_at_captures:
+		var next: PieceDef = PieceDefDatabase.get_def(definition.evolves_into)
+		if next == null or next.is_king != piece.is_king:
+			break
+		piece.piece_def_id = StringName(next.id)
+		definition = next
+
+## Recruitable pieces of a rarity band: "common" or "rare" (rare and epic).
+func piece_pool(band: String) -> Array[String]:
+	var ids: Array[StringName] = []
+	var table: BattleRewardTableDef = RunContentDatabase.battle_reward_table()
+	if table != null:
+		ids.append_array(table.recruit_piece_ids)
+	var result: Array[String] = []
+	for id: StringName in ids:
+		var definition: PieceDef = PieceDefDatabase.get_def(String(id))
+		if definition == null or definition.is_king or String(id) in result:
+			continue
+		var common: bool = definition.rarity == PieceDef.Rarity.COMMON
+		if (band == "common") == common:
+			result.append(String(id))
+	return result
 
 func remove_piece(run_state: RunState, instance_id: int) -> Error:
 	var piece: PieceInstanceState = run_state.get_piece_state(instance_id)
@@ -56,4 +92,8 @@ func piece_label(piece: PieceInstanceState) -> String:
 	return "%s #%d" % [definition_label(String(piece.piece_def_id)), piece.instance_id]
 
 func definition_label(definition_id: String) -> String:
+	var definition: PieceDef = PieceDefDatabase.get_def(definition_id)
+	var localization: Node = Engine.get_main_loop().root.get_node_or_null("Localization") if Engine.get_main_loop() is SceneTree else null
+	if definition != null and localization != null:
+		return str(localization.call("text", String(definition.display_name_key)))
 	return definition_id.replace("_", " ").capitalize()

@@ -6,7 +6,8 @@
 script = ExtResource("1_script")
 id = &"wandering_merchant"
 title = "Wandering Merchant"
-description = "A short risk-and-reward encounter."
+description = "A cart of curiosities rattles up the road. The merchant grins and opens a crate."
+options = Array[Dictionary]([{"id": "crate", "label": "Buy a sealed crate", "detail": "A random battle item, sight unseen.", "cost": 15, "kind": "random_item", "success_text": "Inside the crate: %s."}, {"id": "sellsword", "label": "Hire a sellsword", "detail": "A rare piece joins your army.", "cost": 30, "kind": "random_piece", "pool": "rare", "success_text": "%s joins your army."}, {"id": "trinkets", "label": "Sell old trinkets", "detail": "Gain 10 Gold.", "kind": "gold", "amount": 10, "success_text": "The merchant pays 10 Gold."}])
 safe_gold = 12
 risky_gold = 25
 can_offer_relic = true

@@ -6,7 +6,8 @@
 script = ExtResource("1_script")
 id = &"ancient_shrine"
 title = "Ancient Shrine"
-description = "A short risk-and-reward encounter."
+description = "Moss-covered stones hum faintly. Something old is listening."
+options = Array[Dictionary]([{"id": "pray", "label": "Pray at the altar", "detail": "60%: receive a relic. 40%: lose 10 Gold.", "kind": "random_relic", "chance": 0.6, "fail": {"kind": "lose_gold", "amount": 10}, "success_text": "The shrine grants you %s.", "fail_text": "The shrine stays silent. You lose 10 Gold on the way out."}, {"id": "offering", "label": "Leave an offering", "detail": "Restore your retry.", "cost": 20, "kind": "restore_retry", "success_text": "Your retry is restored."}, {"id": "pass", "label": "Walk on", "detail": "Nothing happens.", "kind": "nothing", "success_text": "You leave the shrine in peace."}])
 safe_gold = 12
 risky_gold = 25
 can_offer_relic = true

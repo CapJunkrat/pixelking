@@ -74,14 +74,52 @@ func submit(run_state: RunState, _rng: RunRngService, progress: MapProgressServi
 		"shop":
 			return _submit_shop(run_state, progress, pending, choice_id, payload)
 		"event", "rest":
-			var effect_error: Error = reward_service.apply(run_state, payload)
-			if effect_error != OK:
-				return effect_error
-			return _resolve_interaction_node(run_state, progress, {"outcome": pending_type, "choice": choice_id})
+			var outcome: Dictionary = _apply_chance_effect(run_state, _rng, payload)
+			if int(outcome.get("error", OK)) != OK:
+				return int(outcome["error"])
+			run_state.run_statistics["last_outcome"] = str(outcome.get("text", ""))
+			return _resolve_interaction_node(run_state, progress, {"outcome": pending_type, "choice": choice_id, "success": bool(outcome.get("success", true))})
 		"fusion_confirmation":
 			return fusion_interaction_service.submit(run_state, progress, deployment, choice_id)
 		_:
 			return ERR_INVALID_PARAMETER
+
+## Pays the option's cost, rolls its chance, applies the matching effect and returns
+## {"error": Error, "success": bool, "text": String} with what the player is told.
+func _apply_chance_effect(run_state: RunState, rng: RunRngService, payload: Dictionary) -> Dictionary:
+	var cost: int = int(payload.get("cost", 0))
+	if run_state.gold < cost:
+		return {"error": ERR_UNAVAILABLE}
+	var snapshot: int = run_state.gold
+	run_state.gold -= cost
+	var chance: float = float(payload.get("chance", 1.0))
+	var success: bool = chance >= 1.0 or rng == null or rng.randi_range(&"event_rng", 0, 99) < int(roundf(chance * 100.0))
+	var effect: Dictionary = payload if success else (payload.get("fail", {"kind": "nothing"}) as Dictionary)
+	var text_template: String = str(payload.get("success_text" if success else "fail_text", ""))
+	var named: String = str(payload.get("reward_name", ""))
+	if str(effect.get("kind", "")) == "gold_and_desert":
+		run_state.gold += int(effect.get("amount", 0))
+		named = _desert(run_state, rng)
+	else:
+		var error: Error = reward_service.apply(run_state, effect)
+		if error != OK:
+			run_state.gold = snapshot
+			return {"error": error}
+	var text: String = text_template % named if "%s" in text_template else text_template
+	return {"error": OK, "success": success, "text": text}
+
+## A random non-King piece leaves the army. Returns its name ("nobody" if none).
+func _desert(run_state: RunState, rng: RunRngService) -> String:
+	var candidates: Array[PieceInstanceState] = []
+	for piece: PieceInstanceState in run_state.player_roster:
+		if not piece.is_king:
+			candidates.append(piece)
+	if candidates.is_empty():
+		return "nobody"
+	var leaving: PieceInstanceState = candidates[rng.pick_index(&"event_rng", candidates.size()) if rng != null else 0]
+	var name: String = reward_service.definition_label(String(leaving.piece_def_id))
+	reward_service.remove_piece(run_state, leaving.instance_id)
+	return name
 
 func leave(run_state: RunState, progress: MapProgressService) -> Error:
 	if run_state == null or run_state.pending_choice.is_empty():

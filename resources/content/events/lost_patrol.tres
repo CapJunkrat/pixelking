@@ -6,7 +6,8 @@
 script = ExtResource("1_script")
 id = &"lost_patrol"
 title = "Lost Patrol"
-description = "A short risk-and-reward encounter."
+description = "A ragged patrol has lost its captain. They eye your banner hopefully."
+options = Array[Dictionary]([{"id": "recruit", "label": "Take them in", "detail": "A common piece joins your army.", "kind": "random_piece", "pool": "common", "success_text": "%s joins your army."}, {"id": "supplies", "label": "Trade supplies", "detail": "Gain 18 Gold.", "kind": "gold", "amount": 18, "success_text": "They pay 18 Gold for your supplies."}, {"id": "rob", "label": "Shake them down", "detail": "Gain 35 Gold. 40%: one of your pieces deserts in disgust.", "kind": "gold", "amount": 35, "chance": 0.6, "fail": {"kind": "gold_and_desert", "amount": 35}, "success_text": "You take 35 Gold.", "fail_text": "You take 35 Gold, but %s deserts."}])
 safe_gold = 12
 risky_gold = 25
 can_offer_relic = true

@@ -6,7 +6,8 @@
 script = ExtResource("1_script")
 id = &"golden_fork"
 title = "Golden Fork"
-description = "A short risk-and-reward encounter."
+description = "The road splits. One way is paved; the other vanishes into ruins."
+options = Array[Dictionary]([{"id": "paved", "label": "Take the paved road", "detail": "Gain 15 Gold.", "kind": "gold", "amount": 15, "success_text": "An easy march. You find 15 Gold."}, {"id": "overgrown", "label": "Take the overgrown path", "detail": "50%: gain 45 Gold. 50%: nothing.", "kind": "gold", "amount": 45, "chance": 0.5, "fail": {"kind": "nothing"}, "success_text": "Hidden treasure: 45 Gold!", "fail_text": "Only brambles. You find nothing."}, {"id": "ruins", "label": "Search the ruins", "detail": "50%: a random battle item. 50%: lose 8 Gold.", "kind": "random_item", "chance": 0.5, "fail": {"kind": "lose_gold", "amount": 8}, "success_text": "Among the ruins: %s.", "fail_text": "A trap! You lose 8 Gold."}])
 safe_gold = 12
 risky_gold = 25
 can_offer_relic = true
