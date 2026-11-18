@@ -21,6 +21,7 @@ const PATTERN_SIZE := 7
 const LINEUP_SLOTS := 6
 ## Height of the enemy explanation, which scrolls when it is longer.
 const LINEUP_HEIGHT := 120.0
+const TIP_ID := "prebattle_arrange"
 
 @onready var run_manager: AppRunManager = get_node("/root/RunManager") as AppRunManager
 @onready var piece_skin_manager: Node = get_node("/root/PieceSkinManager")
@@ -35,6 +36,10 @@ var pattern_panel: PanelContainer = null
 var pattern_scroll: ScrollContainer = null
 var lineup_box: VBoxContainer = null
 var count_label: Label = null
+var count_badge: PanelContainer = null
+var tip_bubble: Control = null
+## Pieces' pictures cropped to the figure, so every icon fills its box the same way.
+var _icon_cache: Dictionary = {}
 var bench_row: HBoxContainer = null
 var status_label: Label = null
 var back_button: Button = null
@@ -56,6 +61,7 @@ func _ready() -> void:
 		fight_button.disabled = true
 		return
 	_render()
+	_show_first_time_tip()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
@@ -84,6 +90,23 @@ func _build() -> void:
 	limit_label.name = "TurnLimit"
 	limit_label.visible = false
 	head.add_child(limit_label)
+	# How many of your pieces are on the board, out of how many may be.
+	count_badge = PanelContainer.new()
+	count_badge.name = "LineBadge"
+	var badge_row: HBoxContainer = HBoxContainer.new()
+	badge_row.add_theme_constant_override("separation", 3)
+	var badge_icon: TextureRect = TextureRect.new()
+	badge_icon.name = "BadgeIcon"
+	badge_icon.custom_minimum_size = Vector2(14, 16)
+	badge_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	badge_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	badge_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	badge_row.add_child(badge_icon)
+	count_label = _label("", 12, INK)
+	count_label.name = "LineCount"
+	badge_row.add_child(count_label)
+	count_badge.add_child(badge_row)
+	head.add_child(count_badge)
 	layout.add_child(head)
 
 	board_view = DeploymentBoardView.new()
@@ -104,9 +127,6 @@ func _build() -> void:
 
 	var foes_row: HBoxContainer = HBoxContainer.new()
 	foes_row.add_theme_constant_override("separation", 6)
-	var foes_title: Label = _label(_text("PREBATTLE_ENEMIES"), 12, MUTED)
-	foes_title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	foes_row.add_child(foes_title)
 	foe_box = HFlowContainer.new()
 	foe_box.name = "EnemyPieces"
 	foe_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -114,6 +134,11 @@ func _build() -> void:
 	foe_box.add_theme_constant_override("v_separation", 4)
 	foes_row.add_child(foe_box)
 	details.add_child(foes_row)
+	var divider: ColorRect = ColorRect.new()
+	divider.name = "Divider"
+	divider.color = LINE
+	divider.custom_minimum_size = Vector2(0, 1)
+	details.add_child(divider)
 
 	pattern_scroll = ScrollContainer.new()
 	pattern_scroll.name = "PatternScroll"
@@ -133,14 +158,6 @@ func _build() -> void:
 	lineup_box.add_theme_constant_override("separation", 6)
 	# Your battle line is the board itself; only the reserve is listed. Pick up a piece
 	# on the board and tap a reserve slot to bench it (or swap it with that piece).
-	var lineup_head: HBoxContainer = HBoxContainer.new()
-	var lineup_title: Label = _label(_text("PREBATTLE_RESERVE"), 12, MUTED)
-	lineup_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lineup_head.add_child(lineup_title)
-	count_label = _label("", 12, INK)
-	count_label.name = "LineCount"
-	lineup_head.add_child(count_label)
-	lineup_box.add_child(lineup_head)
 	bench_row = HBoxContainer.new()
 	bench_row.name = "ReserveRow"
 	bench_row.add_theme_constant_override("separation", 5)
@@ -256,9 +273,9 @@ func _render_foes() -> void:
 	for id: String in order:
 		var chip: Button = Button.new()
 		chip.name = "Enemy_%s" % id
-		chip.icon = _texture(&"black", id)
-		chip.custom_minimum_size = Vector2(36, 36)
-		chip.add_theme_constant_override("icon_max_width", 28)
+		chip.icon = _icon(_texture(&"black", id))
+		chip.custom_minimum_size = Vector2(38, 38)
+		chip.add_theme_constant_override("icon_max_width", 26)
 		chip.tooltip_text = _piece_name(id)
 		# Icons only: the name is in the explanation.
 		chip.expand_icon = true
@@ -266,7 +283,7 @@ func _render_foes() -> void:
 		chip.toggle_mode = true
 		chip.button_pressed = id == focus_id
 		var selected: bool = id == focus_id
-		chip.add_theme_stylebox_override("normal", _box(Color("#2a1e2a") if selected else PANEL_2, ENEMY if selected else LINE, 5))
+		chip.add_theme_stylebox_override("normal", _box(Color("#2a1e2a") if selected else PANEL_2, ENEMY if selected else Color(ENEMY, 0.4), 5))
 		chip.add_theme_stylebox_override("pressed", _box(Color("#2a1e2a"), ENEMY, 5))
 		chip.add_theme_stylebox_override("hover", _box(PANEL_2.lightened(0.08), GOLD_SOFT, 5))
 		chip.pressed.connect(_focus.bind(id))
@@ -332,7 +349,12 @@ func _render_lineup() -> void:
 		bench_row.add_child(_slot(run.get_piece_state(instance_id), false))
 	for index: int in range(bench_row.get_child_count(), LINEUP_SLOTS):
 		bench_row.add_child(_empty_reserve_slot(index))
-	count_label.text = _text("PREBATTLE_LINE_COUNT") % [_active_non_king(), run.max_active_pieces()]
+	var on_board: int = _active_non_king()
+	var full: bool = on_board >= run.max_active_pieces()
+	count_label.text = "%d/%d" % [on_board, run.max_active_pieces()]
+	count_label.add_theme_color_override("font_color", Color("#1a1408") if full else INK)
+	count_badge.add_theme_stylebox_override("panel", _box(GOLD if full else PANEL_2, GOLD if full else LINE, 10))
+	(count_badge.find_child("BadgeIcon", true, false) as TextureRect).texture = _icon(_texture(&"white", "pawn"))
 
 ## An open reserve place. With a piece picked up on the board, tapping it benches it.
 func _empty_reserve_slot(index: int) -> Button:
@@ -346,6 +368,17 @@ func _empty_reserve_slot(index: int) -> Button:
 		button.add_theme_stylebox_override(state, _box(Color(PANEL_2, 0.4), border, 6))
 	button.disabled = not holding
 	button.pressed.connect(_bench_held)
+	if holding:
+		# A small down arrow: "put it here".
+		var arrow: Control = Control.new()
+		arrow.name = "BenchArrow"
+		arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		arrow.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		arrow.draw.connect(func() -> void:
+			var c: Vector2 = arrow.size * 0.5
+			arrow.draw_colored_polygon(PackedVector2Array([c + Vector2(-7, -2), c + Vector2(7, -2), c + Vector2(0, 7)]), Color(GOLD_SOFT, 0.7))
+			arrow.draw_rect(Rect2(c + Vector2(-2.5, -9), Vector2(5, 8)), Color(GOLD_SOFT, 0.7)))
+		button.add_child(arrow)
 	return button
 
 func _slot(piece: PieceInstanceState, active: bool) -> Button:
@@ -361,7 +394,8 @@ func _slot(piece: PieceInstanceState, active: bool) -> Button:
 		button.add_theme_stylebox_override("disabled", _box(Color(PANEL_2, 0.4), LINE, 6))
 		return button
 	button.name = "Piece_%d" % piece.instance_id
-	button.icon = _texture(&"white", String(piece.piece_def_id))
+	button.icon = _icon(_texture(&"white", String(piece.piece_def_id)))
+	button.add_theme_constant_override("icon_max_width", 30)
 	button.tooltip_text = _piece_name(String(piece.piece_def_id))
 	if piece.is_king:
 		border = GOLD
@@ -407,8 +441,6 @@ func _arrange_at(square: Vector2i) -> bool:
 		if own <= 0:
 			return false
 		arrange_selected = own
-		_show_status(_text("PREBATTLE_ARRANGE_HINT"))
-		status_label.add_theme_color_override("font_color", GOLD_SOFT)
 		_render_board()
 		_render_lineup()
 		return true
@@ -418,15 +450,13 @@ func _arrange_at(square: Vector2i) -> bool:
 	if square.y > 1:
 		return false
 	if run_manager.move_deployed_piece(arrange_selected, square) != OK:
-		_show_status(_text("PREBATTLE_ARRANGE_ROWS"))
+		_nudge(board_view)
 		return true
 	_put_down()
 	return true
 
 func _put_down() -> void:
 	arrange_selected = 0
-	status_label.visible = false
-	status_label.add_theme_color_override("font_color", ENEMY)
 	_render_board()
 	_render_lineup()
 
@@ -442,7 +472,6 @@ func _bench_held() -> void:
 		return
 	var held: int = arrange_selected
 	arrange_selected = 0
-	status_label.add_theme_color_override("font_color", ENEMY)
 	_toggle_piece(held, false)
 
 ## A reserve piece: swapped with the piece in hand onto its square, or sent into the line.
@@ -453,29 +482,28 @@ func _on_reserve_pressed(instance_id: int) -> void:
 	var held: int = arrange_selected
 	var square: Vector2i = run_manager.current_run.deployment_state.player_position(held)
 	arrange_selected = 0
-	status_label.add_theme_color_override("font_color", ENEMY)
 	var reserve_full: bool = run_manager.current_run.reserve_piece_ids.size() >= RunState.MAX_RESERVE_PIECES
 	var order: Array = [[instance_id, true], [held, false]] if reserve_full else [[held, false], [instance_id, true]]
 	for step: Array in order:
 		if run_manager.move_roster_piece(int(step[0]), bool(step[1])) != OK:
-			_show_status(_text("PREBATTLE_LINEUP_ERROR"))
 			_render()
+			_nudge(bench_row)
 			return
 	run_manager.move_deployed_piece(instance_id, square)
-	status_label.visible = false
 	_render()
 
 func _toggle_piece(instance_id: int, to_active: bool) -> void:
 	if to_active and _active_non_king() >= run_manager.current_run.max_active_pieces():
-		_show_status(_text("PREBATTLE_LINEUP_FULL"))
+		_nudge(count_badge)
 		return
 	if not to_active and run_manager.current_run.reserve_piece_ids.size() >= RunState.MAX_RESERVE_PIECES:
-		_show_status(_text("PREBATTLE_RESERVE_FULL"))
+		_render_board()
+		_render_lineup()
+		_nudge(bench_row)
 		return
 	if run_manager.move_roster_piece(instance_id, to_active) != OK:
-		_show_status(_text("PREBATTLE_LINEUP_ERROR"))
+		_nudge(bench_row)
 		return
-	status_label.visible = false
 	_render()
 
 func _active_non_king() -> int:
@@ -509,6 +537,97 @@ func _start_battle() -> void:
 func _return_to_map() -> void:
 	if not _starting:
 		get_tree().change_scene_to_file(AppSceneRoutes.PATH_MAP)
+
+## Says "not possible" without words: a quick shake and a red flash.
+func _nudge(target: Control) -> void:
+	if target == null or not is_inside_tree():
+		return
+	var rest: Vector2 = target.position
+	var tween: Tween = create_tween()
+	target.modulate = Color(1.0, 0.55, 0.5)
+	for offset: float in [5.0, -5.0, 3.0, -3.0, 0.0]:
+		tween.tween_property(target, "position:x", rest.x + offset, 0.04)
+	tween.tween_property(target, "modulate", Color.WHITE, 0.15)
+
+## Crops a piece picture to its visible figure (cached), so a Pawn and a Queen fill
+## their boxes alike instead of the Pawn floating small in empty space.
+func _icon(texture: Texture2D) -> Texture2D:
+	if texture == null:
+		return null
+	if _icon_cache.has(texture):
+		return _icon_cache[texture]
+	var image: Image = texture.get_image()
+	if image == null:
+		return texture
+	if image.is_compressed():
+		image.decompress()
+	var used: Rect2i = image.get_used_rect()
+	if used.size.x <= 0 or used.size.y <= 0:
+		return texture
+	var cropped: AtlasTexture = AtlasTexture.new()
+	cropped.atlas = texture
+	cropped.region = Rect2(used.grow(1).intersection(Rect2i(Vector2i.ZERO, image.get_size())))
+	_icon_cache[texture] = cropped
+	return cropped
+
+## Shown once ever: how to move pieces and bench them. Any tap closes it for good.
+func _show_first_time_tip() -> void:
+	var settings: Node = get_node_or_null("/root/SettingsManager")
+	if settings == null or bool(settings.call("has_seen_tip", TIP_ID)):
+		return
+	tip_bubble = Control.new()
+	tip_bubble.name = "TipBubble"
+	tip_bubble.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	tip_bubble.mouse_filter = Control.MOUSE_FILTER_STOP
+	tip_bubble.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+			_dismiss_tip())
+	var shade: ColorRect = ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.35)
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	tip_bubble.add_child(shade)
+	var bubble: PanelContainer = PanelContainer.new()
+	bubble.name = "Bubble"
+	bubble.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style: StyleBoxFlat = _box(PANEL, GOLD, 10)
+	style.set_content_margin_all(12)
+	bubble.add_theme_stylebox_override("panel", style)
+	var text: Label = _label(_text("PREBATTLE_FIRST_TIP"), 13, INK)
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.custom_minimum_size = Vector2(250, 0)
+	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var column: VBoxContainer = VBoxContainer.new()
+	column.add_theme_constant_override("separation", 6)
+	column.add_child(text)
+	var ok: Label = _label(_text("PREBATTLE_FIRST_TIP_OK"), 11, GOLD_SOFT)
+	ok.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(ok)
+	bubble.add_child(column)
+	tip_bubble.add_child(bubble)
+	add_child(tip_bubble)
+	# Sit just above your two ranks, pointing down at them.
+	await get_tree().process_frame
+	if not is_instance_valid(bubble):
+		return
+	var board_rect: Rect2 = board_view.get_global_rect()
+	var bubble_size: Vector2 = bubble.get_combined_minimum_size()
+	bubble.size = bubble_size
+	bubble.global_position = Vector2(board_rect.get_center().x - bubble_size.x * 0.5, board_rect.end.y - board_rect.size.y * 0.42 - bubble_size.y)
+	var pointer: Control = Control.new()
+	pointer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pointer.position = bubble.position + Vector2(bubble_size.x * 0.5, bubble_size.y)
+	pointer.draw.connect(func() -> void:
+		pointer.draw_colored_polygon(PackedVector2Array([Vector2(-9, -1), Vector2(9, -1), Vector2(0, 10)]), GOLD))
+	tip_bubble.add_child(pointer)
+
+func _dismiss_tip() -> void:
+	if tip_bubble != null and is_instance_valid(tip_bubble):
+		tip_bubble.queue_free()
+	tip_bubble = null
+	var settings: Node = get_node_or_null("/root/SettingsManager")
+	if settings != null:
+		settings.call("mark_tip_seen", TIP_ID)
 
 func _show_status(message: String) -> void:
 	status_label.text = message

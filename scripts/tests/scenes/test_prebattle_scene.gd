@@ -5,6 +5,7 @@ extends SceneTree
 ## battle line and the reserve, and starts the battle in one tap.
 
 const TEST_PATH := "user://pixelking_prebattle_scene_test.save"
+const SETTINGS_PATH := "user://pixelking_prebattle_scene_test_settings.cfg"
 
 var failed: bool = false
 
@@ -15,6 +16,10 @@ func _run() -> void:
 	_cleanup()
 	var manager: AppRunManager = root.get_node("RunManager") as AppRunManager
 	manager.configure_save_path(TEST_PATH)
+	var settings: Node = root.get_node("SettingsManager")
+	var real_settings_path: String = settings.settings_path
+	settings.configure_path(SETTINGS_PATH)
+	settings.seen_tips.clear()
 	manager.abandon_run()
 	_prepare_battle_run(manager)
 	_expect(manager.current_run.active_piece_ids.size() == 4, "the three drafted pieces join the battle line on their own")
@@ -25,6 +30,15 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_expect(manager.current_run.phase == RunPhase.DEPLOYMENT, "opening the preview prepares the battle")
+	_expect(preview.tip_bubble != null, "the first visit explains arranging once")
+	preview._dismiss_tip()
+	_expect(preview.tip_bubble == null and settings.has_seen_tip("prebattle_arrange"), "the tip is remembered once dismissed")
+	var again: PreBattleScene = (load(AppSceneRoutes.DEPLOYMENT) as PackedScene).instantiate() as PreBattleScene
+	root.add_child(again)
+	await process_frame
+	_expect(again.tip_bubble == null, "the tip never shows again")
+	again.queue_free()
+	await process_frame
 	var board: DeploymentBoardView = preview.get_node("SafeArea/Layout/BoardFrame") as DeploymentBoardView
 	var deployment: DeploymentState = manager.current_run.deployment_state
 	_expect(board.board_size == 8 and board.piece_count(true) == manager.current_run.active_piece_ids.size(), "the board shows every active piece")
@@ -38,6 +52,10 @@ func _run() -> void:
 	var chips: HFlowContainer = details.find_child("EnemyPieces", true, false) as HFlowContainer
 	_expect(chips != null and chips.get_child_count() > 0, "enemy pieces are listed")
 	_expect((chips.get_child(0) as Button).text.is_empty(), "enemy pieces show only icons, with no name or count")
+	_expect(preview.find_child("LineBadge", true, false) != null and preview.count_label.text == "%d/%d" % [manager.current_run.active_piece_ids.size() - 1, manager.current_run.max_active_pieces()], "the head shows how many pieces are on the board")
+	_expect(preview.status_label.visible == false, "no instruction text is shown")
+	var chip_icon: Texture2D = (chips.get_child(0) as Button).icon
+	_expect(chip_icon is AtlasTexture, "enemy icons are cropped to the figure so all fill their box alike")
 	_expect(details.find_child("ActiveRow", true, false) == null and preview.find_child("ArrangeRow", true, false) == null, "no battle-line row, tip or reset button")
 	var pattern: PanelContainer = details.find_child("PiecePattern", true, false) as PanelContainer
 	var lineup: Control = details.find_child("Lineup", true, false) as Control
@@ -96,6 +114,8 @@ func _run() -> void:
 	await process_frame
 	_expect(manager.current_run.phase == RunPhase.BATTLE_ACTIVE, "Fight starts the battle in one tap")
 	manager.abandon_run()
+	settings.configure_path(real_settings_path)
+	settings.load_settings()
 	_cleanup()
 	_finish()
 
@@ -119,7 +139,7 @@ func _expect(condition: bool, message: String) -> void:
 		push_error(message)
 
 func _cleanup() -> void:
-	for path: String in [TEST_PATH, TEST_PATH + ".tmp", TEST_PATH + ".bak"]:
+	for path: String in [TEST_PATH, TEST_PATH + ".tmp", TEST_PATH + ".bak", SETTINGS_PATH]:
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 

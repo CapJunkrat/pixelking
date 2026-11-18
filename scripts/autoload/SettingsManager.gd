@@ -17,6 +17,8 @@ var sfx_volume: float = DEFAULT_SFX_VOLUME
 var locale: String = DEFAULT_LOCALE
 ## When on, battle animations play at a faster pace.
 var short_battle_animations: bool = false
+## One-time tips the player has already seen, by id.
+var seen_tips: Array[String] = []
 
 func _ready() -> void:
 	load_settings()
@@ -34,6 +36,9 @@ func load_settings() -> void:
 	var saved_locale: String = str(config.get_value("general", "locale", DEFAULT_LOCALE))
 	locale = saved_locale if not saved_locale.is_empty() else DEFAULT_LOCALE
 	short_battle_animations = bool(config.get_value("battle", "short_animations", false))
+	seen_tips.clear()
+	for tip: Variant in config.get_value("tips", "seen", []) as Array:
+		seen_tips.append(str(tip))
 	_apply_audio_buses()
 
 func set_music_volume(value: float, persist: bool = true) -> void:
@@ -65,6 +70,16 @@ func set_short_battle_animations(enabled: bool, persist: bool = true) -> void:
 	if persist:
 		_save_value("battle", "short_animations", enabled)
 	short_battle_animations_changed.emit(enabled)
+
+func has_seen_tip(tip_id: String) -> bool:
+	return tip_id in seen_tips
+
+func mark_tip_seen(tip_id: String, persist: bool = true) -> void:
+	if tip_id in seen_tips:
+		return
+	seen_tips.append(tip_id)
+	if persist:
+		_save_value("tips", "seen", seen_tips.duplicate())
 
 func _apply_audio_buses() -> void:
 	_apply_bus_volume(&"Music", music_volume)
