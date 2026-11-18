@@ -19,6 +19,9 @@ const TIER_COLORS := {&"normal_battle": Color("#e0b45c"), &"elite_battle": Color
 const PATTERN_COLORS := {"move": Color("#3fb6d8"), "attack": Color("#e07a6a"), "both": Color("#b07ae0")}
 const PATTERN_SIZE := 7
 const LINEUP_SLOTS := 6
+## The line-up and the enemy explanation share this much height, so swapping them
+## never moves the board.
+const LINEUP_HEIGHT := 136.0
 
 @onready var run_manager: AppRunManager = get_node("/root/RunManager") as AppRunManager
 @onready var piece_skin_manager: Node = get_node("/root/PieceSkinManager")
@@ -26,15 +29,16 @@ const LINEUP_SLOTS := 6
 var board_view: DeploymentBoardView = null
 var tier_label: Label = null
 var layer_label: Label = null
-var title_label: Label = null
-var hint_label: Label = null
+var limit_label: Label = null
 var power_me: Label = null
 var power_foe: Label = null
 var power_fill: ColorRect = null
 var power_track: Control = null
 var foe_box: HFlowContainer = null
 var pattern_panel: PanelContainer = null
-var facts_label: RichTextLabel = null
+## Holds the enemy piece explanation; shown instead of the line-up while one is chosen.
+var pattern_scroll: ScrollContainer = null
+var lineup_box: VBoxContainer = null
 var count_label: Label = null
 var active_row: HBoxContainer = null
 var bench_row: HBoxContainer = null
@@ -83,12 +87,11 @@ func _build() -> void:
 	layer_label = _label("", 12, MUTED)
 	layer_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(layer_label)
+	limit_label = _label("", 12, Color("#ff8a4c"))
+	limit_label.name = "TurnLimit"
+	limit_label.visible = false
+	head.add_child(limit_label)
 	layout.add_child(head)
-	title_label = _label("", 22, INK)
-	title_label.name = "TitleLabel"
-	layout.add_child(title_label)
-	hint_label = _label("", 12, MUTED)
-	layout.add_child(hint_label)
 
 	board_view = DeploymentBoardView.new()
 	board_view.name = "BoardFrame"
@@ -136,53 +139,60 @@ func _build() -> void:
 	power.add_child(power_foe)
 	layout.add_child(power)
 
-	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.name = "Details"
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# No page scroll: the enemy explanation takes the line-up's place while it is open,
+	# and only the explanation itself scrolls when it is long.
 	var details: VBoxContainer = VBoxContainer.new()
-	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	details.name = "Details"
 	details.add_theme_constant_override("separation", 6)
-	scroll.add_child(details)
-	layout.add_child(scroll)
+	layout.add_child(details)
 
-	details.add_child(_label(_text("PREBATTLE_ENEMIES"), 12, MUTED))
+	var foes_row: HBoxContainer = HBoxContainer.new()
+	foes_row.add_theme_constant_override("separation", 6)
+	var foes_title: Label = _label(_text("PREBATTLE_ENEMIES"), 12, MUTED)
+	foes_title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	foes_row.add_child(foes_title)
 	foe_box = HFlowContainer.new()
 	foe_box.name = "EnemyPieces"
-	foe_box.add_theme_constant_override("h_separation", 5)
-	foe_box.add_theme_constant_override("v_separation", 5)
-	details.add_child(foe_box)
+	foe_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	foe_box.add_theme_constant_override("h_separation", 4)
+	foe_box.add_theme_constant_override("v_separation", 4)
+	foes_row.add_child(foe_box)
+	details.add_child(foes_row)
+
+	pattern_scroll = ScrollContainer.new()
+	pattern_scroll.name = "PatternScroll"
+	pattern_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	pattern_scroll.custom_minimum_size = Vector2(0, LINEUP_HEIGHT)
+	pattern_scroll.visible = false
 	pattern_panel = PanelContainer.new()
 	pattern_panel.name = "PiecePattern"
+	pattern_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pattern_panel.add_theme_stylebox_override("panel", _box(Color("#1d1a2b"), ENEMY, 6))
 	pattern_panel.visible = false
-	details.add_child(pattern_panel)
-	facts_label = RichTextLabel.new()
-	facts_label.bbcode_enabled = true
-	facts_label.fit_content = true
-	facts_label.scroll_active = false
-	facts_label.add_theme_font_size_override("normal_font_size", 13)
-	details.add_child(facts_label)
+	pattern_scroll.add_child(pattern_panel)
+	details.add_child(pattern_scroll)
 
+	lineup_box = VBoxContainer.new()
+	lineup_box.name = "Lineup"
+	lineup_box.custom_minimum_size = Vector2(0, LINEUP_HEIGHT)
+	lineup_box.add_theme_constant_override("separation", 6)
 	var lineup_head: HBoxContainer = HBoxContainer.new()
 	var lineup_title: Label = _label(_text("PREBATTLE_LINEUP"), 12, MUTED)
 	lineup_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lineup_head.add_child(lineup_title)
 	count_label = _label("", 12, INK)
 	lineup_head.add_child(count_label)
-	details.add_child(lineup_head)
+	lineup_box.add_child(lineup_head)
 	active_row = HBoxContainer.new()
 	active_row.name = "ActiveRow"
 	active_row.add_theme_constant_override("separation", 5)
-	details.add_child(active_row)
-	details.add_child(_label(_text("PREBATTLE_RESERVE"), 12, MUTED))
+	lineup_box.add_child(active_row)
+	lineup_box.add_child(_label(_text("PREBATTLE_RESERVE"), 12, MUTED))
 	bench_row = HBoxContainer.new()
 	bench_row.name = "ReserveRow"
 	bench_row.add_theme_constant_override("separation", 5)
-	details.add_child(bench_row)
-	var note: Label = _label(_text("PREBATTLE_FORMATION_NOTE"), 11, MUTED)
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	details.add_child(note)
+	lineup_box.add_child(bench_row)
+	details.add_child(lineup_box)
 
 	status_label = _label("", 12, ENEMY)
 	status_label.name = "StatusLabel"
@@ -251,15 +261,15 @@ func _render() -> void:
 		var tier_color: Color = TIER_COLORS.get(node_def.id, GOLD)
 		tier_label.text = " %s " % _text(String(node_def.display_name_key)).to_upper()
 		(tier_label.get_parent() as PanelContainer).add_theme_stylebox_override("panel", _box(tier_color, tier_color, 4))
-		title_label.text = _text(String(node_def.enemy_hint_key))
-		hint_label.text = _text(String(node_def.description_key))
 	if node != null and run.map_state != null:
 		layer_label.text = _text("MAP_PROGRESS") % [node.layer_index + 1, run.map_state.total_layers]
 	_render_board()
 	_render_power()
 	_render_foes()
 	_render_pattern()
-	_render_facts(node_def, encounter)
+	limit_label.visible = encounter != null and encounter.turn_limit > 0
+	if limit_label.visible:
+		limit_label.text = _text("PREBATTLE_TURN_LIMIT") % encounter.turn_limit
 	_render_lineup()
 
 func _render_board() -> void:
@@ -310,10 +320,12 @@ func _render_foes() -> void:
 		var chip: Button = Button.new()
 		chip.name = "Enemy_%s" % id
 		chip.icon = _texture(&"black", id)
-		chip.custom_minimum_size = Vector2(0, 34)
-		chip.add_theme_constant_override("icon_max_width", 26)
-		chip.add_theme_font_size_override("font_size", 12)
-		chip.text = _piece_name(id) + (" ×%d" % counts[id] if int(counts[id]) > 1 else "")
+		chip.custom_minimum_size = Vector2(36, 36)
+		chip.add_theme_constant_override("icon_max_width", 28)
+		chip.add_theme_font_size_override("font_size", 10)
+		chip.tooltip_text = _piece_name(id)
+		# Icons only; the name is in the explanation. A count marks repeated pieces.
+		chip.text = "×%d" % counts[id] if int(counts[id]) > 1 else ""
 		chip.toggle_mode = true
 		chip.button_pressed = id == focus_id
 		var selected: bool = id == focus_id
@@ -327,8 +339,11 @@ func _render_pattern() -> void:
 	for child: Node in pattern_panel.get_children():
 		child.queue_free()
 	pattern_panel.visible = not focus_id.is_empty()
+	pattern_scroll.visible = pattern_panel.visible
+	lineup_box.visible = not pattern_panel.visible
 	if focus_id.is_empty():
 		return
+	pattern_scroll.scroll_vertical = 0
 	var definition: PieceDef = PieceDefDatabase.get_def(focus_id)
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
@@ -361,15 +376,15 @@ func _render_pattern() -> void:
 			lines.append("[color=#f5d58f]%s[/color]" % _text(key))
 	text.text = "\n".join(lines)
 	row.add_child(text)
-	pattern_panel.add_child(row)
-
-func _render_facts(node_def: MapNodeDef, encounter: EncounterDef) -> void:
-	var lines: Array[String] = []
-	if node_def != null:
-		lines.append("[color=#9aa8bf]%s[/color]  %s" % [_text("PREBATTLE_REWARD"), _text(String(node_def.reward_hint_key))])
-	if encounter != null and encounter.turn_limit > 0:
-		lines.append("[color=#9aa8bf]%s[/color]  [color=#ff8a4c]%s[/color]" % [_text("PREBATTLE_LIMIT"), _text("PREBATTLE_TURN_LIMIT") % encounter.turn_limit])
-	facts_label.text = "\n".join(lines)
+	var column: VBoxContainer = VBoxContainer.new()
+	column.add_theme_constant_override("separation", 4)
+	column.add_child(row)
+	var close: Button = _button(_text("PREBATTLE_CLOSE_INFO"), PANEL_2, LINE, INK)
+	close.name = "ClosePattern"
+	close.custom_minimum_size = Vector2(0, 30)
+	close.pressed.connect(_focus.bind(focus_id))
+	column.add_child(close)
+	pattern_panel.add_child(column)
 
 func _render_lineup() -> void:
 	for row: HBoxContainer in [active_row, bench_row]:

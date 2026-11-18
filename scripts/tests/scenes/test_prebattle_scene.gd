@@ -32,18 +32,26 @@ func _run() -> void:
 	var king_id: int = manager.current_run.active_piece_ids[0]
 	_expect(deployment.player_position(king_id) == Vector2i(4, 0), "the King stands in the middle of the back rank")
 
-	var chips: HFlowContainer = preview.get_node("SafeArea/Layout/Details").get_child(0).get_node("EnemyPieces") as HFlowContainer
+	var details: Node = preview.get_node("SafeArea/Layout/Details")
+	_expect(not details is ScrollContainer and preview.find_children("*", "ScrollContainer", true, false).size() == 1, "the page itself does not scroll")
+	_expect(preview.get_node_or_null("SafeArea/Layout/TitleLabel") == null, "the redundant title and description are gone")
+	var chips: HFlowContainer = details.find_child("EnemyPieces", true, false) as HFlowContainer
 	_expect(chips != null and chips.get_child_count() > 0, "enemy pieces are listed")
-	var pattern: PanelContainer = preview.get_node("SafeArea/Layout/Details").get_child(0).get_node("PiecePattern") as PanelContainer
-	_expect(not pattern.visible, "no piece is explained until one is chosen")
+	_expect((chips.get_child(0) as Button).text.is_empty() or (chips.get_child(0) as Button).text.begins_with("×"), "enemy pieces show icons, not names")
+	var pattern: PanelContainer = details.find_child("PiecePattern", true, false) as PanelContainer
+	var lineup: Control = details.find_child("Lineup", true, false) as Control
+	_expect(not pattern.visible and lineup.visible, "no piece is explained until one is chosen")
 	(chips.get_child(0) as Button).pressed.emit()
 	await process_frame
-	_expect(pattern.visible, "tapping an enemy piece shows how it moves")
+	_expect(pattern.visible and not lineup.visible, "tapping an enemy piece shows how it moves in place of the line-up")
+	(pattern.find_child("ClosePattern", true, false) as Button).pressed.emit()
+	await process_frame
+	_expect(not pattern.visible and lineup.visible, "closing the explanation brings the line-up back")
 
 	# Send one piece to the reserve and back: the formation follows the line-up.
 	var moved_id: int = manager.current_run.active_piece_ids[1]
-	var reserve_row: HBoxContainer = preview.get_node("SafeArea/Layout/Details").get_child(0).get_node("ReserveRow") as HBoxContainer
-	var active_row: HBoxContainer = preview.get_node("SafeArea/Layout/Details").get_child(0).get_node("ActiveRow") as HBoxContainer
+	var reserve_row: HBoxContainer = details.find_child("ReserveRow", true, false) as HBoxContainer
+	var active_row: HBoxContainer = details.find_child("ActiveRow", true, false) as HBoxContainer
 	(active_row.get_node("Piece_%d" % moved_id) as Button).pressed.emit()
 	await process_frame
 	_expect(moved_id in manager.current_run.reserve_piece_ids and board.piece_count(true) == 3, "tapping a battle-line piece sends it to the reserve")
