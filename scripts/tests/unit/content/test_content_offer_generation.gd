@@ -15,6 +15,12 @@ func test_battle_reward_generation_remains_deterministic() -> void:
 	assert(str(first_run.pending_choice.get("type", "")) == "battle_reward")
 	assert(str(first_run.pending_choice.get("title", "")) == RunContentDatabase.battle_reward_table().title)
 	assert((first_run.pending_choice.get("options", []) as Array).size() == 3)
+	# Gold is paid at once; the three options are only extras, never gold.
+	var table: BattleRewardTableDef = RunContentDatabase.battle_reward_table()
+	assert(first_run.gold >= _base_run(123456).gold + table.normal_gold_min)
+	assert(int(first_run.pending_choice.get("gold_awarded", 0)) == first_run.gold - _base_run(123456).gold)
+	for option: Variant in first_run.pending_choice.get("options", []) as Array:
+		assert(str(((option as Dictionary).get("payload", {}) as Dictionary).get("kind", "")) != "gold")
 
 func test_shop_and_event_use_catalog_order_and_values() -> void:
 	var shop_run: RunState = _base_run(998877)

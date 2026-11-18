@@ -80,31 +80,50 @@ func selected_piece_ids(run_state: RunState) -> Array[String]:
 		return _to_string_array(run_state.pending_choice.get("selected_piece_def_ids", []))
 	return []
 
+## Percent chance of each rarity [common, rare, epic, legendary] for one offered piece.
+const SLOT_ODDS: Array[int] = [40, 34, 23, 3]
+## One of the three is always rare or better, rolled with these odds.
+const GUARANTEED_ODDS: Array[int] = [0, 58, 36, 6]
+
+## Three different pieces. Each slot rolls a rarity first, then a piece of that rarity,
+## so the many common pieces cannot crowd out the few epic ones.
 func _generate_candidates(rng: RunRngService) -> Array[String]:
-	var pool: Array[PieceDef] = PieceDefDatabase.opening_draft_defs()
-	var rare_pool: Array[PieceDef] = []
-	for definition: PieceDef in pool:
-		if definition.is_rare_or_higher():
-			rare_pool.append(definition)
-	if pool.size() < CANDIDATE_COUNT or rare_pool.is_empty():
-		return []
-	var chosen: Array[PieceDef] = []
-	var guaranteed: PieceDef = _weighted_pick(rare_pool, rng)
-	if guaranteed == null:
-		return []
-	chosen.append(guaranteed)
-	pool.erase(guaranteed)
-	while chosen.size() < CANDIDATE_COUNT:
-		var candidate: PieceDef = _weighted_pick(pool, rng)
-		if candidate == null:
-			return []
-		chosen.append(candidate)
-		pool.erase(candidate)
-	_shuffle(chosen, rng)
+	var by_tier: Array = [[], [], [], []]
+	for definition: PieceDef in PieceDefDatabase.opening_draft_defs():
+		(by_tier[clampi(int(definition.rarity), 0, 3)] as Array).append(definition)
 	var ids: Array[String] = []
+	var chosen: Array[PieceDef] = []
+	for slot: int in range(CANDIDATE_COUNT):
+		var tier: int = _roll_tier(GUARANTEED_ODDS if slot == 0 else SLOT_ODDS, rng)
+		var minimum: int = 1 if slot == 0 else 0
+		var picked: PieceDef = null
+		for step: int in [0, -1, 1, -2, 2, -3, 3]:
+			var candidate_tier: int = tier + step
+			if candidate_tier < minimum or candidate_tier > 3:
+				continue
+			var bucket: Array[PieceDef] = []
+			for definition: PieceDef in by_tier[candidate_tier]:
+				if definition not in chosen:
+					bucket.append(definition)
+			picked = _weighted_pick(bucket, rng)
+			if picked != null:
+				break
+		if picked == null:
+			return []
+		chosen.append(picked)
+	_shuffle(chosen, rng)
 	for definition: PieceDef in chosen:
 		ids.append(definition.id)
 	return ids
+
+func _roll_tier(odds: Array[int], rng: RunRngService) -> int:
+	var roll: int = rng.randi_range(RNG_STREAM, 1, 100)
+	var cursor: int = 0
+	for index: int in range(odds.size()):
+		cursor += odds[index]
+		if roll <= cursor:
+			return index
+	return odds.size() - 1
 
 func _weighted_pick(pool: Array[PieceDef], rng: RunRngService) -> PieceDef:
 	var total_weight: int = 0
@@ -120,11 +139,9 @@ func _weighted_pick(pool: Array[PieceDef], rng: RunRngService) -> PieceDef:
 			return definition
 	return pool[-1] if not pool.is_empty() else null
 
-## Rare and rarer pieces are drafted far more often than their base weight says.
-const RARE_DRAFT_MULTIPLIER := 3
-
+## Within one rarity, a piece's own weight decides how often it comes up.
 func _draft_weight(definition: PieceDef) -> int:
-	return definition.opening_draft_weight * (RARE_DRAFT_MULTIPLIER if definition.is_rare_or_higher() else 1)
+	return definition.opening_draft_weight
 
 func _shuffle(values: Array[PieceDef], rng: RunRngService) -> void:
 	for index: int in range(values.size() - 1, 0, -1):

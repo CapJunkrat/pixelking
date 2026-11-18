@@ -3,7 +3,7 @@ extends Resource
 
 @export var id: StringName = &"default_battle_reward"
 @export var title: String = "Victory Reward"
-@export_multiline var description: String = "Choose one reward. Offers are saved and cannot be rerolled."
+@export_multiline var description: String = "Choose one extra reward. Offers are saved and cannot be rerolled."
 @export var normal_gold_min: int = 10
 @export var normal_gold_max: int = 20
 @export var elite_gold_min: int = 18

@@ -224,12 +224,12 @@ func _test_run_growth() -> void:
 	expect(piece.learned_def_ids == (["knight"] as Array[String]) and piece.capture_count == 1, "learned moves come back in the next battle")
 
 func _test_king_execution() -> void:
-	# White takes Black's last piece: the White King strikes the lone Black King at once.
+	# White takes Black's last piece: the lone Black King falls at once.
 	var board: BoardState = _board({Vector2i(0, 0): [&"king", W], Vector2i(3, 3): [&"rook", W], Vector2i(3, 6): [&"knight", B], Vector2i(7, 7): [&"king", B]})
 	var processor: BattleCommandProcessor = BattleCommandProcessor.new(board)
 	var result: BattleCommandResult = processor.execute(MoveAction.new(Vector2i(3, 3), Vector2i(3, 6), W))
 	expect(_has(result.events, BattleCommandProcessor.EVENT_KING_EXECUTION), "taking the last piece triggers the King's execution")
-	expect(processor.status.is_finished() and board.king_pos[W] == Vector2i(7, 7) and not board.has_king(B), "the winning King ends on the lone King's square and the battle is over")
+	expect(processor.status.is_finished() and board.king_pos[W] == Vector2i(0, 0) and board.get_piece(Vector2i(7, 7)) == null and not board.has_king(B), "the lone King falls in place, the winning King stays on its own square, and the battle is over")
 	# And the other way round: losing your last piece loses the battle at once.
 	var losing: BoardState = _board({Vector2i(0, 0): [&"king", W], Vector2i(3, 3): [&"knight", W], Vector2i(3, 6): [&"rook", B], Vector2i(7, 7): [&"king", B]}, B)
 	var enemy: BattleCommandProcessor = BattleCommandProcessor.new(losing)

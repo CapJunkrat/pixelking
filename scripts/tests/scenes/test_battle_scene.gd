@@ -54,6 +54,20 @@ func _run() -> void:
 	_expect(battle.selected_square == Vector2i(1, 0), "clicking the current player's knight selects it")
 	_expect(Vector2i(0, 2) in battle.legal_targets, "selected knight exposes its legal move")
 
+	# Tapping an enemy piece shows its reach in its own colours, without selecting it.
+	board_view.press_square(Vector2i(1, 7))
+	await process_frame
+	_expect(board_view.inspected_square == Vector2i(1, 7) and battle.selected_square == Vector2i(-1, -1), "tapping an enemy knight shows its reach and selects nothing")
+	_expect(Vector2i(2, 5) in board_view.inspect_moves and board_view.legal_targets.is_empty(), "its moves are listed apart from your own move hints")
+	_expect(board_view.INSPECT_DOT != board_view.MOVE_DOT and board_view.INSPECT_THREAT != board_view.CAPTURE_TINT, "enemy reach is drawn in different colours from your own")
+	board_view.press_square(Vector2i(1, 7))
+	await process_frame
+	_expect(board_view.inspected_square == Vector2i(-1, -1), "tapping it again hides its reach")
+	board_view.press_square(Vector2i(1, 7))
+	board_view.press_square(Vector2i(1, 0))
+	await process_frame
+	_expect(board_view.inspected_square == Vector2i(-1, -1) and battle.selected_square == Vector2i(1, 0), "tapping your own piece replaces the enemy reach with your selection")
+
 	battle.animation_player.playback_speed = 0.1
 	_expect(board_view.square_at(board_view.square_center(Vector2i(0, 2))) == Vector2i(0, 2), "a legal destination wins the tap even when a piece stands in front of it")
 	board_view.press_square(Vector2i(0, 2))

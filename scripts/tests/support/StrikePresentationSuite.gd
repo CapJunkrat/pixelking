@@ -200,7 +200,7 @@ func _check_new(view: BattleBoardView, layer: Node2D, game_state: Node) -> void:
 	await process_frame
 
 func _check_core_extras(view: BattleBoardView, layer: Node2D, battle: Node, game_state: Node, authoritative: String) -> void:
-	# Taking the last piece: the capture plays, then the winning King strikes the lone King.
+	# Taking the last piece: the capture plays, then the lone King falls in place.
 	view.present_events([
 		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_MOVED, 1, 1, {"from": Vector2i(2, 2), "to": Vector2i(2, 4), "piece_def_id": "rook", "color": GameRules.PieceColor.WHITE}),
 		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_CAPTURED, 2, 1, {"position": Vector2i(2, 4), "piece_def_id": "knight", "color": GameRules.PieceColor.BLACK}),
@@ -215,7 +215,7 @@ func _check_core_extras(view: BattleBoardView, layer: Node2D, battle: Node, game
 		guard += 1
 		await process_frame
 	await process_frame
-	_expect(attacks == ([&"rook", &"king"] as Array[StringName]) and layer.get_child_count() == 32, "the last capture is followed by the King's execution strike")
+	_expect(attacks == ([&"rook"] as Array[StringName]), "the last capture plays, and no King runs across the board afterwards")
 
 	# En passant: the victim stands beside the pawn, not on the destination square.
 	view.present_events([

@@ -19,7 +19,20 @@ func _init() -> void:
 	_expect(candidates_a == candidates_b, "same seed produces identical opening candidates")
 	_expect(candidates_a.size() == 3 and _unique_count(candidates_a) == 3, "offer contains three unique candidates")
 	_expect(_contains_rare(candidates_a), "offer guarantees at least one Rare piece")
-	_expect(_all_opening_eligible(candidates_a), "offer contains only Common/Rare opening pieces")
+	_expect(_all_opening_eligible(candidates_a), "offer contains only opening-eligible pieces")
+	# Epic pieces now come up often: count offers with one across many seeds.
+	var with_epic: int = 0
+	var offers: int = 200
+	for seed_offset: int in range(offers):
+		var pair: Dictionary = _new_run_pair(9000 + seed_offset)
+		service.call("ensure_pending_choice", pair["run"], pair["rng"])
+		for id: Variant in ((pair["run"] as RunState).pending_choice.get("candidate_piece_def_ids", []) as Array):
+			var definition: PieceDef = PieceDefDatabase.get_def(str(id))
+			if definition != null and definition.rarity >= PieceDef.Rarity.EPIC:
+				with_epic += 1
+				break
+	print("offers with an Epic or better: %d / %d" % [with_epic, offers])
+	_expect(with_epic >= offers * 0.4, "at least two in five offers show an Epic or better piece")
 	var after_states: Dictionary = rng_a.snapshot_states()
 	_expect(before_states["map_rng"] == after_states["map_rng"], "draft does not consume map RNG")
 	_expect(before_states["shop_rng"] == after_states["shop_rng"], "draft does not consume shop RNG")

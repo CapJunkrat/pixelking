@@ -27,5 +27,5 @@ motion_profile = ExtResource("5_motion")
 immune_to_ranged = true
 base_value = 7
 rarity = 2
-available_in_opening_draft = false
-opening_draft_weight = 0
+available_in_opening_draft = true
+opening_draft_weight = 3

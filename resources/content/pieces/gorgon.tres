@@ -25,5 +25,5 @@ immobilizes_adjacent = true
 immune_to_immobilization = true
 base_value = 8
 rarity = 2
-available_in_opening_draft = false
-opening_draft_weight = 0
+available_in_opening_draft = true
+opening_draft_weight = 3

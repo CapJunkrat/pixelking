@@ -21,6 +21,13 @@ const PROMOTION_GLOW := Color(1.0, 0.886, 0.588)
 const CROSSHAIR := Color(1.0, 0.36, 0.3, 0.95)
 const GUARD_GLOW := Color(1.0, 0.86, 0.45, 0.3)
 const GUARD_RING := Color(1.0, 0.86, 0.45, 0.9)
+## A tapped enemy piece's reach, in violet so it never reads as your own move hints
+## (cream dots and red squares): violet dots where it can move, violet squares with
+## a ring on your pieces it threatens.
+const INSPECT_TINT := Color(0.62, 0.42, 0.95, 0.5)
+const INSPECT_DOT := Color(0.74, 0.55, 1.0, 0.85)
+const INSPECT_THREAT := Color(0.66, 0.36, 0.98, 0.5)
+const INSPECT_RING := Color(0.8, 0.62, 1.0, 0.95)
 ## Speed multipliers applied when the player turns on short battle animations.
 const SHORT_STRIKE_SPEED := 2.2
 const SHORT_MOVE_SPEED := 1.5
@@ -37,6 +44,11 @@ const LONG_PRESS_SLOP := 14.0
 var selected_square: Vector2i = NO_SQUARE
 var legal_targets: Array[Vector2i] = []
 var dangerous_targets: Array[Vector2i] = []
+## An enemy piece tapped to see its reach (NO_SQUARE when none), with the empty squares
+## it can move to and the squares of your pieces it can capture.
+var inspected_square: Vector2i = NO_SQUARE
+var inspect_moves: Array[Vector2i] = []
+var inspect_threats: Array[Vector2i] = []
 var board: BoardState = null
 var player_color: int = GameRules.PieceColor.WHITE
 var presentation_speed: float = 1.0
@@ -51,8 +63,6 @@ var projection: BoardProjection = BoardProjection.new()
 var _pending_promotion: Vector2i = NO_SQUARE
 var _pending_check: Dictionary = {}
 var _pending_bursts: Array[Vector2i] = []
-## A King execution to play once the current move has finished (BattleCommandProcessor).
-var _pending_execution: Dictionary = {}
 var _last_speed: float = 1.0
 var _pending_rings: Array[Vector2i] = []
 var _board_canvas: Node2D = null
@@ -302,6 +312,14 @@ func _on_square_pressed(board_position: Vector2i) -> void:
 		move_requested.emit(selected_square, board_position)
 		return
 	var piece: ChessPiece = board.get_piece(board_position)
+	var was_inspected: bool = board_position == inspected_square
+	clear_inspection(false)
+	if piece != null and piece.color != player_color and not was_inspected:
+		selected_square = NO_SQUARE
+		legal_targets.clear()
+		dangerous_targets.clear()
+		inspect(board_position)
+		return
 	if piece != null and piece.color == board.turn and piece.color == player_color:
 		selected_square = board_position
 		legal_targets = board.get_executable_moves(board_position)
@@ -315,6 +333,37 @@ func _on_square_pressed(board_position: Vector2i) -> void:
 		dangerous_targets.clear()
 	refresh()
 
+## Shows where the enemy piece on `square` can move and what it can capture.
+func inspect(square: Vector2i) -> void:
+	inspected_square = square
+	inspect_moves.clear()
+	inspect_threats.clear()
+	var piece: ChessPiece = board.get_piece(square) if board != null else null
+	if piece == null:
+		inspected_square = NO_SQUARE
+		refresh()
+		return
+	# Everything it could do on its own turn (shots and captures included).
+	for target: Vector2i in MoveGenerator.generate_pseudo_legal(board, square):
+		if board.is_rock(target) or target == square:
+			continue
+		var occupant: ChessPiece = board.get_piece(target)
+		if occupant == null:
+			if target not in inspect_moves:
+				inspect_moves.append(target)
+		elif occupant.color != piece.color and target not in inspect_threats:
+			inspect_threats.append(target)
+	refresh()
+
+func clear_inspection(redraw: bool = true) -> void:
+	if inspected_square == NO_SQUARE:
+		return
+	inspected_square = NO_SQUARE
+	inspect_moves.clear()
+	inspect_threats.clear()
+	if redraw:
+		refresh()
+
 func set_input_enabled(enabled: bool) -> void:
 	input_enabled = enabled
 	if not input_enabled:
@@ -325,6 +374,7 @@ func set_input_enabled(enabled: bool) -> void:
 		_redraw()
 
 func begin_item_targeting() -> void:
+	clear_inspection(false)
 	item_targeting = true
 	selected_square = NO_SQUARE
 	legal_targets.clear()
@@ -335,6 +385,7 @@ func cancel_item_targeting() -> void:
 	item_targeting = false
 
 func clear_selection() -> void:
+	clear_inspection(false)
 	selected_square = NO_SQUARE
 	legal_targets.clear()
 	dangerous_targets.clear()
@@ -371,6 +422,13 @@ func _draw_board() -> void:
 	if selected_square != NO_SQUARE:
 		_draw_square_marker(selected_square, SELECTED_TINT)
 	_draw_bodyguards()
+	if inspected_square != NO_SQUARE:
+		_draw_square_marker(inspected_square, INSPECT_TINT)
+		for target: Vector2i in inspect_threats:
+			_draw_square_marker(target, INSPECT_THREAT)
+			_board_canvas.draw_polyline(_world_ring(projection.square_world(target), projection.cell * 0.4), INSPECT_RING, maxf(1.5, projection.cell * 0.05))
+		for target: Vector2i in inspect_moves:
+			_draw_ground_ellipse(target, projection.cell * 0.17, INSPECT_DOT)
 	for target: Vector2i in legal_targets:
 		if _is_shot(target):
 			_draw_square_marker(target, Color(CAPTURE_TINT, CAPTURE_TINT.a * 0.55))
@@ -605,6 +663,7 @@ func _on_skin_changed(_skin_id: StringName) -> void:
 # --- move presentation ------------------------------------------------------
 
 func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
+	clear_inspection(false)
 	var move_event: BattleEvent = null
 	var capture_event: BattleEvent = null
 	var shell_event: BattleEvent = null
@@ -622,7 +681,8 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 			BattleCommandProcessor.EVENT_CASTLED, BattleCommandProcessor.EVENT_KING_SWAPPED:
 				castled = true
 			BattleCommandProcessor.EVENT_KING_EXECUTION:
-				_pending_execution = event.payload
+				# The lone King falls in place (a burst on its square); no King moves.
+				_pending_bursts.append(event.payload.get("to", NO_SQUARE))
 			BattleCommandProcessor.EVENT_PIECE_DESTROYED, BattleCommandProcessor.EVENT_ROCK_BROKEN:
 				_pending_bursts.append(event.payload.get("position", NO_SQUARE))
 			BattleCommandProcessor.EVENT_SHELL_BROKEN:
@@ -642,9 +702,6 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 		return
 	_last_speed = speed
 	if move_event == null:
-		if not _pending_execution.is_empty():
-			_start_execution()
-			return
 		_play_followups()
 		return
 	var data: Dictionary = move_event.payload
@@ -926,7 +983,6 @@ func is_presenting() -> bool:
 	return not _presentation_tweens.is_empty() or (_strike != null and _strike.is_playing())
 
 func skip_presentations() -> void:
-	_pending_execution = {}
 	for tween: Tween in _presentation_tweens:
 		if tween != null and tween.is_valid():
 			tween.kill()
@@ -940,26 +996,7 @@ func _finish_tween(tween: Tween) -> void:
 	if _presentation_tweens.is_empty() and not _strike.is_playing():
 		_end_presentation()
 
-## The winning King runs over and strikes down the lone King.
-func _start_execution() -> void:
-	var data: Dictionary = _pending_execution
-	_pending_execution = {}
-	_hidden_squares.clear()
-	var move_data: Dictionary = {"from": data.get("from", NO_SQUARE), "to": data.get("to", NO_SQUARE), "target": data.get("to", NO_SQUARE), "piece_def_id": str(data.get("piece_def_id", "king")), "color": int(data.get("color", 0))}
-	var capture_data: Dictionary = {"position": data.get("to", NO_SQUARE), "piece_def_id": str(data.get("victim_def_id", "king")), "color": int(data.get("victim_color", 1))}
-	if _present_strike(move_data, capture_data, _last_speed):
-		refresh()
-		return
-	_end_presentation()
-
 func _end_presentation() -> void:
-	if not _pending_execution.is_empty():
-		for node: Node in _presentation_nodes:
-			if is_instance_valid(node):
-				node.queue_free()
-		_presentation_nodes.clear()
-		_start_execution()
-		return
 	for node: Node in _presentation_nodes:
 		if is_instance_valid(node):
 			node.queue_free()

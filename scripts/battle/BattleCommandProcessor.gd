@@ -488,7 +488,8 @@ func _append_terminal_events(events: Array[BattleEvent], action_id: int) -> void
 		events.append(_event(EVENT_CHECK_DECLARED, action_id, {"color": board.turn, "checkmate": false}))
 
 ## When one side has nothing left but its King while the other still has an army, the
-## winning King walks over and takes the lone King, ending the battle at once.
+## lone King falls where it stands and the battle ends at once. Nothing moves: the
+## winning King stays on its own square.
 func _try_execution(events: Array[BattleEvent], action_id: int) -> bool:
 	for loser: int in [GameRules.PieceColor.WHITE, GameRules.PieceColor.BLACK]:
 		var winner: int = GameRules.opposite(loser)
@@ -498,9 +499,7 @@ func _try_execution(events: Array[BattleEvent], action_id: int) -> bool:
 		var to: Vector2i = board.king_pos[loser]
 		var killer: ChessPiece = board.get_piece(from)
 		var victim: ChessPiece = board.get_piece(to)
-		board.set_piece(from, null)
-		board.set_piece(to, killer)
-		board.king_pos[winner] = to
+		board.set_piece(to, null)
 		board.king_pos.erase(loser)
 		events.append(_event(EVENT_KING_EXECUTION, action_id, {
 			"from": from,

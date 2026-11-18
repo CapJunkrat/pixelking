@@ -29,5 +29,5 @@ movement_profile = SubResource("MovementProfile")
 motion_profile = ExtResource("5_motion")
 base_value = 9
 rarity = 2
-available_in_opening_draft = false
-opening_draft_weight = 0
+available_in_opening_draft = true
+opening_draft_weight = 3

@@ -12,7 +12,9 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 	var gold_amount: int = rng.randi_range(&"reward_rng", minimum_gold, maximum_gold)
 	if &"lucky_coin" in run_state.challenger_slots:
 		gold_amount += gold_amount / 2
-	var options: Array[Dictionary] = [RunChoiceBuilder.option("gold", "%d Gold" % gold_amount, "gold", {"amount": gold_amount})]
+	# Gold is always paid for a win; the choice is only between the extras below.
+	run_state.gold += gold_amount
+	var options: Array[Dictionary] = []
 	var eligible_recipes: Array[FusionRecipeDef] = fusion_service.eligible_recipes(run_state)
 	if not eligible_recipes.is_empty():
 		var recipe: FusionRecipeDef = eligible_recipes[rng.pick_index(&"reward_rng", eligible_recipes.size())]
@@ -29,11 +31,21 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 		options.append(RunChoiceBuilder.option("item_%s" % item_id, reward_service.definition_label(item_id), "item", {"item_id": item_id}))
 	else:
 		options.append(RunChoiceBuilder.option("piece_%s" % piece_id, "Recruit %s" % reward_service.definition_label(piece_id), "piece", {"piece_def_id": piece_id}))
-	while options.size() < 3:
+	var offered_relics: Array[StringName] = []
+	var tries: int = 0
+	while options.size() < 3 and tries < 12:
+		tries += 1
 		var relic: StringName = reward_service.unowned_relic(run_state, rng, &"reward_rng")
-		if relic.is_empty():
-			options.append(RunChoiceBuilder.option("small_gold_%d" % options.size(), "%d Gold" % table.fallback_gold, "gold", {"amount": table.fallback_gold}))
-		else:
+		if not relic.is_empty() and relic not in offered_relics and run_state.challenger_slots.size() < 6:
+			offered_relics.append(relic)
 			options.append(RunChoiceBuilder.option("relic_%s" % relic, RunContentDatabase.relic_label(relic), "relic", {"relic_id": String(relic)}))
-	run_state.pending_choice = RunChoiceBuilder.pending("battle_reward", table.title, table.description, options, false)
+			continue
+		# No relic left to offer: another recruit instead (never a gold option).
+		var extra_id: String = RarityOdds.pick(table.recruit_piece_ids, rng, &"reward_rng", progress)
+		var extra_option_id: String = "piece_%s" % extra_id
+		if RunChoiceBuilder.find_option({"options": options}, extra_option_id).is_empty():
+			options.append(RunChoiceBuilder.option(extra_option_id, "Recruit %s" % reward_service.definition_label(extra_id), "piece", {"piece_def_id": extra_id}))
+	var pending: Dictionary = RunChoiceBuilder.pending("battle_reward", table.title, "+%d Gold earned. %s" % [gold_amount, table.description], options, false)
+	pending["gold_awarded"] = gold_amount
+	run_state.pending_choice = pending
 	return OK

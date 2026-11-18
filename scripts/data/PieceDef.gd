@@ -119,7 +119,7 @@ func is_valid_opening_draft_piece() -> bool:
 		available_in_opening_draft
 		and opening_draft_weight > 0
 		and not is_king
-		and rarity in [Rarity.COMMON, Rarity.RARE]
+		and rarity <= Rarity.LEGENDARY
 	)
 
 func resolved_movement_rules() -> Array[MovementRule]:

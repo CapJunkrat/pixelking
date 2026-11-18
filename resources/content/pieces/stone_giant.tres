@@ -31,5 +31,5 @@ motion_profile = ExtResource("4_motion")
 shell_hits = 2
 base_value = 11
 rarity = 3
-available_in_opening_draft = false
-opening_draft_weight = 0
+available_in_opening_draft = true
+opening_draft_weight = 3
