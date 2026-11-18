@@ -39,6 +39,7 @@ func _ready() -> void:
 	piece_info.name = "PieceInfo"
 	add_child(piece_info)
 	board_view.piece_info_requested.connect(_on_piece_info_requested)
+	board_view.focus_changed.connect(_on_board_focus_changed)
 	GameState.battle_events_emitted.connect(_on_battle_events_emitted)
 	board_view.setup(GameState.board, GameState.player_color)
 	_refresh_board()
@@ -149,6 +150,14 @@ func _await_presentation_completion(generation: int) -> void:
 	if generation == _presentation_generation:
 		presentation_completed.emit()
 
+## The card under the board explains the piece the player tapped.
+func _on_board_focus_changed(square: Vector2i) -> void:
+	var piece: ChessPiece = GameState.board.get_piece(square) if GameState.board != null and square != BattleBoardView.NO_SQUARE else null
+	if piece == null:
+		battle_log.clear_piece()
+	else:
+		battle_log.show_piece(piece, piece.color != GameState.player_color)
+
 func _on_piece_info_requested(square: Vector2i) -> void:
 	piece_info.show_piece(GameState.board, square, GameState.player_color)
 
@@ -185,7 +194,7 @@ func _on_item_target_requested(target_position: Vector2i) -> void:
 	var slot_index: int = pending_item_slot
 	pending_item_slot = -1
 	if not GameState.try_use_item(slot_index, target_position):
-		battle_log.append_system_message("Invalid item target.")
+		battle_log.append_system_message(Localization.text("ITEM_TARGET_INVALID"))
 	_refresh_board()
 	_refresh_challenger_slots()
 

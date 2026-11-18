@@ -27,7 +27,7 @@ func _run() -> void:
 	await process_frame
 	log_panel.consume(result.events)
 	_expect(not log_panel.lines.is_empty(), "battle log derives readable lines from BattleEvents")
-	_expect("knight" in log_panel.log_label.text, "battle log describes the moved piece")
+	_expect("knight" in log_panel.log_label.text.to_lower(), "battle log describes the moved piece")
 	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("portal_mage")) == &"teleport", "teleport rules select the portal presentation")
 	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("manticore")) == &"bent_ray", "bent-ray rules select a turning presentation")
 	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("ember_bird")) == &"lob", "jumping slide rules select a lob presentation")

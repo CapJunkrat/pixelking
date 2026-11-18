@@ -10,6 +10,9 @@ signal item_target_requested(position: Vector2i)
 signal presentations_completed
 ## A piece was held down long enough to ask what it does (works on either side's turn).
 signal piece_info_requested(square: Vector2i)
+## The piece the player is looking at changed: their selected piece, an inspected
+## enemy, or NO_SQUARE when none.
+signal focus_changed(square: Vector2i)
 
 const NO_SQUARE := Vector2i(-1, -1)
 const SELECTED_TINT := Color(0.88, 0.71, 0.36, 0.55)
@@ -319,6 +322,7 @@ func _on_square_pressed(board_position: Vector2i) -> void:
 		legal_targets.clear()
 		dangerous_targets.clear()
 		inspect(board_position)
+		focus_changed.emit(board_position)
 		return
 	if piece != null and piece.color == board.turn and piece.color == player_color:
 		selected_square = board_position
@@ -332,6 +336,7 @@ func _on_square_pressed(board_position: Vector2i) -> void:
 		legal_targets.clear()
 		dangerous_targets.clear()
 	refresh()
+	focus_changed.emit(selected_square)
 
 ## Shows where the enemy piece on `square` can move and what it can capture.
 func inspect(square: Vector2i) -> void:
