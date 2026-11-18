@@ -1,47 +1,224 @@
 class_name BattleHUD
 extends HBoxContainer
 
+## The battle's top bar, one slim panel: who you fight (portrait, tier, layer), whose
+## turn it is (a pill that turns teal on your turn), the round, and settings.
+
 signal settings_requested
 signal debug_victory_requested
 ## The player gives up the bonus action a piece earned this turn.
 signal end_turn_requested
 
-@onready var enemy_portrait: TextureRect = $BossPortrait/Portrait
-@onready var enemy_label: Label = $EnemySegment/EnemyLabel
-@onready var turn_label: Label = $TurnSegment/TurnLabel
-@onready var round_label: Label = $RoundSegment/RoundContent/RoundLabel
-@onready var settings_button: Button = $SettingsButton
-@onready var turn_segment: PanelContainer = $TurnSegment
+const GOLD := Color("#e0b45c")
+const GOLD_SOFT := Color("#f5d58f")
+const INK := Color("#f1e6cf")
+const MUTED := Color("#9aa8bf")
+const TEAL := Color("#4fd1c5")
+const ENEMY := Color("#e07a6a")
+const PANEL := Color(0.05, 0.09, 0.16, 0.9)
+const LINE := Color("#2b4166")
+const TIER_COLORS := {&"normal_battle": Color("#e0b45c"), &"elite_battle": Color("#c58cff"), &"boss": Color("#ff8a4c")}
+const AVATAR := preload("res://assets/ui/battle/modern_v2/enemy_avatar_fill.png")
+const GEAR := preload("res://assets/ui/battle/modern/settings_gear.png")
+const BAR_HEIGHT := 46.0
 
 const DEBUG_VICTORY_CLICK_COUNT := 5
 const DEBUG_VICTORY_CLICK_WINDOW_MSEC := 2000
 
+var enemy_portrait: TextureRect = null
+var enemy_label: Label = null
+var layer_label: Label = null
+var turn_segment: PanelContainer = null
+var turn_label: Label = null
+var round_label: Label = null
+var settings_button: Button = null
 var end_turn_button: Button = null
+var _tier_color: Color = GOLD
+var _your_turn: bool = true
 var _debug_clicks: int = 0
 var _debug_click_started_msec: int = 0
 
 func _ready() -> void:
-	settings_button.pressed.connect(func() -> void: settings_requested.emit())
+	custom_minimum_size = Vector2(0, BAR_HEIGHT)
+	add_theme_constant_override("separation", 8)
+	alignment = BoxContainer.ALIGNMENT_BEGIN
+	_build()
+	_load_encounter()
+	_style_turn()
+
+func _draw() -> void:
+	var panel: StyleBoxFlat = _box(PANEL, Color(_tier_color, 0.55), 10)
+	panel.border_width_top = 0
+	panel.border_width_left = 0
+	panel.border_width_right = 0
+	panel.border_width_bottom = 2
+	draw_style_box(panel, Rect2(Vector2.ZERO, size))
+
+# --- building ---------------------------------------------------------------------
+
+func _build() -> void:
+	# Who you fight: a framed portrait, the battle tier and the layer.
+	var foe: HBoxContainer = HBoxContainer.new()
+	foe.name = "Foe"
+	foe.add_theme_constant_override("separation", 6)
+	var frame: PanelContainer = PanelContainer.new()
+	frame.name = "BossPortrait"
+	frame.custom_minimum_size = Vector2(36, 36)
+	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var frame_style: StyleBoxFlat = _box(Color("#0b1422"), _tier_color, 8)
+	frame_style.set_border_width_all(2)
+	frame_style.set_content_margin_all(2)
+	frame.add_theme_stylebox_override("panel", frame_style)
+	enemy_portrait = TextureRect.new()
+	enemy_portrait.name = "Portrait"
+	enemy_portrait.texture = AVATAR
+	enemy_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	enemy_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	enemy_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	enemy_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(enemy_portrait)
+	foe.add_child(frame)
+	var names: VBoxContainer = VBoxContainer.new()
+	names.alignment = BoxContainer.ALIGNMENT_CENTER
+	names.add_theme_constant_override("separation", -2)
+	enemy_label = _label(_text("BATTLE_ENEMY"), 12, _tier_color)
+	enemy_label.name = "EnemyLabel"
+	names.add_child(enemy_label)
+	layer_label = _label("", 10, MUTED)
+	layer_label.name = "LayerLabel"
+	layer_label.visible = false
+	names.add_child(layer_label)
+	foe.add_child(names)
+	add_child(foe)
+
+	# Whose turn: a pill in the middle, with the round beside it.
+	var middle: HBoxContainer = HBoxContainer.new()
+	middle.name = "Middle"
+	middle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	middle.alignment = BoxContainer.ALIGNMENT_CENTER
+	middle.add_theme_constant_override("separation", 5)
+	turn_segment = PanelContainer.new()
+	turn_segment.name = "TurnSegment"
+	turn_segment.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	turn_segment.gui_input.connect(_on_turn_segment_input)
-	enemy_label.text = _text("BATTLE_ENEMY")
-	settings_button.tooltip_text = _text("SETTINGS_TITLE")
+	turn_label = _label("", 13, TEAL)
+	turn_label.name = "TurnLabel"
+	turn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	turn_label.custom_minimum_size = Vector2(92, 0)
+	turn_segment.add_child(turn_label)
+	middle.add_child(turn_segment)
+	var round_chip: PanelContainer = PanelContainer.new()
+	round_chip.name = "RoundSegment"
+	round_chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	round_chip.add_theme_stylebox_override("panel", _box(Color("#0b1422"), LINE, 9))
+	round_label = _label("1", 11, INK)
+	round_label.name = "RoundLabel"
+	round_chip.add_child(round_label)
+	round_chip.tooltip_text = _text("BATTLE_ROUND_HINT")
+	middle.add_child(round_chip)
+	add_child(middle)
+
 	end_turn_button = Button.new()
 	end_turn_button.name = "EndTurnButton"
 	end_turn_button.text = _text("BATTLE_END_TURN")
 	end_turn_button.visible = false
 	end_turn_button.focus_mode = Control.FOCUS_NONE
+	end_turn_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	end_turn_button.custom_minimum_size = Vector2(0, 30)
+	end_turn_button.add_theme_font_size_override("font_size", 11)
+	for state: String in ["normal", "hover", "pressed", "disabled"]:
+		end_turn_button.add_theme_stylebox_override(state, _box(GOLD if state != "disabled" else GOLD.darkened(0.5), GOLD_SOFT, 8))
+	for state: String in ["font_color", "font_hover_color", "font_pressed_color"]:
+		end_turn_button.add_theme_color_override(state, Color("#1a1408"))
 	end_turn_button.pressed.connect(func() -> void: end_turn_requested.emit())
 	add_child(end_turn_button)
-	move_child(end_turn_button, settings_button.get_index())
+
+	settings_button = Button.new()
+	settings_button.name = "SettingsButton"
+	settings_button.custom_minimum_size = Vector2(36, 36)
+	settings_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	settings_button.focus_mode = Control.FOCUS_NONE
+	settings_button.tooltip_text = _text("SETTINGS_TITLE")
+	settings_button.icon = GEAR
+	settings_button.expand_icon = true
+	settings_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	settings_button.add_theme_constant_override("icon_max_width", 22)
+	settings_button.add_theme_stylebox_override("normal", _box(Color("#0b1422"), LINE, 8))
+	settings_button.add_theme_stylebox_override("hover", _box(Color("#13213a"), GOLD_SOFT, 8))
+	settings_button.add_theme_stylebox_override("pressed", _box(Color("#0b1422"), GOLD, 8))
+	settings_button.pressed.connect(func() -> void: settings_requested.emit())
+	add_child(settings_button)
+
+## The tier (Battle / Elite / Boss) and the layer, from the run when there is one.
+func _load_encounter() -> void:
+	var run_manager: Node = get_node_or_null("/root/RunManager")
+	if run_manager == null or run_manager.get("current_run") == null:
+		return
+	var node: MapNodeState = run_manager.call("current_map_node") as MapNodeState
+	if node == null:
+		return
+	var definition: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id)
+	if definition == null or not definition.is_battle:
+		return
+	_tier_color = TIER_COLORS.get(definition.id, GOLD)
+	enemy_label.text = _text(String(definition.display_name_key)).to_upper()
+	enemy_label.add_theme_color_override("font_color", _tier_color)
+	var map_state: Variant = (run_manager.get("current_run") as RunState).map_state
+	if map_state != null:
+		layer_label.text = _text("MAP_PROGRESS") % [node.layer_index + 1, (map_state as MapState).total_layers]
+		layer_label.visible = true
+	var frame: PanelContainer = find_child("BossPortrait", true, false) as PanelContainer
+	var frame_style: StyleBoxFlat = frame.get_theme_stylebox("panel") as StyleBoxFlat
+	frame_style.border_color = _tier_color
+	queue_redraw()
 
 func refresh(board: BoardState, player_color: int) -> void:
 	if board == null:
 		return
-	turn_label.text = _text("BATTLE_YOUR_TURN") if board.turn == player_color else _text("BATTLE_ENEMY_TURN")
-	turn_label.add_theme_color_override("font_color", Color("#33c8c2") if board.turn == player_color else Color("#f1dfbd"))
-	round_label.text = str(floori(float(board.move_history.size()) / 2.0) + 1)
+	_your_turn = board.turn == player_color
+	_style_turn()
+	round_label.text = _text("BATTLE_ROUND") % (floori(float(board.move_history.size()) / 2.0) + 1)
 	if end_turn_button != null:
-		end_turn_button.visible = board.turn == player_color and board.bonus_instance_id != 0
+		end_turn_button.visible = _your_turn and board.bonus_instance_id != 0
+
+## Teal pill on your turn, a muted coral one while the enemy thinks.
+func _style_turn() -> void:
+	if turn_label == null:
+		return
+	var accent: Color = TEAL if _your_turn else ENEMY
+	turn_label.text = _text("BATTLE_YOUR_TURN") if _your_turn else _text("BATTLE_ENEMY_TURN")
+	turn_label.add_theme_color_override("font_color", accent.lightened(0.15) if _your_turn else accent)
+	var pill: StyleBoxFlat = _box(Color(accent, 0.16), accent, 14)
+	pill.set_border_width_all(2 if _your_turn else 1)
+	pill.content_margin_left = 12
+	pill.content_margin_right = 12
+	pill.content_margin_top = 4
+	pill.content_margin_bottom = 4
+	if _your_turn:
+		pill.shadow_color = Color(accent, 0.35)
+		pill.shadow_size = 4
+	turn_segment.add_theme_stylebox_override("panel", pill)
+
+func _label(text: String, size: int, color: Color) -> Label:
+	var label: Label = Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_color_override("font_color", color)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return label
+
+func _box(fill: Color, border: Color, radius: int) -> StyleBoxFlat:
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = fill
+	box.border_color = border
+	box.set_border_width_all(1)
+	box.set_corner_radius_all(radius)
+	box.content_margin_left = 7
+	box.content_margin_right = 7
+	box.content_margin_top = 2
+	box.content_margin_bottom = 2
+	return box
 
 func _on_turn_segment_input(event: InputEvent) -> void:
 	var game_state: Node = get_node_or_null("/root/GameState")

@@ -166,7 +166,7 @@ func _on_item_requested(slot_index: int) -> void:
 		return
 	var item: ChallengerItemDef = GameState.challenger_items[slot_index]
 	if not item.is_consumable():
-		battle_log.append_system_message("%s is a passive relic." % Localization.text(String(item.display_name_key)))
+		battle_log.append_system_message("%s: %s" % [Localization.text(String(item.display_name_key)), Localization.text(String(item.description_key))])
 		return
 	var target: String = BattleCommandProcessor.item_target(item)
 	if target != "none":

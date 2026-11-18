@@ -37,7 +37,7 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	battle.animation_player.event_delay_seconds = 0.2
-	var turn_segment: PanelContainer = battle.get_node("Margin/Layout/TopBar/TurnSegment") as PanelContainer
+	var turn_segment: PanelContainer = battle.get_node("Margin/Layout/TopBar").find_child("TurnSegment", true, false) as PanelContainer
 	for _click_index: int in range(5):
 		var click: InputEventMouseButton = InputEventMouseButton.new()
 		click.button_index = MOUSE_BUTTON_LEFT
