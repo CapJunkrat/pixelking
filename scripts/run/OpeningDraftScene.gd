@@ -310,6 +310,8 @@ func _rarity_key(rarity: PieceDef.Rarity) -> String:
 			return "RARITY_EPIC"
 		PieceDef.Rarity.LEGENDARY:
 			return "RARITY_LEGENDARY"
+		PieceDef.Rarity.MYTHIC:
+			return "RARITY_MYTHIC"
 		_:
 			return "RARITY_COMMON"
 
@@ -319,7 +321,7 @@ func _rarity_color(rarity: PieceDef.Rarity) -> Color:
 			return RARE_COLOR
 		PieceDef.Rarity.EPIC:
 			return EPIC_COLOR
-		PieceDef.Rarity.LEGENDARY:
+		PieceDef.Rarity.LEGENDARY, PieceDef.Rarity.MYTHIC:
 			return LEGENDARY_COLOR
 		_:
 			return COMMON_COLOR

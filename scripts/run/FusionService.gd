@@ -128,11 +128,24 @@ func confirm(
 			if instance_id != plan.preserved_king_instance_id:
 				_remove_piece(run_state, instance_id)
 	else:
+		# A learning piece fused into another learning piece hands over what it knows.
+		var inherited: Array[String] = []
 		for instance_id: int in plan.ingredient_instance_ids:
+			var ingredient: PieceInstanceState = run_state.get_piece_state(instance_id)
+			if ingredient != null:
+				for learned_id: String in ingredient.learned_def_ids:
+					if learned_id not in inherited:
+						inherited.append(learned_id)
 			_remove_piece(run_state, instance_id)
-		if run_state.allocate_piece(String(plan.result_piece_def_id), false) == null:
+		var fused: PieceInstanceState = run_state.allocate_piece(String(plan.result_piece_def_id), false)
+		if fused == null:
 			_restore(run_state, snapshot)
 			return ERR_OUT_OF_MEMORY
+		var fused_definition: PieceDef = PieceDefDatabase.get_def(String(plan.result_piece_def_id))
+		if fused_definition != null and fused_definition.learn_capacity > 0:
+			while inherited.size() > fused_definition.learn_capacity:
+				inherited.remove_at(0)
+			fused.learned_def_ids = inherited
 	if plan.recipe_id not in run_state.owned_recipe_history:
 		run_state.owned_recipe_history.append(plan.recipe_id)
 	if deployment_service != null and run_state.deployment_state != null:
@@ -169,7 +182,7 @@ func preview_description(run_state: RunState, plan: FusionPlan) -> String:
 			reserve_removed += 1 if instance_id in run_state.reserve_piece_ids else 0
 	var result_definition: PieceDef = PieceDefDatabase.get_def(String(plan.result_piece_def_id))
 	var result_label: String = String(plan.result_piece_def_id).replace("_", " ").capitalize()
-	var rarity_labels: Array[String] = ["Common", "Rare", "Epic", "Legendary"]
+	var rarity_labels: Array[String] = ["Common", "Rare", "Epic", "Legendary", "Mythic"]
 	var rarity_label: String = rarity_labels[result_definition.rarity] if result_definition != null and result_definition.rarity >= 0 and result_definition.rarity < rarity_labels.size() else "Unknown"
 	var movement_labels: Array[String] = []
 	if result_definition != null:

@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="PieceDef" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/PieceDef.gd" id="1_piece"]
+[ext_resource type="Script" path="res://scripts/core/movement/MovementProfile.gd" id="2_profile"]
+[ext_resource type="Script" path="res://scripts/core/movement/MimicLastMoveMovementRule.gd" id="3_mimic"]
+[ext_resource type="Resource" path="res://resources/content/motion_profiles/queen.tres" id="4_motion"]
+
+[sub_resource type="Resource" id="Rule1"]
+script = ExtResource("3_mimic")
+
+[sub_resource type="Resource" id="MovementProfile"]
+script = ExtResource("2_profile")
+rules = Array[Resource]([SubResource("Rule1")])
+
+[resource]
+script = ExtResource("1_piece")
+id = "echo"
+display_name_key = &"PIECE_ECHO"
+weight_class = 1
+movement_profile = SubResource("MovementProfile")
+motion_profile = ExtResource("4_motion")
+base_value = 5
+rarity = 1
+available_in_opening_draft = false
+opening_draft_weight = 0

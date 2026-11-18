@@ -97,10 +97,9 @@ func _test_assassin_bonus_action() -> void:
 	var first: BattleCommandResult = processor.execute(MoveAction.new(Vector2i(2, 2), Vector2i(2, 3), GameRules.PieceColor.WHITE))
 	expect(first.success and board.turn == GameRules.PieceColor.WHITE and bool(first.legacy_result.get("extra_move_granted", false)), "Assassin capture retains action authority")
 	expect(_has_event(first.events, BattleCommandProcessor.EVENT_EXTRA_MOVE_GRANTED) and board.turn_serial == 0, "Assassin emits bonus event without advancing side-turn serial")
+	expect(not processor.execute(MoveAction.new(Vector2i(0, 0), Vector2i(0, 1), GameRules.PieceColor.WHITE)).success, "only the Assassin may use its bonus action")
 	var second: BattleCommandResult = processor.execute(MoveAction.new(Vector2i(2, 3), Vector2i(3, 3), GameRules.PieceColor.WHITE))
-	expect(second.success and board.turn == GameRules.PieceColor.WHITE, "Assassin bonus captures can chain")
-	var final_move: BattleCommandResult = processor.execute(MoveAction.new(Vector2i(3, 3), Vector2i(3, 2), GameRules.PieceColor.WHITE))
-	expect(final_move.success and board.turn == GameRules.PieceColor.BLACK and board.turn_serial == 1, "Assassin non-capture ends the side turn")
+	expect(second.success and board.turn == GameRules.PieceColor.BLACK and board.turn_serial == 1, "a second Assassin capture ends the turn: at most two actions")
 
 	var terminal_board: BoardState = BoardState.new(5, false)
 	terminal_board.clear_for_setup()

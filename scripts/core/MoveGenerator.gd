@@ -13,7 +13,7 @@ static func generate_pseudo_legal(board: BoardState, pos: Vector2i) -> Array[Vec
 		if rule == null:
 			continue
 		_append_unique(moves, rule.get_moves(board, pos, piece))
-	return moves
+	return _without_shielded(board, piece, moves)
 
 static func get_attack_squares(board: BoardState, pos: Vector2i) -> Array[Vector2i]:
 	var piece := board.get_piece(pos)
@@ -25,7 +25,34 @@ static func get_attack_squares(board: BoardState, pos: Vector2i) -> Array[Vector
 		if rule == null:
 			continue
 		_append_unique(squares, rule.get_attack_squares(board, pos, piece))
-	return squares
+	return _without_shielded(board, piece, squares)
+
+## What executing from -> to means for this piece: &"" for an ordinary move or capture,
+## &"ranged" for a capture from a distance, or a once-per-battle ability id. A move
+## that any rule allows as an ordinary move is ordinary.
+static func action_kind(board: BoardState, from: Vector2i, to: Vector2i) -> StringName:
+	var piece: ChessPiece = board.get_piece(from)
+	if piece == null:
+		return &""
+	var kind: StringName = &"none"
+	for rule: MovementRule in piece.def.resolved_movement_rules():
+		if rule == null or to not in rule.get_moves(board, from, piece):
+			continue
+		var rule_kind: StringName = rule.action_kind(board, from, to, piece)
+		if rule_kind.is_empty():
+			return &""
+		kind = rule_kind
+	return &"" if kind == &"none" else kind
+
+## Shielded enemies (martyr) can be neither captured nor attacked.
+static func _without_shielded(board: BoardState, piece: ChessPiece, squares: Array[Vector2i]) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for square: Vector2i in squares:
+		var occupant: ChessPiece = board.get_piece(square)
+		if occupant != null and occupant.color != piece.color and occupant.is_shielded(board.turn_serial):
+			continue
+		result.append(square)
+	return result
 
 static func _append_unique(target: Array[Vector2i], additions: Array[Vector2i]) -> void:
 	for square in additions:

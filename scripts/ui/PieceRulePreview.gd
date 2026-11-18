@@ -45,6 +45,32 @@ static func ability_keys(definition: PieceDef) -> Array[String]:
 		abilities.append("CODEX_TRAIT_IMMOBILIZE")
 	if definition.immune_to_immobilization:
 		abilities.append("CODEX_TRAIT_IMMUNE")
+	if definition.extra_move_always:
+		abilities.append("CODEX_TRAIT_EXTRA_ACTION_ALWAYS")
+	if definition.explodes_when_captured:
+		abilities.append("CODEX_TRAIT_EXPLODES")
+	if definition.shields_allies_when_captured:
+		abilities.append("CODEX_TRAIT_SHIELDS")
+	if definition.protects_adjacent_from_immobilization:
+		abilities.append("CODEX_TRAIT_LANTERN")
+	if definition.shell_hits > 0:
+		abilities.append("CODEX_TRAIT_SHELL")
+	if definition.revive_after_turns > 0:
+		abilities.append("CODEX_TRAIT_REVIVE")
+	if definition.learn_capacity > 0:
+		abilities.append("CODEX_TRAIT_LEARN")
+	if definition.evolve_at_captures > 0:
+		abilities.append("CODEX_TRAIT_EVOLVE")
+	if not definition.alternate_form_id.is_empty():
+		abilities.append("CODEX_TRAIT_TIDE")
+	if definition.splash_on_ranged_capture:
+		abilities.append("CODEX_TRAIT_SPLASH")
+	if definition.survives_checkmate_once:
+		abilities.append("CODEX_TRAIT_LAST_STAND")
+	for rule: MovementRule in definition.resolved_movement_rules():
+		var slide: SlideMovementRule = rule as SlideMovementRule
+		if slide != null and slide.ranged and "CODEX_TRAIT_RANGED" not in abilities:
+			abilities.append("CODEX_TRAIT_RANGED")
 	if abilities.is_empty():
 		abilities.append("CODEX_TRAIT_NONE")
 	return abilities

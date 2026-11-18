@@ -8,11 +8,11 @@ func test_default_catalog_is_valid_and_resource_backed() -> void:
 	var catalog: ContentCatalogType = load(CATALOG_PATH) as ContentCatalogType
 	var registry: ContentRegistryType = ContentRegistryType.new(catalog)
 	assert(registry.is_valid(), "Default ContentCatalog must pass cross-reference validation: %s" % registry.validation_errors)
-	assert(registry.piece_ids() == ["archmage", "assassin", "bishop", "bowman", "catapult", "centaur", "gorgon", "gryphon", "king", "knight", "lancer", "manticore", "pawn", "portal_mage", "queen", "rook", "royal_guard", "unicorn_cavalry"])
+	assert(registry.piece_ids() == ["antelope", "archmage", "assassin", "bishop", "blast_catapult", "bowman", "catapult", "centaur", "chameleon", "crystal_mage", "echo", "ember_bird", "falconer", "flame_phoenix", "gargoyle", "gorgon", "gryphon", "king", "knight", "lancer", "lantern_bearer", "manticore", "martyr", "pawn", "portal_mage", "powder_keg", "queen", "ranger", "rook", "royal_guard", "sentry", "shadow_king", "shield_king", "sky_archer", "squire", "squire_lv2", "squire_lv3", "squire_lv4", "stand_in", "stone_giant", "sun_moon_monk", "swift_courier", "thousand_faces", "tide_knight", "tide_knight_ebb", "unicorn_cavalry", "vanguard", "war_king"])
 	assert(registry.piece(&"pawn") != null)
 	assert(registry.piece(&"pawn").resource_path.ends_with("pieces/pawn.tres"))
 	assert(registry.piece(&"lancer").motion_profile == registry.motion_profile(&"knight"))
-	assert(registry.ordered_recipes().size() == 2)
+	assert(registry.ordered_recipes().size() == 14)
 	assert(registry.recipe(&"pawn_knight_lancer") != null)
 	assert(registry.relic_ids() == [&"iron_crown", &"lucky_coin", &"war_banner", &"glass_feather"])
 	assert(registry.consumable_ids() == [&"royal_bomb"])

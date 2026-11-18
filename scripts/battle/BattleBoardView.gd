@@ -38,6 +38,8 @@ var projection: BoardProjection = BoardProjection.new()
 
 var _pending_promotion: Vector2i = NO_SQUARE
 var _pending_check: Dictionary = {}
+var _pending_bursts: Array[Vector2i] = []
+var _pending_rings: Array[Vector2i] = []
 var _board_canvas: Node2D = null
 var _ground_canvas: Node2D = null
 var _air_canvas: Node2D = null
@@ -431,14 +433,22 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 	var castled: bool = false
 	_pending_promotion = NO_SQUARE
 	_pending_check = {}
+	_pending_bursts = []
+	_pending_rings = []
 	for event: BattleEvent in events:
 		match event.event_type:
 			BattleCommandProcessor.EVENT_PIECE_MOVED:
 				move_event = event
 			BattleCommandProcessor.EVENT_PIECE_CAPTURED:
 				capture_event = event
-			BattleCommandProcessor.EVENT_CASTLED:
+			BattleCommandProcessor.EVENT_CASTLED, BattleCommandProcessor.EVENT_KING_SWAPPED:
 				castled = true
+			BattleCommandProcessor.EVENT_PIECE_DESTROYED:
+				_pending_bursts.append(event.payload.get("position", NO_SQUARE))
+			BattleCommandProcessor.EVENT_SHELL_BROKEN, BattleCommandProcessor.EVENT_LAST_STAND:
+				_pending_rings.append(event.payload.get("position", NO_SQUARE))
+			BattleCommandProcessor.EVENT_PIECE_REVIVED, BattleCommandProcessor.EVENT_PIECE_EVOLVED, BattleCommandProcessor.EVENT_FORM_CHANGED, BattleCommandProcessor.EVENT_MOVE_LEARNED:
+				_pending_rings.append(event.payload.get("position", NO_SQUARE))
 			BattleCommandProcessor.EVENT_PROMOTED:
 				_pending_promotion = event.payload.get("position", NO_SQUARE)
 			BattleCommandProcessor.EVENT_CHECK_DECLARED:
@@ -639,6 +649,17 @@ func _play_followups() -> void:
 					var reach: float = projection.cell * 0.09 * (1.0 - step / 6.0) * (1.0 if step % 2 == 0 else -1.0)
 					shake.tween_property(king, "position", home + Vector2(reach, 0.0), 0.04)
 				shake.tween_property(king, "position", home, 0.04)
+	for square: Vector2i in _pending_bursts:
+		if board.in_bounds(square):
+			var burst_at: Vector3 = projection.square_world(square)
+			fx.puff(burst_at + Vector3(0.0, fx.unit * 4.0, 0.0), 10, 1.0)
+			fx.spark_burst(burst_at + Vector3(0.0, projection.cell * 0.3, 0.0), 12, Vector2.ZERO, 0.0, 0.9)
+	for square: Vector2i in _pending_rings:
+		if board.in_bounds(square):
+			var ring_at: Vector3 = projection.square_world(square)
+			fx.ring(ring_at.x, ring_at.z, projection.cell * 0.8, 0.4, PROMOTION_GLOW)
+	_pending_bursts = []
+	_pending_rings = []
 	_pending_promotion = NO_SQUARE
 	_pending_check = {}
 
@@ -673,6 +694,8 @@ static func presentation_kind_for(definition: PieceDef, captured: bool = false) 
 		return &"standard"
 	for rule: MovementRule in definition.resolved_movement_rules():
 		if rule is TeleportMovementRule:
+			return &"teleport"
+		if rule is RangeTeleportMovementRule and (rule as RangeTeleportMovementRule).once_ability.is_empty():
 			return &"teleport"
 		if rule is BentRayMovementRule:
 			return &"bent_ray"

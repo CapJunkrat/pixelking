@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="PieceDef" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/PieceDef.gd" id="1_piece"]
+[ext_resource type="Script" path="res://scripts/core/movement/MovementProfile.gd" id="2_profile"]
+[ext_resource type="Script" path="res://scripts/core/movement/JumpMovementRule.gd" id="3_jump"]
+[ext_resource type="Resource" path="res://resources/content/motion_profiles/knight.tres" id="4_motion"]
+
+[sub_resource type="Resource" id="Rule1"]
+script = ExtResource("3_jump")
+offsets = Array[Vector2i]([Vector2i(1, 2), Vector2i(2, 1), Vector2i(2, -1), Vector2i(1, -2), Vector2i(-1, -2), Vector2i(-2, -1), Vector2i(-2, 1), Vector2i(-1, 2)])
+
+[sub_resource type="Resource" id="MovementProfile"]
+script = ExtResource("2_profile")
+rules = Array[Resource]([SubResource("Rule1")])
+
+[resource]
+script = ExtResource("1_piece")
+id = "tide_knight"
+display_name_key = &"PIECE_TIDE_KNIGHT"
+weight_class = 1
+movement_profile = SubResource("MovementProfile")
+motion_profile = ExtResource("4_motion")
+alternate_form_id = "tide_knight_ebb"
+base_value = 4
+rarity = 0
+available_in_opening_draft = true
+opening_draft_weight = 8

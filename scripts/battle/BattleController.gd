@@ -29,6 +29,7 @@ var _presentation_generation: int = 0
 func _ready() -> void:
 	battle_hud.settings_requested.connect(settings_overlay.open)
 	battle_hud.debug_victory_requested.connect(battle_flow.force_debug_victory)
+	battle_hud.end_turn_requested.connect(_on_end_turn_requested)
 	challenger_tray.item_requested.connect(_on_item_requested)
 	challenger_slots = challenger_tray.slots()
 	board_view.move_requested.connect(_on_board_move_requested)
@@ -91,6 +92,11 @@ func _on_item_target_requested(target_position: Vector2i) -> void:
 	_refresh_board()
 	_refresh_challenger_slots()
 
+func _on_end_turn_requested() -> void:
+	if GameState.try_end_turn():
+		board_view.clear_selection()
+	_refresh_board()
+
 func _on_board_move_requested(from: Vector2i, to: Vector2i) -> void:
 	if GameState.try_move(from, to):
 		board_view.clear_selection()
@@ -98,6 +104,8 @@ func _on_board_move_requested(from: Vector2i, to: Vector2i) -> void:
 
 func set_battle_input_enabled(enabled: bool) -> void:
 	board_view.set_input_enabled(enabled)
+	if battle_hud.end_turn_button != null:
+		battle_hud.end_turn_button.disabled = not enabled
 	challenger_tray.set_input_enabled(enabled)
 	_refresh_challenger_slots()
 

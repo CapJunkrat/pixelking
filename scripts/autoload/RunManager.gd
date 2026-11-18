@@ -424,7 +424,7 @@ func consume_challenger_item(slot_index: int, expected_item_id: StringName, befo
 	item_run.challenger_slots.remove_at(slot_index)
 	return _commit_transaction(item_run, item_rng, before_publish)
 
-func apply_battle_outcome(player_won: bool) -> Error:
+func apply_battle_outcome(player_won: bool, growth: Dictionary = {}) -> Error:
 	_ensure_services()
 	if current_run == null:
 		return ERR_DOES_NOT_EXIST
@@ -435,6 +435,8 @@ func apply_battle_outcome(player_won: bool) -> Error:
 		return ERR_INVALID_DATA
 	var battle_run: RunState = transaction["run"] as RunState
 	var battle_rng: RunRngService = transaction["rng"] as RunRngService
+	if player_won:
+		_keep_battle_growth(battle_run, growth if not growth.is_empty() else _battle_growth())
 	var error: Error = content_service.apply_battle_victory(battle_run, battle_rng, map_progress_service, deployment_service) if player_won else content_service.apply_battle_defeat(battle_run, battle_rng, deployment_service)
 	if error != OK:
 		return error
@@ -442,6 +444,20 @@ func apply_battle_outcome(player_won: bool) -> Error:
 	if error != OK:
 		return error
 	return _commit_transaction(battle_run, battle_rng)
+
+## Growth the pieces earned in the battle just played (BoardState.growth).
+func _battle_growth() -> Dictionary:
+	var game_state: Node = get_node_or_null("/root/GameState")
+	var board: BoardState = game_state.get("board") as BoardState if game_state != null else null
+	return board.growth.duplicate(true) if board != null else {}
+
+## A won battle keeps its captures, learned moves and evolved forms for the rest of the Run.
+func _keep_battle_growth(run_state: RunState, growth: Dictionary) -> void:
+	for key: Variant in growth.keys():
+		var piece: PieceInstanceState = run_state.get_piece_state(int(str(key)))
+		var record: Variant = growth[key]
+		if piece != null and record is Dictionary:
+			piece.absorb_growth(record as Dictionary)
 
 func endless_unlocked() -> bool:
 	_ensure_services()

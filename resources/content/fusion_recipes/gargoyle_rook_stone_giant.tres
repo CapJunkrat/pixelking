@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="FusionRecipeDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/FusionRecipeDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"gargoyle_rook_stone_giant"
+ingredient_piece_def_ids = Array[StringName]([&"gargoyle", &"rook"])
+result_piece_def_id = &"stone_giant"
+display_name_key = &"FUSION_STONE_GIANT_NAME"
+description_key = &"FUSION_STONE_GIANT_DESC"
+display_name = "Stone Giant Blueprint"

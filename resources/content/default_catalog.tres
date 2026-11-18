@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="ContentCatalog" load_steps=51 format=3]
+[gd_resource type="Resource" script_class="ContentCatalog" load_steps=92 format=3]
 
 [ext_resource type="Script" path="res://scripts/content/ContentCatalog.gd" id="1_catalog"]
 [ext_resource type="Resource" path="res://resources/content/motion_profiles/pawn.tres" id="2_motion_pawn"]
@@ -26,7 +26,6 @@
 [ext_resource type="Resource" path="res://resources/content/pieces/gryphon.tres" id="48_piece_gryphon"]
 [ext_resource type="Resource" path="res://resources/content/pieces/gorgon.tres" id="49_piece_gorgon"]
 [ext_resource type="Resource" path="res://resources/content/fusion_recipes/pawn_knight_lancer.tres" id="16_recipe_lancer"]
-[ext_resource type="Resource" path="res://resources/content/fusion_recipes/bishop_rook_archmage.tres" id="17_recipe_archmage"]
 [ext_resource type="Resource" path="res://resources/content/challenger_items/iron_crown.tres" id="18_item_crown"]
 [ext_resource type="Resource" path="res://resources/content/challenger_items/lucky_coin.tres" id="19_item_coin"]
 [ext_resource type="Resource" path="res://resources/content/challenger_items/war_banner.tres" id="20_item_banner"]
@@ -50,13 +49,57 @@
 [ext_resource type="Resource" path="res://resources/content/encounters/elite_standard.tres" id="38_encounter_elite"]
 [ext_resource type="Resource" path="res://resources/content/encounters/boss_royal_guard.tres" id="39_encounter_boss"]
 
+[ext_resource type="Resource" path="res://resources/content/pieces/vanguard.tres" id="p0_vanguard"]
+[ext_resource type="Resource" path="res://resources/content/pieces/sentry.tres" id="p1_sentry"]
+[ext_resource type="Resource" path="res://resources/content/pieces/powder_keg.tres" id="p2_powder_keg"]
+[ext_resource type="Resource" path="res://resources/content/pieces/martyr.tres" id="p3_martyr"]
+[ext_resource type="Resource" path="res://resources/content/pieces/lantern_bearer.tres" id="p4_lantern_bearer"]
+[ext_resource type="Resource" path="res://resources/content/pieces/squire.tres" id="p5_squire"]
+[ext_resource type="Resource" path="res://resources/content/pieces/squire_lv2.tres" id="p6_squire_lv2"]
+[ext_resource type="Resource" path="res://resources/content/pieces/squire_lv3.tres" id="p7_squire_lv3"]
+[ext_resource type="Resource" path="res://resources/content/pieces/squire_lv4.tres" id="p8_squire_lv4"]
+[ext_resource type="Resource" path="res://resources/content/pieces/tide_knight.tres" id="p9_tide_knight"]
+[ext_resource type="Resource" path="res://resources/content/pieces/tide_knight_ebb.tres" id="p10_tide_knight_ebb"]
+[ext_resource type="Resource" path="res://resources/content/pieces/antelope.tres" id="p11_antelope"]
+[ext_resource type="Resource" path="res://resources/content/pieces/echo.tres" id="p12_echo"]
+[ext_resource type="Resource" path="res://resources/content/pieces/stand_in.tres" id="p13_stand_in"]
+[ext_resource type="Resource" path="res://resources/content/pieces/ranger.tres" id="p14_ranger"]
+[ext_resource type="Resource" path="res://resources/content/pieces/sun_moon_monk.tres" id="p15_sun_moon_monk"]
+[ext_resource type="Resource" path="res://resources/content/pieces/falconer.tres" id="p16_falconer"]
+[ext_resource type="Resource" path="res://resources/content/pieces/gargoyle.tres" id="p17_gargoyle"]
+[ext_resource type="Resource" path="res://resources/content/pieces/chameleon.tres" id="p18_chameleon"]
+[ext_resource type="Resource" path="res://resources/content/pieces/crystal_mage.tres" id="p19_crystal_mage"]
+[ext_resource type="Resource" path="res://resources/content/pieces/ember_bird.tres" id="p20_ember_bird"]
+[ext_resource type="Resource" path="res://resources/content/pieces/stone_giant.tres" id="p21_stone_giant"]
+[ext_resource type="Resource" path="res://resources/content/pieces/swift_courier.tres" id="p22_swift_courier"]
+[ext_resource type="Resource" path="res://resources/content/pieces/blast_catapult.tres" id="p23_blast_catapult"]
+[ext_resource type="Resource" path="res://resources/content/pieces/sky_archer.tres" id="p24_sky_archer"]
+[ext_resource type="Resource" path="res://resources/content/pieces/flame_phoenix.tres" id="p25_flame_phoenix"]
+[ext_resource type="Resource" path="res://resources/content/pieces/thousand_faces.tres" id="p26_thousand_faces"]
+[ext_resource type="Resource" path="res://resources/content/pieces/war_king.tres" id="p27_war_king"]
+[ext_resource type="Resource" path="res://resources/content/pieces/shadow_king.tres" id="p28_shadow_king"]
+[ext_resource type="Resource" path="res://resources/content/pieces/shield_king.tres" id="p29_shield_king"]
+[ext_resource type="Resource" path="res://resources/content/fusion_recipes/bishop_rook_queen.tres" id="r0_bishop_rook_queen"]
+[ext_resource type="Resource" path="res://resources/content/fusion_recipes/knight_bishop_centaur.tres" id="r1_knight_bishop_centaur"]
+[ext_resource type="Resource" path="res://resources/content/fusion_recipes/knight_rook_unicorn.tres" id="r2_knight_rook_unicorn"]
+[ext_resource type="Resource" path="res://resources/content/fusion_recipes/queen_knight_archmage.tres" id="r3_queen_knight_archmage"]
+[ext_resource type="Resource" path="res://resources/content/fusion_recipes/gargoyle_rook_stone_giant.tres" id="r4_gargoyle_rook_stone_giant"]
+[ext_resource type="Resource" path="res://resources/content/fusion_recipes/assassin_bishop_courier.tres" id="r5_assassin_bishop_courier"]
+[ext_resource type="Resource" path="res://resources/content/fusion_recipes/keg_catapult_blast.tres" id="r6_keg_catapult_blast"]
+[ext_resource type="Resource" path="res://resources/content/fusion_recipes/falconer_bowman_sky_archer.tres" id="r7_falconer_bowman_sky_archer"]
+[ext_resource type="Resource" path="res://resources/content/fusion_recipes/ember_gryphon_phoenix.tres" id="r8_ember_gryphon_phoenix"]
+[ext_resource type="Resource" path="res://resources/content/fusion_recipes/chameleon_echo_thousand_faces.tres" id="r9_chameleon_echo_thousand_faces"]
+[ext_resource type="Resource" path="res://resources/content/fusion_recipes/king_rook_war_king.tres" id="r10_king_rook_war_king"]
+[ext_resource type="Resource" path="res://resources/content/fusion_recipes/king_portal_shadow_king.tres" id="r11_king_portal_shadow_king"]
+[ext_resource type="Resource" path="res://resources/content/fusion_recipes/king_guard_shield_king.tres" id="r12_king_guard_shield_king"]
+
 [resource]
 script = ExtResource("1_catalog")
 catalog_id = &"pixelking.default"
 content_version = 3
 motion_profiles = Array[Resource]([ExtResource("2_motion_pawn"), ExtResource("3_motion_knight"), ExtResource("4_motion_bishop"), ExtResource("5_motion_rook"), ExtResource("6_motion_queen"), ExtResource("7_motion_king")])
-pieces = Array[Resource]([ExtResource("8_piece_pawn"), ExtResource("9_piece_knight"), ExtResource("10_piece_bishop"), ExtResource("11_piece_rook"), ExtResource("12_piece_queen"), ExtResource("13_piece_king"), ExtResource("14_piece_lancer"), ExtResource("15_piece_archmage"), ExtResource("40_piece_assassin"), ExtResource("41_piece_royal_guard"), ExtResource("42_piece_catapult"), ExtResource("43_piece_bowman"), ExtResource("44_piece_portal_mage"), ExtResource("45_piece_unicorn"), ExtResource("46_piece_centaur"), ExtResource("47_piece_manticore"), ExtResource("48_piece_gryphon"), ExtResource("49_piece_gorgon")])
-fusion_recipes = Array[Resource]([ExtResource("16_recipe_lancer"), ExtResource("17_recipe_archmage")])
+pieces = Array[Resource]([ExtResource("8_piece_pawn"), ExtResource("9_piece_knight"), ExtResource("10_piece_bishop"), ExtResource("11_piece_rook"), ExtResource("12_piece_queen"), ExtResource("13_piece_king"), ExtResource("14_piece_lancer"), ExtResource("15_piece_archmage"), ExtResource("40_piece_assassin"), ExtResource("41_piece_royal_guard"), ExtResource("42_piece_catapult"), ExtResource("43_piece_bowman"), ExtResource("44_piece_portal_mage"), ExtResource("45_piece_unicorn"), ExtResource("46_piece_centaur"), ExtResource("47_piece_manticore"), ExtResource("48_piece_gryphon"), ExtResource("49_piece_gorgon"), ExtResource("p0_vanguard"), ExtResource("p1_sentry"), ExtResource("p2_powder_keg"), ExtResource("p3_martyr"), ExtResource("p4_lantern_bearer"), ExtResource("p5_squire"), ExtResource("p6_squire_lv2"), ExtResource("p7_squire_lv3"), ExtResource("p8_squire_lv4"), ExtResource("p9_tide_knight"), ExtResource("p10_tide_knight_ebb"), ExtResource("p11_antelope"), ExtResource("p12_echo"), ExtResource("p13_stand_in"), ExtResource("p14_ranger"), ExtResource("p15_sun_moon_monk"), ExtResource("p16_falconer"), ExtResource("p17_gargoyle"), ExtResource("p18_chameleon"), ExtResource("p19_crystal_mage"), ExtResource("p20_ember_bird"), ExtResource("p21_stone_giant"), ExtResource("p22_swift_courier"), ExtResource("p23_blast_catapult"), ExtResource("p24_sky_archer"), ExtResource("p25_flame_phoenix"), ExtResource("p26_thousand_faces"), ExtResource("p27_war_king"), ExtResource("p28_shadow_king"), ExtResource("p29_shield_king")])
+fusion_recipes = Array[Resource]([ExtResource("16_recipe_lancer"), ExtResource("r0_bishop_rook_queen"), ExtResource("r1_knight_bishop_centaur"), ExtResource("r2_knight_rook_unicorn"), ExtResource("r3_queen_knight_archmage"), ExtResource("r4_gargoyle_rook_stone_giant"), ExtResource("r5_assassin_bishop_courier"), ExtResource("r6_keg_catapult_blast"), ExtResource("r7_falconer_bowman_sky_archer"), ExtResource("r8_ember_gryphon_phoenix"), ExtResource("r9_chameleon_echo_thousand_faces"), ExtResource("r10_king_rook_war_king"), ExtResource("r11_king_portal_shadow_king"), ExtResource("r12_king_guard_shield_king")])
 challenger_items = Array[Resource]([ExtResource("18_item_crown"), ExtResource("19_item_coin"), ExtResource("20_item_banner"), ExtResource("21_item_feather"), ExtResource("22_item_bomb")])
 battle_reward_table = ExtResource("23_reward")
 shop_pool = ExtResource("24_shop")

@@ -4,6 +4,8 @@ extends RefCounted
 enum ActionType {
 	MOVE,
 	USE_ITEM,
+	## Gives up the remaining bonus action of this turn.
+	END_TURN,
 }
 
 var action_type: ActionType:

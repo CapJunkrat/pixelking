@@ -6,6 +6,8 @@ enum Rarity {
 	RARE,
 	EPIC,
 	LEGENDARY,
+	## Fusion only: never offered in shops, rewards or the opening draft.
+	MYTHIC,
 }
 
 ## How this piece's attack lands. Presentation-only: it selects the victim's hit reaction.
@@ -54,10 +56,46 @@ enum WeightClass {
 @export var extra_move_on_capture: bool = false
 @export var immobilizes_adjacent: bool = false
 @export var immune_to_immobilization: bool = false
+## Bonus action: after this piece acts it may act once more in the same turn
+## (on capture only for extra_move_on_capture). A turn never holds more than two actions.
+@export var extra_move_always: bool = false
+## When captured, every non-King piece on the 3x3 around it is destroyed, either side.
+@export var explodes_when_captured: bool = false
+## When captured, adjacent allies cannot be captured during the opponent's next turn.
+@export var shields_allies_when_captured: bool = false
+## Adjacent allies cannot be immobilized.
+@export var protects_adjacent_from_immobilization: bool = false
+## Captures by ranged rules also destroy the non-King enemies around the target.
+@export var splash_on_ranged_capture: bool = false
+## Hits absorbed before this piece is really captured. Restored every battle.
+@export var shell_hits: int = 0
+## Revives this many of its owner's turns after being captured, once per battle (0 = never).
+@export var revive_after_turns: int = 0
+## Learns the movement of the pieces it captures, keeping at most this many (0 = never).
+@export var learn_capacity: int = 0
+## Becomes `evolves_into` once its run-wide capture count reaches `evolve_at_captures`.
+@export var evolve_at_captures: int = 0
+@export var evolves_into: String = ""
+## Swaps to this form after every move (and back again from that form).
+@export var alternate_form_id: String = ""
+## The form a run keeps between battles; empty means this definition itself.
+@export var base_form_id: String = ""
+## Turns into this piece on reaching the far rank (non-pawn promotion).
+@export var promotes_to: String = ""
+## Once per battle, when checkmated: the checking pieces are destroyed and play goes on.
+@export var survives_checkmate_once: bool = false
+## Texture used for this definition; empty means `id`. Lets forms share one picture.
+@export var art_id: String = ""
 @export var base_value: int = 0
 @export var rarity: Rarity = Rarity.COMMON
 @export var available_in_opening_draft: bool = false
 @export_range(0, 100, 1) var opening_draft_weight: int = 0
+
+func art_key() -> String:
+	return art_id if not art_id.is_empty() else id
+
+func run_form_id() -> String:
+	return base_form_id if not base_form_id.is_empty() else id
 
 func is_rare_or_higher() -> bool:
 	return rarity >= Rarity.RARE

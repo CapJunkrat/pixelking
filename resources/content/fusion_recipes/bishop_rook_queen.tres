@@ -4,9 +4,9 @@
 
 [resource]
 script = ExtResource("1_script")
-id = &"bishop_rook_archmage"
+id = &"bishop_rook_queen"
 ingredient_piece_def_ids = Array[StringName]([&"bishop", &"rook"])
-result_piece_def_id = &"archmage"
-display_name_key = &"FUSION_ARCHMAGE_NAME"
-description_key = &"FUSION_ARCHMAGE_DESC"
-display_name = "Archmage Blueprint"
+result_piece_def_id = &"queen"
+display_name_key = &"FUSION_QUEEN_NAME"
+description_key = &"FUSION_QUEEN_DESC"
+display_name = "Queen Blueprint"

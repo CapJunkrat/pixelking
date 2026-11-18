@@ -7,6 +7,7 @@ const TESTS = [
 	{"path": "res://scripts/tests/unit/chess/test_chess_rules.gd", "layer": "unit", "domain": "chess", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/chess/test_permissive_moves.gd", "layer": "unit", "domain": "chess", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/chess/test_ouroboros_piece_rules.gd", "layer": "unit", "domain": "chess", "kind": "scene_tree"},
+	{"path": "res://scripts/tests/unit/chess/test_new_piece_rules.gd", "layer": "unit", "domain": "chess", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/test_architecture/test_manifest_integrity.gd", "layer": "unit", "domain": "test_architecture", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/content/test_content_catalog.gd", "layer": "unit", "domain": "content", "kind": "node_methods"},
 	{"path": "res://scripts/tests/unit/content/test_content_offer_generation.gd", "layer": "unit", "domain": "content", "kind": "node_methods"},

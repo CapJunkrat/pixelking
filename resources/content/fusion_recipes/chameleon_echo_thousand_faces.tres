@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="FusionRecipeDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/FusionRecipeDef.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"chameleon_echo_thousand_faces"
+ingredient_piece_def_ids = Array[StringName]([&"chameleon", &"echo"])
+result_piece_def_id = &"thousand_faces"
+display_name_key = &"FUSION_THOUSAND_FACES_NAME"
+description_key = &"FUSION_THOUSAND_FACES_DESC"
+display_name = "Thousand Faces Blueprint"

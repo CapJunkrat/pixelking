@@ -55,6 +55,7 @@ func start_run_battle(run_state: RunState) -> bool:
 		if definition == null:
 			return false
 		var runtime_piece: ChessPiece = ChessPiece.create_with_instance_id(definition, player_color, instance_id)
+		piece_state.apply_growth_to(runtime_piece)
 		if not run_board.place_piece_for_setup(deployment.player_position(instance_id), runtime_piece):
 			return false
 	for enemy_placement: Dictionary in deployment.enemy_placements:
@@ -154,6 +155,15 @@ func force_debug_victory() -> bool:
 	var result: BattleCommandResult = command_processor.force_finish(player_color, false, &"debug_victory")
 	last_command_result = result
 	_publish_command_result(result)
+	return result.success
+
+## Gives up the remaining bonus action (assassin, courier) and passes the turn.
+func try_end_turn() -> bool:
+	if board == null or command_processor == null or not command_processor.can_end_turn(player_color):
+		return false
+	var result: BattleCommandResult = execute_battle_action(EndTurnAction.new(player_color))
+	if result.success:
+		EventBus.turn_changed.emit(board.turn)
 	return result.success
 
 func try_move(from: Vector2i, to: Vector2i, promotion_id: String = "queen") -> bool:

@@ -44,3 +44,6 @@ func is_valid_partner(piece: ChessPiece, candidate: ChessPiece) -> bool:
 		and StringName(candidate.def.id) in partner_piece_ids
 		and not candidate.has_moved
 	)
+
+func borrowable() -> bool:
+	return false

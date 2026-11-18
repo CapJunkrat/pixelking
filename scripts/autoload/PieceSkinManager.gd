@@ -42,10 +42,20 @@ func piece_texture(color: StringName, piece_type: StringName) -> Texture2D:
 	var skin: PieceSkin = current_skin()
 	if skin == null:
 		return null
+	# Forms of one piece (squire levels, tide states) share that piece's picture.
+	var definition: PieceDef = PieceDefDatabase.get_def(String(piece_type))
+	if definition != null:
+		piece_type = StringName(definition.art_key())
 	if skin.has_texture(color, piece_type):
 		return skin.texture(color, piece_type)
 	var fallback_type: StringName = _fallback_piece_type(piece_type)
-	return skin.texture(color, fallback_type) if skin.has_texture(color, fallback_type) else null
+	if skin.has_texture(color, fallback_type):
+		return skin.texture(color, fallback_type)
+	# Pieces drawn only for the default style still show up under older styles.
+	var default_skin: PieceSkin = _skins.get(DEFAULT_SKIN_ID) as PieceSkin
+	if default_skin != null and default_skin != skin and default_skin.has_texture(color, piece_type):
+		return default_skin.texture(color, piece_type)
+	return null
 
 func _fallback_piece_type(piece_type: StringName) -> StringName:
 	match piece_type:

@@ -288,6 +288,8 @@ func _rarity_text(rarity: PieceDef.Rarity) -> String:
 			return Localization.text("RARITY_EPIC")
 		PieceDef.Rarity.LEGENDARY:
 			return Localization.text("RARITY_LEGENDARY")
+		PieceDef.Rarity.MYTHIC:
+			return Localization.text("RARITY_MYTHIC")
 		_:
 			return Localization.text("RARITY_COMMON")
 

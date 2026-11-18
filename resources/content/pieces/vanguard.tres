@@ -1,0 +1,56 @@
+[gd_resource type="Resource" script_class="PieceDef" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/PieceDef.gd" id="1_piece"]
+[ext_resource type="Script" path="res://scripts/core/movement/MovementProfile.gd" id="2_profile"]
+[ext_resource type="Script" path="res://scripts/core/movement/SlideMovementRule.gd" id="3_slide"]
+[ext_resource type="Resource" path="res://resources/content/motion_profiles/pawn.tres" id="4_motion"]
+
+[sub_resource type="Resource" id="Rule1"]
+script = ExtResource("3_slide")
+directions = Array[Vector2i]([Vector2i(0, 1)])
+min_distance = 1
+max_distance = 2
+allow_captures = false
+allow_empty_destinations = true
+jump_over_occupied = false
+relative_to_color = true
+ranged = false
+
+[sub_resource type="Resource" id="Rule2"]
+script = ExtResource("3_slide")
+directions = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0)])
+min_distance = 1
+max_distance = 1
+allow_captures = false
+allow_empty_destinations = true
+jump_over_occupied = false
+relative_to_color = false
+ranged = false
+
+[sub_resource type="Resource" id="Rule3"]
+script = ExtResource("3_slide")
+directions = Array[Vector2i]([Vector2i(1, 1), Vector2i(-1, 1)])
+min_distance = 1
+max_distance = 1
+allow_captures = true
+allow_empty_destinations = false
+jump_over_occupied = false
+relative_to_color = true
+ranged = false
+
+[sub_resource type="Resource" id="MovementProfile"]
+script = ExtResource("2_profile")
+rules = Array[Resource]([SubResource("Rule1"), SubResource("Rule2"), SubResource("Rule3")])
+
+[resource]
+script = ExtResource("1_piece")
+id = "vanguard"
+display_name_key = &"PIECE_VANGUARD"
+weight_class = 0
+movement_profile = SubResource("MovementProfile")
+motion_profile = ExtResource("4_motion")
+promotes_to = "lancer"
+base_value = 2
+rarity = 0
+available_in_opening_draft = true
+opening_draft_weight = 12

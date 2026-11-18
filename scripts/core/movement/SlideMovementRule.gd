@@ -7,6 +7,10 @@ extends MovementRule
 @export var allow_empty_destinations: bool = true
 @export var allow_captures: bool = true
 @export var jump_over_occupied: bool = false
+## Directions are written for White; Black mirrors them vertically (forward-only pieces).
+@export var relative_to_color: bool = false
+## Captures from this rule hit from a distance: the piece stays on its square.
+@export var ranged: bool = false
 
 func rule_id() -> StringName:
 	return &"slide"
@@ -22,7 +26,10 @@ func get_attack_squares(board: BoardState, pos: Vector2i, piece: ChessPiece) -> 
 func _collect(board: BoardState, pos: Vector2i, piece: ChessPiece, attacks_only: bool) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	var minimum: int = maxi(1, min_distance)
-	for direction: Vector2i in directions:
+	for raw_direction: Vector2i in directions:
+		var direction: Vector2i = raw_direction
+		if relative_to_color and piece.color == GameRules.PieceColor.BLACK:
+			direction.y = -direction.y
 		for distance: int in range(1, max_distance + 1):
 			var target: Vector2i = pos + direction * distance
 			if not board.in_bounds(target):
@@ -37,3 +44,11 @@ func _collect(board: BoardState, pos: Vector2i, piece: ChessPiece, attacks_only:
 			if not jump_over_occupied:
 				break
 	return result
+
+func action_kind(board: BoardState, from: Vector2i, to: Vector2i, piece: ChessPiece) -> StringName:
+	if not ranged:
+		return &""
+	var target: ChessPiece = board.get_piece(to)
+	if target != null and target.color != piece.color and to in get_moves(board, from, piece):
+		return &"ranged"
+	return &""
