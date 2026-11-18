@@ -91,8 +91,9 @@ func _scroll_to_progress() -> void:
 	_scroll_tween.tween_property(map_scroll, "scroll_vertical", target, 0.5)
 
 func _on_node_selected(node_id: StringName) -> void:
-	if run_manager.current_run.phase == RunPhase.NODE_SELECTED and node_id == run_manager.current_run.current_node_id:
-		_show_node_overlay(node_id)
+	var already_chosen: bool = node_id == run_manager.current_run.current_node_id and run_manager.current_run.phase in [RunPhase.NODE_SELECTED, RunPhase.DEPLOYMENT, RunPhase.BATTLE_READY]
+	if already_chosen:
+		_open_node(node_id)
 		return
 	var error: Error = run_manager.select_map_node(node_id)
 	if error != OK:
@@ -103,7 +104,17 @@ func _on_node_selected(node_id: StringName) -> void:
 	if map_view.is_travelling():
 		await map_view.token_arrived
 	if is_inside_tree() and run_manager.current_run != null and run_manager.current_run.current_node_id == node_id:
-		_show_node_overlay(node_id)
+		_open_node(node_id)
+
+## Battles go straight to the pre-battle preview; other nodes show their details first.
+func _open_node(node_id: StringName) -> void:
+	var node: MapNodeState = run_manager.current_run.map_state.get_node(node_id)
+	var definition: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id) if node != null else null
+	if definition != null and definition.is_battle:
+		presented_node_id = node_id
+		_on_action_pressed()
+		return
+	_show_node_overlay(node_id)
 
 func _show_node_overlay(node_id: StringName) -> void:
 	var node: MapNodeState = run_manager.current_run.map_state.get_node(node_id)

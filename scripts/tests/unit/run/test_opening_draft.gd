@@ -54,7 +54,7 @@ func _init() -> void:
 		_expect(int(service.call("apply_choice", run_a, rng_a, str(current_candidates[0]))) == OK, "round %d selection succeeds" % (round_index + 1))
 	_expect(bool(service.call("is_complete", run_a)), "draft completes after three selections")
 	_expect(run_a.pending_choice.is_empty(), "completed draft clears pending choice")
-	_expect(run_a.player_roster.size() == 4 and run_a.reserve_piece_ids.size() == 3, "draft creates King plus three reserve pieces")
+	_expect(run_a.player_roster.size() == 4 and run_a.active_piece_ids.size() == 4 and run_a.reserve_piece_ids.is_empty(), "draft creates King plus three pieces on the battle line")
 	run_a.phase = RunPhase.MAP
 	_expect(run_a.is_valid(), "completed draft leaves a valid RunState after its flow transition")
 	_finish()

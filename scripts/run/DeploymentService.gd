@@ -25,28 +25,18 @@ func ensure_deployment(run_state: RunState) -> Error:
 		return sync_error
 	return OK
 
+## Lays out the active pieces with the automatic formation (DeploymentFormation).
 func synchronize_with_roster(run_state: RunState) -> Error:
 	if run_state == null or run_state.deployment_state == null:
 		return ERR_DOES_NOT_EXIST
 	var deployment: DeploymentState = run_state.deployment_state
-	var synchronized: Dictionary = {}
-	var occupied: Dictionary = {}
+	deployment.player_positions = {}
+	var formation: Dictionary = DeploymentFormation.arrange(run_state, deployment.board_size)
 	for instance_id: int in run_state.active_piece_ids:
-		var old_position: Vector2i = deployment.player_position(instance_id)
-		if old_position != Vector2i(-1, -1) and old_position.y <= 1 and not occupied.has(old_position):
-			synchronized[str(instance_id)] = DeploymentState.position_value(old_position)
-			occupied[old_position] = true
-	deployment.player_positions = synchronized
-	for instance_id: int in run_state.active_piece_ids:
-		if deployment.player_positions.has(str(instance_id)):
-			continue
-		var piece: PieceInstanceState = run_state.get_piece_state(instance_id)
-		var preferred: Vector2i = Vector2i(floori(float(deployment.board_size) / 2.0), 0) if piece != null and piece.is_king else Vector2i(-1, -1)
-		var position: Vector2i = preferred if preferred != Vector2i(-1, -1) and not occupied.has(preferred) else _first_open_player_square(deployment.board_size, occupied)
+		var position: Vector2i = formation.get(instance_id, Vector2i(-1, -1))
 		if position == Vector2i(-1, -1):
 			return ERR_OUT_OF_MEMORY
 		deployment.set_player_position(instance_id, position)
-		occupied[position] = true
 	deployment.confirmed = false
 	return OK if deployment.is_valid(run_state) else ERR_INVALID_DATA
 
@@ -90,10 +80,3 @@ func _can_deploy(run_state: RunState) -> bool:
 		and not run_state.current_encounter_id.is_empty()
 	)
 
-func _first_open_player_square(board_size: int, occupied: Dictionary) -> Vector2i:
-	for y_position: int in range(2):
-		for x_position: int in range(board_size):
-			var position: Vector2i = Vector2i(x_position, y_position)
-			if not occupied.has(position):
-				return position
-	return Vector2i(-1, -1)

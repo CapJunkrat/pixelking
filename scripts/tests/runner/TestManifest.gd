@@ -48,7 +48,7 @@ const TESTS = [
 	{"path": "res://scripts/tests/scenes/test_strike_new_pieces_3.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree", "slow": true},
 	{"path": "res://scripts/tests/scenes/test_strike_new_pieces_4.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree", "slow": true},
 	{"path": "res://scripts/tests/scenes/test_codex_debug.gd", "layer": "scene", "domain": "ui", "kind": "scene_tree"},
-	{"path": "res://scripts/tests/scenes/test_deployment_scene.gd", "layer": "scene", "domain": "run", "kind": "scene_tree"},
+	{"path": "res://scripts/tests/scenes/test_prebattle_scene.gd", "layer": "scene", "domain": "run", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/scenes/test_fusion_interaction_scene.gd", "layer": "scene", "domain": "run", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/scenes/test_main_menu_intro.gd", "layer": "scene", "domain": "ui", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/scenes/test_opening_draft_scene.gd", "layer": "scene", "domain": "run", "kind": "scene_tree"},

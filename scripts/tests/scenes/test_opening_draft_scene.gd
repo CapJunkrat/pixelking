@@ -66,7 +66,7 @@ func _run() -> void:
 	_expect(draft.get_node_or_null("CompletionOverlay") == null, "draft completion overlay is removed")
 	_expect(run_manager.call("resume_scene_path").ends_with("PathMapScene.tscn"), "completed draft routes directly to the map")
 	var current_run: RunState = run_manager.get("current_run") as RunState
-	_expect(current_run != null and current_run.reserve_piece_ids.size() == 3, "scene selections persist three reserve pieces")
+	_expect(current_run != null and current_run.active_piece_ids.size() == 4, "scene selections persist three pieces on the battle line")
 	draft.queue_free()
 	run_manager.call("abandon_run")
 	_cleanup()

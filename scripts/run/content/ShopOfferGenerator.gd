@@ -13,7 +13,7 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 		options.append(RunChoiceBuilder.option("buy_relic", "%s — %d Gold" % [RunContentDatabase.relic_label(relic), pool.relic_price], "relic", {"relic_id": String(relic), "price": pool.relic_price}, run_state.gold >= pool.relic_price and run_state.challenger_slots.size() < 6))
 	var selected_piece_id: StringName = pool.recruit_piece_ids[rng.pick_index(&"shop_rng", pool.recruit_piece_ids.size())]
 	var piece_id: String = String(selected_piece_id)
-	options.append(RunChoiceBuilder.option("buy_piece", "%s — %d Gold" % [reward_service.definition_label(piece_id), pool.piece_price], "piece", {"piece_def_id": piece_id, "price": pool.piece_price}, run_state.gold >= pool.piece_price and run_state.reserve_piece_ids.size() < RunState.MAX_RESERVE_PIECES))
+	options.append(RunChoiceBuilder.option("buy_piece", "%s — %d Gold" % [reward_service.definition_label(piece_id), pool.piece_price], "piece", {"piece_def_id": piece_id, "price": pool.piece_price}, run_state.gold >= pool.piece_price and run_state.has_room_for_piece()))
 	var eligible_recipes: Array[FusionRecipeDef] = fusion_service.eligible_recipes(run_state)
 	if not eligible_recipes.is_empty():
 		var recipe: FusionRecipeDef = eligible_recipes[rng.pick_index(&"shop_rng", eligible_recipes.size())]

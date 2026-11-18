@@ -19,22 +19,26 @@ func test_normal_fusion_uses_exact_planned_instances() -> void:
 
 func test_fusion_capacity_is_preflighted() -> void:
 	var blocked: RunState = _base_run()
-	var active_pawn: PieceInstanceState = blocked.allocate_piece("pawn", false)
-	var active_knight: PieceInstanceState = blocked.allocate_piece("knight", false)
-	blocked.move_piece_to_active(active_pawn.instance_id)
-	blocked.move_piece_to_active(active_knight.instance_id)
+	blocked.allocate_piece("pawn", false)
+	blocked.allocate_piece("knight", false)
 	for _index: int in range(RunState.MAX_RESERVE_PIECES):
-		blocked.allocate_piece("bishop", false)
+		_reserve_piece(blocked, "bishop")
 	var service: FusionService = FusionService.new()
 	assert(service.create_plan(blocked, &"pawn_knight_lancer") == null)
 	var allowed: RunState = _base_run()
-	allowed.allocate_piece("pawn", false)
-	var allowed_knight: PieceInstanceState = allowed.allocate_piece("knight", false)
-	allowed.move_piece_to_active(allowed_knight.instance_id)
+	_reserve_piece(allowed, "pawn")
+	allowed.allocate_piece("knight", false)
 	for _index: int in range(RunState.MAX_RESERVE_PIECES - 1):
-		allowed.allocate_piece("bishop", false)
+		_reserve_piece(allowed, "bishop")
 	assert(allowed.reserve_piece_ids.size() == RunState.MAX_RESERVE_PIECES)
 	assert(service.create_plan(allowed, &"pawn_knight_lancer") != null)
+
+## New pieces join the battle line first; this puts one straight into the reserve.
+func _reserve_piece(run_state: RunState, piece_id: String) -> PieceInstanceState:
+	var piece: PieceInstanceState = run_state.allocate_piece(piece_id, false)
+	if piece != null and piece.instance_id in run_state.active_piece_ids:
+		run_state.move_piece_to_reserve(piece.instance_id)
+	return piece
 
 func test_king_fusion_preserves_unique_king_instance_identity() -> void:
 	var run_state: RunState = _base_run()

@@ -41,7 +41,7 @@ func _run() -> void:
 	_expect(manager.current_run.deployment_state.to_dictionary() == deployment_snapshot, "mid-battle moves never overwrite pre-deployment snapshot")
 	game_state.call("start_new_game")
 	_expect(manager.current_run.deployment_state.to_dictionary() == deployment_snapshot, "leaving battle restores saved pre-deployment state")
-	_expect(manager.resume_scene_path().ends_with("DeploymentScene.tscn"), "Continue returns an unresolved battle to deployment")
+	_expect(manager.resume_scene_path().ends_with("PreBattleScene.tscn"), "Continue returns an unresolved battle to deployment")
 	manager.abandon_run()
 	_cleanup()
 	_finish()

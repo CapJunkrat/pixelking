@@ -16,6 +16,8 @@ func _run() -> void:
 	for _round_index: int in range(3):
 		var candidates: Array = manager.current_run.pending_choice.get("candidate_piece_def_ids", []) as Array
 		manager.submit_opening_draft_choice(str(candidates[0]))
+	# Drafted pieces start on the battle line; bench one so the reserve has a card.
+	manager.move_roster_piece(manager.current_run.active_piece_ids[1], false)
 	var scene: PackedScene = load("res://scenes/run/RosterScene.tscn") as PackedScene
 	_expect(scene != null, "roster scene loads")
 	var roster_scene: RosterScene = scene.instantiate() as RosterScene

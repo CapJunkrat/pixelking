@@ -61,7 +61,7 @@ func submit(run_state: RunState, _rng: RunRngService, progress: MapProgressServi
 		"battle_reward":
 			if str(payload.get("kind", "")) == "fusion":
 				return fusion_interaction_service.stage(run_state, pending, choice_id, payload)
-			if str(payload.get("kind", "")) == "piece" and run_state.reserve_piece_ids.size() >= RunState.MAX_RESERVE_PIECES:
+			if str(payload.get("kind", "")) == "piece" and not run_state.has_room_for_piece():
 				roster_choice_service.stage_overflow(run_state, str(payload.get("piece_def_id", "")))
 				return OK
 			var reward_error: Error = reward_service.apply(run_state, payload)

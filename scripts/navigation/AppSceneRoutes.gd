@@ -4,7 +4,8 @@ extends RefCounted
 const MAIN_MENU := "res://scenes/ui/MainMenu.tscn"
 const OPENING_DRAFT := "res://scenes/run/OpeningDraftScene.tscn"
 const PATH_MAP := "res://scenes/run/PathMapScene.tscn"
-const DEPLOYMENT := "res://scenes/run/DeploymentScene.tscn"
+## The pre-battle preview (it replaced the manual deployment screen).
+const DEPLOYMENT := "res://scenes/run/PreBattleScene.tscn"
 const BATTLE := "res://scenes/battle/BattleScene.tscn"
 const RUN_INTERACTION := "res://scenes/run/RunInteractionScene.tscn"
 const ROSTER := "res://scenes/run/RosterScene.tscn"

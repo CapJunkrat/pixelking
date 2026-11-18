@@ -26,7 +26,7 @@ func _run() -> void:
 	_expect(not battle_node_id.is_empty(), "test seed offers an initial battle")
 	manager.select_map_node(battle_node_id)
 	_expect(manager.begin_deployment() == OK, "RunManager creates and saves pre-battle deployment")
-	_expect(manager.resume_scene_path().ends_with("DeploymentScene.tscn"), "Continue resumes the pre-battle deployment stage")
+	_expect(manager.resume_scene_path().ends_with("PreBattleScene.tscn"), "Continue resumes the pre-battle deployment stage")
 	var king_id: int = manager.current_run.active_piece_ids[0]
 	var original_king_position: Vector2i = manager.current_run.deployment_state.player_position(king_id)
 	var target: Vector2i = Vector2i(0, 1)

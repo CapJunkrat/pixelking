@@ -72,16 +72,21 @@ func allocate_piece(piece_def_id: String, make_king: bool = false) -> PieceInsta
 		return null
 	if make_king and _king_count() > 0:
 		return null
-	if not make_king and reserve_piece_ids.size() >= MAX_RESERVE_PIECES:
+	if not make_king and reserve_piece_ids.size() >= MAX_RESERVE_PIECES and _active_non_king_count() >= MAX_ACTIVE_NON_KING_PIECES:
 		return null
 	var piece: PieceInstanceState = PieceInstanceState.new(next_piece_instance_id, StringName(piece_def_id), make_king)
 	next_piece_instance_id += 1
 	player_roster.append(piece)
-	if make_king:
+	# New pieces join the battle line while it has room, then wait in reserve.
+	if make_king or _active_non_king_count() < MAX_ACTIVE_NON_KING_PIECES:
 		active_piece_ids.append(piece.instance_id)
 	else:
 		reserve_piece_ids.append(piece.instance_id)
 	return piece
+
+## Whether a new non-King piece fits, on the battle line or in reserve.
+func has_room_for_piece() -> bool:
+	return _active_non_king_count() < MAX_ACTIVE_NON_KING_PIECES or reserve_piece_ids.size() < MAX_RESERVE_PIECES
 
 func get_piece_state(instance_id: int) -> PieceInstanceState:
 	for piece: PieceInstanceState in player_roster:
