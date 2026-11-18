@@ -19,9 +19,8 @@ const TIER_COLORS := {&"normal_battle": Color("#e0b45c"), &"elite_battle": Color
 const PATTERN_COLORS := {"move": Color("#3fb6d8"), "attack": Color("#e07a6a"), "both": Color("#b07ae0")}
 const PATTERN_SIZE := 7
 const LINEUP_SLOTS := 6
-## The line-up and the enemy explanation share this much height, so swapping them
-## never moves the board.
-const LINEUP_HEIGHT := 136.0
+## Height of the enemy explanation, which scrolls when it is longer.
+const LINEUP_HEIGHT := 120.0
 
 @onready var run_manager: AppRunManager = get_node("/root/RunManager") as AppRunManager
 @onready var piece_skin_manager: Node = get_node("/root/PieceSkinManager")
@@ -30,22 +29,16 @@ var board_view: DeploymentBoardView = null
 var tier_label: Label = null
 var layer_label: Label = null
 var limit_label: Label = null
-var power_me: Label = null
-var power_foe: Label = null
-var power_fill: ColorRect = null
-var power_track: Control = null
 var foe_box: HFlowContainer = null
 var pattern_panel: PanelContainer = null
 ## Holds the enemy piece explanation; shown instead of the line-up while one is chosen.
 var pattern_scroll: ScrollContainer = null
 var lineup_box: VBoxContainer = null
 var count_label: Label = null
-var active_row: HBoxContainer = null
 var bench_row: HBoxContainer = null
 var status_label: Label = null
 var back_button: Button = null
 var fight_button: Button = null
-var auto_button: Button = null
 var focus_id: String = ""
 ## Arranging by hand is always on: tap one of your pieces, then a square in your two
 ## ranks. 0 while no piece is picked up.
@@ -102,43 +95,6 @@ func _build() -> void:
 	board_view.square_pressed.connect(_on_square_pressed)
 	layout.add_child(board_view)
 
-	var arrange_row: HBoxContainer = HBoxContainer.new()
-	arrange_row.name = "ArrangeRow"
-	arrange_row.add_theme_constant_override("separation", 6)
-	var arrange_hint: Label = _label(_text("PREBATTLE_ARRANGE_TIP"), 11, MUTED)
-	arrange_hint.name = "ArrangeHint"
-	arrange_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	arrange_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	arrange_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	auto_button = _button(_text("PREBATTLE_AUTO_FORMATION"), PANEL_2, LINE, INK)
-	auto_button.name = "AutoFormationButton"
-	auto_button.custom_minimum_size = Vector2(0, 32)
-	auto_button.pressed.connect(_reset_formation)
-	arrange_row.add_child(arrange_hint)
-	arrange_row.add_child(auto_button)
-	layout.add_child(arrange_row)
-
-	var power: HBoxContainer = HBoxContainer.new()
-	power.add_theme_constant_override("separation", 8)
-	power_me = _label("", 12, INK)
-	power_foe = _label("", 12, INK)
-	power_track = Control.new()
-	power_track.custom_minimum_size = Vector2(0, 8)
-	power_track.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	power_track.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var track_bg: ColorRect = ColorRect.new()
-	track_bg.color = ENEMY
-	track_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	power_track.add_child(track_bg)
-	power_fill = ColorRect.new()
-	power_fill.color = TEAL
-	power_fill.anchor_bottom = 1.0
-	power_track.add_child(power_fill)
-	power.add_child(power_me)
-	power.add_child(power_track)
-	power.add_child(power_foe)
-	layout.add_child(power)
-
 	# No page scroll: the enemy explanation takes the line-up's place while it is open,
 	# and only the explanation itself scrolls when it is long.
 	var details: VBoxContainer = VBoxContainer.new()
@@ -174,20 +130,17 @@ func _build() -> void:
 
 	lineup_box = VBoxContainer.new()
 	lineup_box.name = "Lineup"
-	lineup_box.custom_minimum_size = Vector2(0, LINEUP_HEIGHT)
 	lineup_box.add_theme_constant_override("separation", 6)
+	# Your battle line is the board itself; only the reserve is listed. Pick up a piece
+	# on the board and tap a reserve slot to bench it (or swap it with that piece).
 	var lineup_head: HBoxContainer = HBoxContainer.new()
-	var lineup_title: Label = _label(_text("PREBATTLE_LINEUP"), 12, MUTED)
+	var lineup_title: Label = _label(_text("PREBATTLE_RESERVE"), 12, MUTED)
 	lineup_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lineup_head.add_child(lineup_title)
 	count_label = _label("", 12, INK)
+	count_label.name = "LineCount"
 	lineup_head.add_child(count_label)
 	lineup_box.add_child(lineup_head)
-	active_row = HBoxContainer.new()
-	active_row.name = "ActiveRow"
-	active_row.add_theme_constant_override("separation", 5)
-	lineup_box.add_child(active_row)
-	lineup_box.add_child(_label(_text("PREBATTLE_RESERVE"), 12, MUTED))
 	bench_row = HBoxContainer.new()
 	bench_row.name = "ReserveRow"
 	bench_row.add_theme_constant_override("separation", 5)
@@ -264,7 +217,6 @@ func _render() -> void:
 	if node != null and run.map_state != null:
 		layer_label.text = _text("MAP_PROGRESS") % [node.layer_index + 1, run.map_state.total_layers]
 	_render_board()
-	_render_power()
 	_render_foes()
 	_render_pattern()
 	limit_label.visible = encounter != null and encounter.turn_limit > 0
@@ -291,21 +243,6 @@ func _render_board() -> void:
 		pieces[deployment.player_position(instance_id)] = {"texture": _texture(&"white", String(piece.piece_def_id)), "player": true}
 	board_view.show_position(deployment.board_size, pieces, focus_square)
 
-func _render_power() -> void:
-	var mine: int = 0
-	for instance_id: int in run_manager.current_run.active_piece_ids:
-		var piece: PieceInstanceState = run_manager.current_run.get_piece_state(instance_id)
-		if piece != null and not piece.is_king:
-			mine += PieceDefDatabase.get_def(String(piece.piece_def_id)).base_value
-	var theirs: int = 0
-	for placement: Dictionary in run_manager.current_run.deployment_state.enemy_placements:
-		var definition: PieceDef = PieceDefDatabase.get_def(str(placement.get("piece_def_id", "")))
-		if definition != null and not definition.is_king:
-			theirs += definition.base_value
-	power_me.text = _text("PREBATTLE_POWER_MINE") % mine
-	power_foe.text = _text("PREBATTLE_POWER_THEIRS") % theirs
-	power_fill.anchor_right = float(mine) / float(maxi(1, mine + theirs))
-
 func _render_foes() -> void:
 	for child: Node in foe_box.get_children():
 		child.queue_free()
@@ -322,10 +259,10 @@ func _render_foes() -> void:
 		chip.icon = _texture(&"black", id)
 		chip.custom_minimum_size = Vector2(36, 36)
 		chip.add_theme_constant_override("icon_max_width", 28)
-		chip.add_theme_font_size_override("font_size", 10)
 		chip.tooltip_text = _piece_name(id)
-		# Icons only; the name is in the explanation. A count marks repeated pieces.
-		chip.text = "×%d" % counts[id] if int(counts[id]) > 1 else ""
+		# Icons only: the name is in the explanation.
+		chip.expand_icon = true
+		chip.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		chip.toggle_mode = true
 		chip.button_pressed = id == focus_id
 		var selected: bool = id == focus_id
@@ -387,25 +324,29 @@ func _render_pattern() -> void:
 	pattern_panel.add_child(column)
 
 func _render_lineup() -> void:
-	for row: HBoxContainer in [active_row, bench_row]:
-		for child: Node in row.get_children():
-			child.queue_free()
+	for child: Node in bench_row.get_children():
+		bench_row.remove_child(child)
+		child.queue_free()
 	var run: RunState = run_manager.current_run
-	var active_count: int = 0
-	for instance_id: int in run.active_piece_ids:
-		var piece: PieceInstanceState = run.get_piece_state(instance_id)
-		if piece == null:
-			continue
-		if not piece.is_king:
-			active_count += 1
-		active_row.add_child(_slot(piece, true))
-	for _i: int in range(active_row.get_child_count(), LINEUP_SLOTS):
-		active_row.add_child(_slot(null, true))
 	for instance_id: int in run.reserve_piece_ids:
 		bench_row.add_child(_slot(run.get_piece_state(instance_id), false))
-	for _i: int in range(bench_row.get_child_count(), LINEUP_SLOTS):
-		bench_row.add_child(_slot(null, false))
-	count_label.text = "%d / %d" % [active_count, run_manager.current_run.max_active_pieces()]
+	for index: int in range(bench_row.get_child_count(), LINEUP_SLOTS):
+		bench_row.add_child(_empty_reserve_slot(index))
+	count_label.text = _text("PREBATTLE_LINE_COUNT") % [_active_non_king(), run.max_active_pieces()]
+
+## An open reserve place. With a piece picked up on the board, tapping it benches it.
+func _empty_reserve_slot(index: int) -> Button:
+	var button: Button = Button.new()
+	button.name = "ReserveSlot_%d" % index
+	button.custom_minimum_size = Vector2(44, 44)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var holding: bool = _holding_benchable()
+	var border: Color = GOLD_SOFT if holding else LINE
+	for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
+		button.add_theme_stylebox_override(state, _box(Color(PANEL_2, 0.4), border, 6))
+	button.disabled = not holding
+	button.pressed.connect(_bench_held)
+	return button
 
 func _slot(piece: PieceInstanceState, active: bool) -> Button:
 	var button: Button = Button.new()
@@ -427,12 +368,14 @@ func _slot(piece: PieceInstanceState, active: bool) -> Button:
 	elif active:
 		border = TEAL
 		fill = Color("#12333a")
+	elif _holding_benchable():
+		border = GOLD_SOFT
 	for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
 		button.add_theme_stylebox_override(state, _box(fill if state != "hover" else fill.lightened(0.08), border if state != "hover" else GOLD_SOFT, 6))
 	if piece.is_king:
 		button.disabled = true
 	else:
-		button.pressed.connect(_toggle_piece.bind(piece.instance_id, not active))
+		button.pressed.connect(_on_reserve_pressed.bind(piece.instance_id))
 	return button
 
 # --- actions ------------------------------------------------------------------------
@@ -467,6 +410,7 @@ func _arrange_at(square: Vector2i) -> bool:
 		_show_status(_text("PREBATTLE_ARRANGE_HINT"))
 		status_label.add_theme_color_override("font_color", GOLD_SOFT)
 		_render_board()
+		_render_lineup()
 		return true
 	if own == arrange_selected:
 		_put_down()
@@ -484,12 +428,42 @@ func _put_down() -> void:
 	status_label.visible = false
 	status_label.add_theme_color_override("font_color", ENEMY)
 	_render_board()
+	_render_lineup()
 
-func _reset_formation() -> void:
-	if run_manager.reset_deployment_formation() != OK:
-		_show_status(_text("PREBATTLE_LINEUP_ERROR"))
+func _holding_benchable() -> bool:
+	if arrange_selected <= 0:
+		return false
+	var piece: PieceInstanceState = run_manager.current_run.get_piece_state(arrange_selected)
+	return piece != null and not piece.is_king
+
+## Sends the piece in hand to the reserve.
+func _bench_held() -> void:
+	if not _holding_benchable():
 		return
-	_put_down()
+	var held: int = arrange_selected
+	arrange_selected = 0
+	status_label.add_theme_color_override("font_color", ENEMY)
+	_toggle_piece(held, false)
+
+## A reserve piece: swapped with the piece in hand onto its square, or sent into the line.
+func _on_reserve_pressed(instance_id: int) -> void:
+	if not _holding_benchable():
+		_toggle_piece(instance_id, true)
+		return
+	var held: int = arrange_selected
+	var square: Vector2i = run_manager.current_run.deployment_state.player_position(held)
+	arrange_selected = 0
+	status_label.add_theme_color_override("font_color", ENEMY)
+	var reserve_full: bool = run_manager.current_run.reserve_piece_ids.size() >= RunState.MAX_RESERVE_PIECES
+	var order: Array = [[instance_id, true], [held, false]] if reserve_full else [[held, false], [instance_id, true]]
+	for step: Array in order:
+		if run_manager.move_roster_piece(int(step[0]), bool(step[1])) != OK:
+			_show_status(_text("PREBATTLE_LINEUP_ERROR"))
+			_render()
+			return
+	run_manager.move_deployed_piece(instance_id, square)
+	status_label.visible = false
+	_render()
 
 func _toggle_piece(instance_id: int, to_active: bool) -> void:
 	if to_active and _active_non_king() >= run_manager.current_run.max_active_pieces():

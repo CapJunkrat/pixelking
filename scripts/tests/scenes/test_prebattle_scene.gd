@@ -37,7 +37,8 @@ func _run() -> void:
 	_expect(preview.get_node_or_null("SafeArea/Layout/TitleLabel") == null, "the redundant title and description are gone")
 	var chips: HFlowContainer = details.find_child("EnemyPieces", true, false) as HFlowContainer
 	_expect(chips != null and chips.get_child_count() > 0, "enemy pieces are listed")
-	_expect((chips.get_child(0) as Button).text.is_empty() or (chips.get_child(0) as Button).text.begins_with("×"), "enemy pieces show icons, not names")
+	_expect((chips.get_child(0) as Button).text.is_empty(), "enemy pieces show only icons, with no name or count")
+	_expect(details.find_child("ActiveRow", true, false) == null and preview.find_child("ArrangeRow", true, false) == null, "no battle-line row, tip or reset button")
 	var pattern: PanelContainer = details.find_child("PiecePattern", true, false) as PanelContainer
 	var lineup: Control = details.find_child("Lineup", true, false) as Control
 	_expect(not pattern.visible and lineup.visible, "no piece is explained until one is chosen")
@@ -48,16 +49,34 @@ func _run() -> void:
 	await process_frame
 	_expect(not pattern.visible and lineup.visible, "closing the explanation brings the line-up back")
 
-	# Send one piece to the reserve and back: the formation follows the line-up.
+	# Bench a piece from the board and bring it back: the board is the battle line.
 	var moved_id: int = manager.current_run.active_piece_ids[1]
+	var moved_square: Vector2i = manager.current_run.deployment_state.player_position(moved_id)
 	var reserve_row: HBoxContainer = details.find_child("ReserveRow", true, false) as HBoxContainer
-	var active_row: HBoxContainer = details.find_child("ActiveRow", true, false) as HBoxContainer
-	(active_row.get_node("Piece_%d" % moved_id) as Button).pressed.emit()
+	_expect((reserve_row.get_child(0) as Button).disabled, "empty reserve places wait until a piece is picked up")
+	board.square_pressed.emit(moved_square)
 	await process_frame
-	_expect(moved_id in manager.current_run.reserve_piece_ids and board.piece_count(true) == 3, "tapping a battle-line piece sends it to the reserve")
+	_expect(not (reserve_row.get_child(0) as Button).disabled, "picking up a piece opens the reserve places")
+	(reserve_row.get_child(0) as Button).pressed.emit()
+	await process_frame
+	_expect(moved_id in manager.current_run.reserve_piece_ids and board.piece_count(true) == 3, "tapping a reserve place benches the piece in hand")
 	(reserve_row.get_node("Piece_%d" % moved_id) as Button).pressed.emit()
 	await process_frame
 	_expect(moved_id in manager.current_run.active_piece_ids and manager.current_run.deployment_state.player_position(moved_id).y <= 1, "tapping a reserve piece sends it back in and places it")
+	# Swap: hold a board piece and tap a reserve piece; the newcomer takes its square.
+	var other_id: int = manager.current_run.active_piece_ids[2]
+	board.square_pressed.emit(manager.current_run.deployment_state.player_position(moved_id))
+	await process_frame
+	(reserve_row.get_child(0) as Button).pressed.emit()
+	await process_frame
+	var other_square: Vector2i = manager.current_run.deployment_state.player_position(other_id)
+	board.square_pressed.emit(other_square)
+	await process_frame
+	(reserve_row.get_node("Piece_%d" % moved_id) as Button).pressed.emit()
+	await process_frame
+	_expect(other_id in manager.current_run.reserve_piece_ids and manager.current_run.deployment_state.player_position(moved_id) == other_square, "a reserve piece swaps in onto the square of the piece in hand")
+	(reserve_row.get_node("Piece_%d" % other_id) as Button).pressed.emit()
+	await process_frame
 
 	# Arrange by hand: move the King one file left; the choice is kept for the Run.
 	_expect(preview.get_node_or_null("SafeArea/Layout/ArrangeRow/ArrangeButton") == null, "arranging needs no mode button")
@@ -70,14 +89,8 @@ func _run() -> void:
 	await process_frame
 	_expect(manager.current_run.deployment_state.player_position(king_id) == Vector2i(3, 0), "arranging moves the King where the player taps")
 	_expect(DeploymentState.position_from_value(manager.current_run.preferred_positions.get(str(king_id), {})) == Vector2i(3, 0), "the hand-placed square is remembered for the Run")
-	(reserve_row.get_parent().get_node("ActiveRow").get_node("Piece_%d" % moved_id) as Button).pressed.emit()
-	await process_frame
-	_expect(manager.current_run.deployment_state.player_position(king_id) == Vector2i(3, 0), "changing the line-up keeps the hand-placed King")
-	(reserve_row.get_node("Piece_%d" % moved_id) as Button).pressed.emit()
-	await process_frame
-	(preview.get_node("SafeArea/Layout/ArrangeRow/AutoFormationButton") as Button).pressed.emit()
-	await process_frame
-	_expect(manager.current_run.deployment_state.player_position(king_id) == Vector2i(4, 0) and manager.current_run.preferred_positions.is_empty(), "Auto Formation forgets the hand-placed squares")
+	manager.reset_deployment_formation()
+	_expect(manager.current_run.preferred_positions.is_empty(), "the formation can still be reset by the game")
 
 	(preview.get_node("SafeArea/Layout/Actions/FightButton") as Button).pressed.emit()
 	await process_frame
