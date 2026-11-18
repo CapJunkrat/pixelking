@@ -12,3 +12,4 @@ icon = ExtResource("2_icon")
 usage_mode = 1
 effect_type = &"remove_piece"
 effect_priority = 10
+effect_payload = {"target": "enemy"}

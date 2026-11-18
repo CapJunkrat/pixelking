@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="ContentCatalog" load_steps=92 format=3]
+[gd_resource type="Resource" script_class="ContentCatalog" load_steps=95 format=3]
 
 [ext_resource type="Script" path="res://scripts/content/ContentCatalog.gd" id="1_catalog"]
 [ext_resource type="Resource" path="res://resources/content/motion_profiles/pawn.tres" id="2_motion_pawn"]
@@ -93,6 +93,10 @@
 [ext_resource type="Resource" path="res://resources/content/fusion_recipes/king_portal_shadow_king.tres" id="r11_king_portal_shadow_king"]
 [ext_resource type="Resource" path="res://resources/content/fusion_recipes/king_guard_shield_king.tres" id="r12_king_guard_shield_king"]
 
+[ext_resource type="Resource" path="res://resources/content/challenger_items/holy_water.tres" id="i_holy_water"]
+[ext_resource type="Resource" path="res://resources/content/challenger_items/freeze_charm.tres" id="i_freeze_charm"]
+[ext_resource type="Resource" path="res://resources/content/challenger_items/second_wind.tres" id="i_second_wind"]
+
 [resource]
 script = ExtResource("1_catalog")
 catalog_id = &"pixelking.default"
@@ -100,7 +104,7 @@ content_version = 3
 motion_profiles = Array[Resource]([ExtResource("2_motion_pawn"), ExtResource("3_motion_knight"), ExtResource("4_motion_bishop"), ExtResource("5_motion_rook"), ExtResource("6_motion_queen"), ExtResource("7_motion_king")])
 pieces = Array[Resource]([ExtResource("8_piece_pawn"), ExtResource("9_piece_knight"), ExtResource("10_piece_bishop"), ExtResource("11_piece_rook"), ExtResource("12_piece_queen"), ExtResource("13_piece_king"), ExtResource("14_piece_lancer"), ExtResource("15_piece_archmage"), ExtResource("40_piece_assassin"), ExtResource("41_piece_royal_guard"), ExtResource("42_piece_catapult"), ExtResource("43_piece_bowman"), ExtResource("44_piece_portal_mage"), ExtResource("45_piece_unicorn"), ExtResource("46_piece_centaur"), ExtResource("47_piece_manticore"), ExtResource("48_piece_gryphon"), ExtResource("49_piece_gorgon"), ExtResource("p0_vanguard"), ExtResource("p1_sentry"), ExtResource("p2_powder_keg"), ExtResource("p3_martyr"), ExtResource("p4_lantern_bearer"), ExtResource("p5_squire"), ExtResource("p6_squire_lv2"), ExtResource("p7_squire_lv3"), ExtResource("p8_squire_lv4"), ExtResource("p9_tide_knight"), ExtResource("p10_tide_knight_ebb"), ExtResource("p11_antelope"), ExtResource("p12_echo"), ExtResource("p13_stand_in"), ExtResource("p14_ranger"), ExtResource("p15_sun_moon_monk"), ExtResource("p16_falconer"), ExtResource("p17_gargoyle"), ExtResource("p18_chameleon"), ExtResource("p19_crystal_mage"), ExtResource("p20_ember_bird"), ExtResource("p21_stone_giant"), ExtResource("p22_swift_courier"), ExtResource("p23_blast_catapult"), ExtResource("p24_sky_archer"), ExtResource("p25_flame_phoenix"), ExtResource("p26_thousand_faces"), ExtResource("p27_war_king"), ExtResource("p28_shadow_king"), ExtResource("p29_shield_king")])
 fusion_recipes = Array[Resource]([ExtResource("16_recipe_lancer"), ExtResource("r0_bishop_rook_queen"), ExtResource("r1_knight_bishop_centaur"), ExtResource("r2_knight_rook_unicorn"), ExtResource("r3_queen_knight_archmage"), ExtResource("r4_gargoyle_rook_stone_giant"), ExtResource("r5_assassin_bishop_courier"), ExtResource("r6_keg_catapult_blast"), ExtResource("r7_falconer_bowman_sky_archer"), ExtResource("r8_ember_gryphon_phoenix"), ExtResource("r9_chameleon_echo_thousand_faces"), ExtResource("r10_king_rook_war_king"), ExtResource("r11_king_portal_shadow_king"), ExtResource("r12_king_guard_shield_king")])
-challenger_items = Array[Resource]([ExtResource("18_item_crown"), ExtResource("19_item_coin"), ExtResource("20_item_banner"), ExtResource("21_item_feather"), ExtResource("22_item_bomb")])
+challenger_items = Array[Resource]([ExtResource("18_item_crown"), ExtResource("19_item_coin"), ExtResource("20_item_banner"), ExtResource("21_item_feather"), ExtResource("22_item_bomb"), ExtResource("i_holy_water"), ExtResource("i_freeze_charm"), ExtResource("i_second_wind")])
 battle_reward_table = ExtResource("23_reward")
 shop_pool = ExtResource("24_shop")
 events = Array[Resource]([ExtResource("25_event_merchant"), ExtResource("26_event_shrine"), ExtResource("27_event_patrol"), ExtResource("28_event_fork")])

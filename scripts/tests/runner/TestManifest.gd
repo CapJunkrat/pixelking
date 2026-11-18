@@ -15,6 +15,7 @@ const TESTS = [
 	{"path": "res://scripts/tests/unit/content/test_content_offer_generation.gd", "layer": "unit", "domain": "content", "kind": "node_methods"},
 	{"path": "res://scripts/tests/unit/battle/test_battle_command_processor.gd", "layer": "unit", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/battle/test_battle_effect_queue.gd", "layer": "unit", "domain": "battle", "kind": "scene_tree"},
+	{"path": "res://scripts/tests/unit/battle/test_items.gd", "layer": "unit", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/battle/test_battle_events.gd", "layer": "unit", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/battle/test_battle_presentation.gd", "layer": "unit", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/battle/test_battle_terminal_authority.gd", "layer": "unit", "domain": "battle", "kind": "scene_tree"},

@@ -28,14 +28,15 @@ func _render() -> void:
 	_clear_list(reserve_list)
 	var active_pieces: Array[PieceInstanceState] = run_manager.roster_service.active_pieces(run_manager.current_run)
 	var reserve_pieces: Array[PieceInstanceState] = run_manager.roster_service.reserve_pieces(run_manager.current_run)
-	for slot_index: int in range(ACTIVE_SLOT_COUNT):
+	# The King plus the battle line (one more slot with the War Banner).
+	for slot_index: int in range(maxi(ACTIVE_SLOT_COUNT, run_manager.current_run.max_active_pieces() + 1)):
 		var piece: PieceInstanceState = active_pieces[slot_index] if slot_index < active_pieces.size() else null
 		active_list.add_child(_create_piece_card(piece, true, slot_index))
 	for slot_index: int in range(RESERVE_SLOT_COUNT):
 		var piece: PieceInstanceState = reserve_pieces[slot_index] if slot_index < reserve_pieces.size() else null
 		reserve_list.add_child(_create_piece_card(piece, false, slot_index))
 	var active_non_king: int = maxi(0, active_pieces.size() - 1)
-	capacity_label.text = _text("ROSTER_CAPACITY") % [active_non_king, RunState.MAX_ACTIVE_NON_KING_PIECES, reserve_pieces.size(), RunState.MAX_RESERVE_PIECES]
+	capacity_label.text = _text("ROSTER_CAPACITY") % [active_non_king, run_manager.current_run.max_active_pieces(), reserve_pieces.size(), RunState.MAX_RESERVE_PIECES]
 	status_label.text = _text("ROSTER_INSTRUCTION")
 
 func _create_piece_card(piece: PieceInstanceState, is_active: bool, slot_index: int) -> Button:

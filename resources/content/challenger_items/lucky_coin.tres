@@ -10,5 +10,5 @@ display_name_key = &"ITEM_LUCKY_COIN_NAME"
 description_key = &"ITEM_LUCKY_COIN_DESC"
 icon = ExtResource("2_icon")
 usage_mode = 0
-effect_type = &"noop"
+effect_type = &"bonus_reward_gold"
 effect_priority = 0

@@ -40,6 +40,8 @@ var turn_limit: int = 0
 var _next_action_id: int = 1
 var _next_sequence: int = 1
 var _item_used_turn_key: int = -1
+## The side whose next move earns a bonus action (Second Wind, Glass Feather); -1 = none.
+var pending_bonus_color: int = -1
 
 func _init(
 	p_board: BoardState = null,
@@ -188,19 +190,50 @@ func _validate_item_action(action: UseItemAction) -> StringName:
 	if not can_use_item(action.slot_index, action.actor_color):
 		return &"item_unavailable"
 	var item: ChallengerItemDef = challenger_items[action.slot_index]
-	if item.effect_type == &"remove_piece":
-		if not board.in_bounds(action.target_position):
-			return &"item_target_required"
-		var target_piece: ChessPiece = board.get_piece(action.target_position)
-		if target_piece == null or target_piece.color == action.actor_color or target_piece.def.is_king:
-			return &"invalid_item_target"
+	match item_target(item):
+		"enemy":
+			if not board.in_bounds(action.target_position):
+				return &"item_target_required"
+			var enemy_piece: ChessPiece = board.get_piece(action.target_position)
+			if enemy_piece == null or enemy_piece.color == action.actor_color or enemy_piece.def.is_king:
+				return &"invalid_item_target"
+		"ally":
+			if not board.in_bounds(action.target_position):
+				return &"item_target_required"
+			var own_piece: ChessPiece = board.get_piece(action.target_position)
+			if own_piece == null or own_piece.color != action.actor_color:
+				return &"invalid_item_target"
 	return &""
+
+## Who an item is aimed at: "enemy", "ally" or "none".
+static func item_target(item: ChallengerItemDef) -> String:
+	if item == null:
+		return "none"
+	if item.effect_payload.has("target"):
+		return str(item.effect_payload["target"])
+	return "enemy" if item.effect_type == &"remove_piece" else "none"
+
+## Relic effects that apply when a battle begins.
+func apply_battle_start_relics() -> void:
+	for item: ChallengerItemDef in challenger_items:
+		if item == null or item.is_consumable():
+			continue
+		match item.effect_type:
+			&"shield_back_rank":
+				var back_rank: int = 0 if player_color == GameRules.PieceColor.WHITE else board.board_size - 1
+				for x: int in range(board.board_size):
+					var piece: ChessPiece = board.get_piece(Vector2i(x, back_rank))
+					if piece != null and piece.color == player_color:
+						piece.shield_until_serial = maxi(piece.shield_until_serial, board.turn_serial + 4)
+			&"first_move_bonus":
+				pending_bonus_color = player_color
 
 func _clone_runtime(staged_board: BoardState, staged_items: Array[ChallengerItemDef]) -> BattleCommandProcessor:
 	var copy: BattleCommandProcessor = BattleCommandProcessor.new(staged_board, staged_items, player_color, turn_limit)
 	copy._next_action_id = _next_action_id
 	copy._next_sequence = _next_sequence
 	copy._item_used_turn_key = _item_used_turn_key
+	copy.pending_bonus_color = pending_bonus_color
 	copy.event_history.assign(event_history)
 	copy.effect_queue = effect_queue.clone_runtime()
 	copy.status = status.clone_runtime()
@@ -270,8 +303,14 @@ func _execute_move(action: MoveAction, action_id: int) -> BattleCommandResult:
 		and acted_def != null
 		and prior_actions + 1 < MAX_ACTIONS_PER_TURN
 		and board.get_piece(landing) == moving_piece
-		and (acted_def.extra_move_always or (acted_def.extra_move_on_capture and bool(move_result.get("captured", false))))
+		and (
+			acted_def.extra_move_always
+			or (acted_def.extra_move_on_capture and bool(move_result.get("captured", false)))
+			or (pending_bonus_color == action.actor_color and prior_actions == 0)
+		)
 	)
+	if prior_actions == 0 and pending_bonus_color == action.actor_color:
+		pending_bonus_color = -1
 	if bonus_candidate:
 		# Terminal rules are evaluated while the captured side owns the response turn.
 		_try_last_stand(result.events, action_id)
@@ -407,6 +446,17 @@ func _apply_effect(effect: BattleEffect) -> Array[BattleEffect]:
 				var target: ChessPiece = board.get_piece(position)
 				if target != null and not target.def.is_king:
 					board.set_piece(position, null)
+		&"shield_piece", &"freeze_piece":
+			var position_value: Variant = effect.payload.get("position", effect.board_position)
+			var target: ChessPiece = board.get_piece(position_value) if position_value is Vector2i else null
+			if target != null:
+				# Lasts through the opponent's next turn.
+				if effect.effect_type == &"shield_piece":
+					target.shield_until_serial = maxi(target.shield_until_serial, board.turn_serial + 2)
+				else:
+					target.frozen_until_serial = maxi(target.frozen_until_serial, board.turn_serial + 2)
+		&"bonus_action":
+			pending_bonus_color = effect.owner_color
 	return generated
 
 func _refresh_legacy_terminal_flags(move_result: Dictionary) -> void:

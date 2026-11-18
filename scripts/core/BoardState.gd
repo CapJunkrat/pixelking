@@ -176,6 +176,8 @@ func is_piece_immobilized(pos: Vector2i) -> bool:
 	var piece: ChessPiece = get_piece(pos)
 	if piece == null or piece.def.immune_to_immobilization:
 		return false
+	if turn_serial < piece.frozen_until_serial:
+		return true
 	for offset: Vector2i in NEIGHBORS:
 		var ally: ChessPiece = get_piece(pos + offset)
 		if ally != null and ally.color == piece.color and ally.def.protects_adjacent_from_immobilization:

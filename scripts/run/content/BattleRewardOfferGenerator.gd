@@ -10,6 +10,8 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 	var minimum_gold: int = table.elite_gold_min if elite else table.normal_gold_min
 	var maximum_gold: int = table.elite_gold_max if elite else table.normal_gold_max
 	var gold_amount: int = rng.randi_range(&"reward_rng", minimum_gold, maximum_gold)
+	if &"lucky_coin" in run_state.challenger_slots:
+		gold_amount += gold_amount / 2
 	var options: Array[Dictionary] = [RunChoiceBuilder.option("gold", "%d Gold" % gold_amount, "gold", {"amount": gold_amount})]
 	var eligible_recipes: Array[FusionRecipeDef] = fusion_service.eligible_recipes(run_state)
 	if not eligible_recipes.is_empty():
@@ -22,7 +24,8 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 		and rng.randi_range(&"reward_rng", 0, table.consumable_roll_sides - 1) == table.consumable_roll_hit
 	)
 	if item_roll_matches:
-		var item_id: String = String(table.bonus_consumable_id)
+		var consumables: Array[StringName] = RunContentDatabase.consumable_ids()
+		var item_id: String = String(consumables[rng.pick_index(&"reward_rng", consumables.size())]) if not consumables.is_empty() else String(table.bonus_consumable_id)
 		options.append(RunChoiceBuilder.option("item_%s" % item_id, reward_service.definition_label(item_id), "item", {"item_id": item_id}))
 	else:
 		options.append(RunChoiceBuilder.option("piece_%s" % piece_id, "Recruit %s" % reward_service.definition_label(piece_id), "piece", {"piece_def_id": piece_id}))

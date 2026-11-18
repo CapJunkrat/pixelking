@@ -73,12 +73,14 @@ func _on_item_requested(slot_index: int) -> void:
 	if not item.is_consumable():
 		battle_log.append_system_message("%s is a passive relic." % Localization.text(String(item.display_name_key)))
 		return
-	if item.effect_type == &"remove_piece":
+	var target: String = BattleCommandProcessor.item_target(item)
+	if target != "none":
 		pending_item_slot = slot_index
 		board_view.begin_item_targeting()
-		battle_log.append_system_message("Select an enemy non-King piece for %s." % Localization.text(String(item.display_name_key)))
+		battle_log.append_system_message(Localization.text("ITEM_TARGET_ALLY" if target == "ally" else "ITEM_TARGET_ENEMY") % Localization.text(String(item.display_name_key)))
 		return
-	GameState.try_use_item(slot_index)
+	if GameState.try_use_item(slot_index) and item.effect_type == &"bonus_action":
+		battle_log.append_system_message(Localization.text("ITEM_SECOND_WIND_READY"))
 	_refresh_board()
 	_refresh_challenger_slots()
 

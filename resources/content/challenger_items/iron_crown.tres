@@ -10,5 +10,5 @@ display_name_key = &"ITEM_IRON_CROWN_NAME"
 description_key = &"ITEM_IRON_CROWN_DESC"
 icon = ExtResource("2_icon")
 usage_mode = 0
-effect_type = &"noop"
+effect_type = &"shield_back_rank"
 effect_priority = 0

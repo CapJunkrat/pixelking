@@ -17,6 +17,8 @@ var shell_left: int = 0
 var revives_left: int = 0
 ## Cannot be captured while BoardState.turn_serial is below this value.
 var shield_until_serial: int = 0
+## Cannot move while BoardState.turn_serial is below this value (Freeze Charm).
+var frozen_until_serial: int = 0
 ## Square where the piece started this battle (revival point).
 var origin: Vector2i = Vector2i(-1, -1)
 ## Once-per-battle abilities already spent, by ability id.
@@ -57,6 +59,7 @@ func clone_for_simulation() -> ChessPiece:
 	copy.shell_left = shell_left
 	copy.revives_left = revives_left
 	copy.shield_until_serial = shield_until_serial
+	copy.frozen_until_serial = frozen_until_serial
 	copy.origin = origin
 	copy.used_abilities = used_abilities.duplicate()
 	return copy

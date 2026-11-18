@@ -366,7 +366,7 @@ func _render_lineup() -> void:
 		bench_row.add_child(_slot(run.get_piece_state(instance_id), false))
 	for _i: int in range(bench_row.get_child_count(), LINEUP_SLOTS):
 		bench_row.add_child(_slot(null, false))
-	count_label.text = "%d / %d" % [active_count, RunState.MAX_ACTIVE_NON_KING_PIECES]
+	count_label.text = "%d / %d" % [active_count, run_manager.current_run.max_active_pieces()]
 
 func _slot(piece: PieceInstanceState, active: bool) -> Button:
 	var button: Button = Button.new()
@@ -412,7 +412,7 @@ func _on_square_pressed(square: Vector2i) -> void:
 			return
 
 func _toggle_piece(instance_id: int, to_active: bool) -> void:
-	if to_active and _active_non_king() >= RunState.MAX_ACTIVE_NON_KING_PIECES:
+	if to_active and _active_non_king() >= run_manager.current_run.max_active_pieces():
 		_show_status(_text("PREBATTLE_LINEUP_FULL"))
 		return
 	if not to_active and run_manager.current_run.reserve_piece_ids.size() >= RunState.MAX_RESERVE_PIECES:

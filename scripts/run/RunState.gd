@@ -72,21 +72,25 @@ func allocate_piece(piece_def_id: String, make_king: bool = false) -> PieceInsta
 		return null
 	if make_king and _king_count() > 0:
 		return null
-	if not make_king and reserve_piece_ids.size() >= MAX_RESERVE_PIECES and _active_non_king_count() >= MAX_ACTIVE_NON_KING_PIECES:
+	if not make_king and reserve_piece_ids.size() >= MAX_RESERVE_PIECES and _active_non_king_count() >= max_active_pieces():
 		return null
 	var piece: PieceInstanceState = PieceInstanceState.new(next_piece_instance_id, StringName(piece_def_id), make_king)
 	next_piece_instance_id += 1
 	player_roster.append(piece)
 	# New pieces join the battle line while it has room, then wait in reserve.
-	if make_king or _active_non_king_count() < MAX_ACTIVE_NON_KING_PIECES:
+	if make_king or _active_non_king_count() < max_active_pieces():
 		active_piece_ids.append(piece.instance_id)
 	else:
 		reserve_piece_ids.append(piece.instance_id)
 	return piece
 
+## Pieces the battle line holds besides the King (the War Banner adds one).
+func max_active_pieces() -> int:
+	return MAX_ACTIVE_NON_KING_PIECES + (1 if &"war_banner" in challenger_slots else 0)
+
 ## Whether a new non-King piece fits, on the battle line or in reserve.
 func has_room_for_piece() -> bool:
-	return _active_non_king_count() < MAX_ACTIVE_NON_KING_PIECES or reserve_piece_ids.size() < MAX_RESERVE_PIECES
+	return _active_non_king_count() < max_active_pieces() or reserve_piece_ids.size() < MAX_RESERVE_PIECES
 
 func get_piece_state(instance_id: int) -> PieceInstanceState:
 	for piece: PieceInstanceState in player_roster:
@@ -98,7 +102,7 @@ func move_piece_to_active(instance_id: int) -> bool:
 	var piece: PieceInstanceState = get_piece_state(instance_id)
 	if piece == null or piece.is_king or instance_id in active_piece_ids:
 		return false
-	if _active_non_king_count() >= MAX_ACTIVE_NON_KING_PIECES:
+	if _active_non_king_count() >= max_active_pieces():
 		return false
 	reserve_piece_ids.erase(instance_id)
 	active_piece_ids.append(instance_id)
@@ -132,7 +136,7 @@ func is_valid() -> bool:
 			return false
 	if not _pending_choice_is_valid() or not _map_progress_is_valid():
 		return false
-	if _king_count() != 1 or _active_non_king_count() > MAX_ACTIVE_NON_KING_PIECES or reserve_piece_ids.size() > MAX_RESERVE_PIECES:
+	if _king_count() != 1 or _active_non_king_count() > max_active_pieces() or reserve_piece_ids.size() > MAX_RESERVE_PIECES:
 		return false
 	var roster_ids: Dictionary = {}
 	var max_id: int = 0
