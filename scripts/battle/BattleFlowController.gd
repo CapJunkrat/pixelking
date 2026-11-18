@@ -75,8 +75,17 @@ func _show_result(player_won: bool, draw: bool) -> void:
 	phase = Phase.FINISHED
 	turn_coordinator.finish()
 	var manager: AppRunManager = get_node_or_null("/root/RunManager") as AppRunManager
+	var processor: BattleCommandProcessor = game_state.get("command_processor") as BattleCommandProcessor
+	var player_color: int = int(game_state.get("player_color"))
+	var summary: BattleResultSummary = BattleResultSummary.from_history(processor.event_history, player_color) if processor != null else null
 	var run_result: BattleRunResult = run_result_coordinator.integrate(manager, player_won and not draw)
-	result_presenter.present(player_won, draw, run_result)
+	result_presenter.present(player_won, draw, run_result, summary, _piece_texture.bind(player_color))
+
+func _piece_texture(piece_id: String, color: int) -> Texture2D:
+	var skins: Node = get_node_or_null("/root/PieceSkinManager")
+	if skins == null:
+		return null
+	return skins.call("piece_texture", &"white" if color == GameRules.PieceColor.WHITE else &"black", StringName(piece_id)) as Texture2D
 
 func _bind_result_panel() -> void:
 	result_panel = battle.get_node("ResultOverlay") as BattleResultPanel
