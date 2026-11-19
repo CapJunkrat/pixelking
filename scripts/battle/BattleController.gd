@@ -29,6 +29,10 @@ var piece_info: PieceInfoPanel = null
 
 func _ready() -> void:
 	battle_hud.settings_requested.connect(settings_overlay.open)
+	settings_overlay.copy_code_requested.connect(copy_battle_code)
+	var result_overlay: BattleResultPanel = get_node_or_null("ResultOverlay") as BattleResultPanel
+	if result_overlay != null:
+		result_overlay.copy_code_requested.connect(copy_battle_code)
 	battle_hud.debug_victory_requested.connect(battle_flow.force_debug_victory)
 	battle_hud.end_turn_requested.connect(_on_end_turn_requested)
 	challenger_tray.item_requested.connect(_on_item_requested)
@@ -46,6 +50,24 @@ func _ready() -> void:
 	_refresh_board()
 	_refresh_challenger_slots()
 	_play_intro()
+
+## Copies the battle code (line-up, every move, a snapshot of now and anything the screen
+## shows differently from the rules) to the clipboard; the button confirms for a moment.
+func copy_battle_code(button: Button = null) -> String:
+	var code: String = GameState.battle_code(board_view.view_report())
+	if code.is_empty():
+		return ""
+	DisplayServer.clipboard_set(code)
+	if button != null and is_instance_valid(button):
+		if not button.has_meta("label"):
+			button.set_meta("label", button.text)
+		var original: String = str(button.get_meta("label"))
+		var steps: int = GameState.battle_record.actions.size()
+		button.text = Localization.text("BATTLE_CODE_COPIED") % steps
+		get_tree().create_timer(2.0).timeout.connect(func() -> void:
+			if is_instance_valid(button):
+				button.text = original)
+	return code
 
 const BANNER_FONT := preload("res://assets/fonts/battle/PixelMplus10-Bold.ttf")
 

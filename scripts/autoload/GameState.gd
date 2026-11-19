@@ -12,6 +12,10 @@ var entry_board_rect: Rect2 = Rect2()
 var entry_snapshot: Texture2D = null
 var command_processor: BattleCommandProcessor = null
 var last_command_result: BattleCommandResult = null
+## The current run battle written down move by move (null outside run battles); the
+## battle menu copies it as a battle code so a bug can be replayed exactly.
+var battle_record: BattleRecord = null
+var _staged_target: Vector2i = Vector2i(-1, -1)
 
 ## Persistent and consumable objects share the same challenger inventory.
 var challenger_items: Array[ChallengerItemDef] = []
@@ -44,6 +48,7 @@ func start_new_game() -> void:
 	challenger_items.clear()
 	command_processor = BattleCommandProcessor.new(board, challenger_items, player_color)
 	last_command_result = null
+	battle_record = null
 
 func start_run_battle(run_state: RunState) -> bool:
 	if run_state == null or run_state.phase != RunPhase.BATTLE_ACTIVE or run_state.deployment_state == null:
@@ -80,12 +85,36 @@ func start_run_battle(run_state: RunState) -> bool:
 	var encounter: EncounterDef = EncounterDefDatabase.for_current(run_state)
 	if encounter != null:
 		turn_limit = encounter.turn_limit
-	board = run_board
-	command_processor = BattleCommandProcessor.new(board, challenger_items, player_color, turn_limit)
-	command_processor.shield_kings_for_opening()
-	command_processor.apply_battle_start_relics()
+	var node: MapNodeState = run_state.map_state.get_node(run_state.current_node_id) if run_state.map_state != null else null
+	var record: BattleRecord = BattleRecord.from_setup(run_board, challenger_items, player_color, turn_limit, {
+		"seed": run_state.run_seed,
+		"act": run_state.act_index + 1,
+		"node": String(node.node_type_id) if node != null else "?",
+		"enc": String(encounter.id) if encounter != null else "?",
+	})
+	return start_recorded_battle(record)
+
+## Sets up a battle from a record (a run battle, or a pasted battle code in debug mode):
+## the very same setup the replay tool uses.
+func start_recorded_battle(record: BattleRecord) -> bool:
+	var built: Dictionary = record.build() if record != null else {"error": "no record"}
+	if built.has("error"):
+		push_warning("Battle setup failed: %s" % built["error"])
+		return false
+	board = built["board"]
+	command_processor = built["processor"]
+	challenger_items = command_processor.challenger_items
+	player_color = record.player_color
+	battle_record = record
 	last_command_result = null
 	return true
+
+## The battle so far as a code to paste: line-up, every move, and a snapshot of now.
+## `view_issues` are squares the screen shows differently from the rules.
+func battle_code(view_issues: Array[String] = []) -> String:
+	if battle_record == null:
+		return ""
+	return battle_record.encode(board, view_issues)
 
 ## 尝试走一步棋，返回 true 表示成功。
 ## UI 与 AI 都通过此入口执行合法性校验、更新状态并广播事件。
@@ -95,7 +124,10 @@ func execute_battle_action(action: BattleAction) -> BattleCommandResult:
 		return last_command_result
 	if command_processor == null or command_processor.board != board:
 		command_processor = BattleCommandProcessor.new(board, challenger_items, player_color)
+	var target_was_occupied: bool = action is MoveAction and board.get_piece((action as MoveAction).to) != null
 	last_command_result = command_processor.execute(action)
+	if last_command_result.success and battle_record != null:
+		battle_record.add_action(action, board, target_was_occupied)
 	_publish_command_result(last_command_result)
 	return last_command_result
 
@@ -111,6 +143,7 @@ func try_use_item(slot_index: int, target_position: Vector2i = Vector2i(-1, -1))
 		last_command_result = BattleCommandResult.rejected(&"missing_command_processor")
 		_publish_command_result(last_command_result)
 		return false
+	_staged_target = target_position
 	var plan: BattleItemUsePlan = command_processor.stage_item_use(action)
 	if plan == null or not plan.is_valid():
 		return execute_battle_action(action).success
@@ -136,6 +169,8 @@ func _commit_staged_item_plan(plan: BattleItemUsePlan) -> void:
 	challenger_items = plan.staged_items
 	command_processor = plan.staged_processor
 	last_command_result = plan.result
+	if battle_record != null:
+		battle_record.add_action(UseItemAction.new(plan.slot_index, player_color, _staged_target), board)
 
 func _publish_command_result(result: BattleCommandResult) -> void:
 	if result != null:
@@ -151,6 +186,8 @@ func evaluate_battle_terminal_state() -> bool:
 	if result == null:
 		return false
 	last_command_result = result
+	if battle_record != null:
+		battle_record.add_line("=", board)
 	_publish_command_result(result)
 	return result.success
 
@@ -159,6 +196,8 @@ func force_debug_victory() -> bool:
 		return false
 	var result: BattleCommandResult = command_processor.force_finish(player_color, false, &"debug_victory")
 	last_command_result = result
+	if result.success and battle_record != null:
+		battle_record.add_line("win", board)
 	_publish_command_result(result)
 	return result.success
 

@@ -66,6 +66,7 @@ func _build() -> void:
 	layout.add_child(_vignette)
 	layout.move_child(_vignette, 2)
 	title_label.add_theme_color_override("font_color", GOLD_SOFT)
+	title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status_label.add_theme_color_override("font_color", MUTED)
 	status_label.add_theme_font_size_override("font_size", 13)
 	var scroll: ScrollContainer = ScrollContainer.new()
@@ -159,6 +160,8 @@ func _card(option: Dictionary) -> Button:
 	title = title.split(" — ")[0]
 	# The card's own text stays for accessibility and tests; the visible copy is the row below.
 	card.text = title
+	# Clipped, so a long name never widens the page (the row below wraps it instead).
+	card.clip_text = true
 	for key: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color"]:
 		card.add_theme_color_override(key, Color(0, 0, 0, 0))
 	var name_label: Label = _label(title, 14, INK if enabled else MUTED)

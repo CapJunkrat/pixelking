@@ -11,6 +11,8 @@ signal roster_changed(run_state: RunState)
 signal deployment_changed(run_state: RunState)
 signal run_phase_changed(previous_phase: StringName, current_phase: StringName)
 signal run_saved
+## Achievements unlocked just now (ids from AchievementCatalog), for the toast.
+signal achievements_unlocked(achievement_ids: Array[String])
 
 const DEFAULT_SAVE_PATH := "user://active_run.save"
 
@@ -31,6 +33,10 @@ var _initialized: bool = false
 func _ready() -> void:
 	_initialize_services()
 	load_active_run()
+	var toast: AchievementToast = AchievementToast.new()
+	toast.name = "AchievementToast"
+	add_child(toast)
+	achievements_unlocked.connect(toast.announce)
 
 func configure_save_path(path: String) -> void:
 	save_path = path
@@ -55,7 +61,11 @@ func create_run(seed_value: int, mode: String = RunState.MODE_STANDARD, allow_ov
 	new_run.rng_stream_states = new_rng.snapshot_states()
 	if opening_draft_service.ensure_pending_choice(new_run, new_rng) != OK:
 		return false
-	return _commit_transaction(new_run, new_rng) == OK
+	if _commit_transaction(new_run, new_rng) != OK:
+		return false
+	meta_progress_service.record({}, {"total_runs": 1})
+	_unlock_achievements()
+	return true
 
 func ensure_opening_draft_pending() -> Error:
 	_ensure_services()
@@ -516,19 +526,61 @@ func apply_battle_outcome(player_won: bool, growth: Dictionary = {}) -> Error:
 	var battle_rng: RunRngService = transaction["rng"] as RunRngService
 	if player_won:
 		_keep_battle_growth(battle_run, growth if not growth.is_empty() else _battle_growth())
+	var kills: int = _battle_kills()
+	battle_run.run_statistics["kills"] = int(battle_run.run_statistics.get("kills", 0)) + kills
 	var error: Error = content_service.apply_battle_victory(battle_run, battle_rng, map_progress_service, deployment_service) if player_won else content_service.apply_battle_defeat(battle_run, battle_rng, deployment_service)
 	if error != OK:
 		return error
 	error = flow_state_machine.transition_to_derived_phase(battle_run)
 	if error != OK:
 		return error
+	var small_army: bool = battle_run.active_piece_ids.size() <= AchievementCatalog.SMALL_ARMY
 	error = _commit_transaction(battle_run, battle_rng)
-	# Beating the last Boss opens endless mode for good, at once (not only when a
-	# summary screen is closed).
-	if error == OK and bool(current_run.run_statistics.get("endless_unlocked_now", false)):
-		current_run.run_statistics.erase("endless_unlocked_now")
-		meta_progress_service.unlock_endless()
+	if error == OK:
+		_record_battle_stats(kills, small_army)
 	return error
+
+## Lifetime statistics after a battle: enemies defeated, and for a Boss how far the
+## journey has come (and whether it got there without a retry).
+func _record_battle_stats(kills: int, small_army: bool) -> void:
+	var statistics: Dictionary = current_run.run_statistics
+	var best: Dictionary = {"best_run_kills": int(statistics.get("kills", 0))}
+	var add: Dictionary = {"total_kills": kills}
+	var boss_id: String = str(statistics.get("boss_beaten", ""))
+	if not boss_id.is_empty():
+		var acts: int = int(statistics.get("acts_cleared", 0))
+		best["best_acts"] = acts
+		if int(statistics.get("retries_used", 0)) == 0:
+			best["flawless_acts"] = acts
+		if small_army:
+			add["small_boss_wins"] = 1
+		meta_progress_service.record_boss(boss_id)
+		statistics.erase("boss_beaten")
+	meta_progress_service.record(best, add)
+	_unlock_achievements()
+
+## Enemy pieces defeated in the battle just played.
+func _battle_kills() -> int:
+	var game_state: Node = get_node_or_null("/root/GameState")
+	var processor: BattleCommandProcessor = game_state.get("command_processor") as BattleCommandProcessor if game_state != null else null
+	if processor == null:
+		return 0
+	return BattleResultSummary.from_history(processor.event_history, int(game_state.get("player_color"))).captured
+
+## Unlocks what the statistics now reach and announces it.
+func _unlock_achievements() -> Array[String]:
+	var fresh: Array[String] = meta_progress_service.unlock_reached_achievements()
+	if not fresh.is_empty():
+		achievements_unlocked.emit(fresh)
+	return fresh
+
+func lifetime_stats() -> Dictionary:
+	_ensure_services()
+	return meta_progress_service.stats()
+
+func unlocked_achievement_ids() -> Array[String]:
+	_ensure_services()
+	return meta_progress_service.unlocked_achievement_ids()
 
 ## Growth the pieces earned in the battle just played (BoardState.growth).
 func _battle_growth() -> Dictionary:
@@ -544,10 +596,6 @@ func _keep_battle_growth(run_state: RunState, growth: Dictionary) -> void:
 		if piece != null and record is Dictionary:
 			piece.absorb_growth(record as Dictionary)
 
-func endless_unlocked() -> bool:
-	_ensure_services()
-	return meta_progress_service.endless_unlocked()
-
 func discovered_piece_ids() -> Array[String]:
 	_ensure_services()
 	return meta_progress_service.discovered_piece_ids()
@@ -560,17 +608,7 @@ func finish_run_summary() -> Error:
 	_ensure_services()
 	if current_run == null or not _phase_is([RunPhase.RUN_SUMMARY]) or str(current_run.pending_choice.get("type", "")) != "run_summary":
 		return ERR_UNAVAILABLE
-	if bool(current_run.run_statistics.get("run_won", false)):
-		var unlock_error: Error = meta_progress_service.unlock_endless()
-		if unlock_error != OK:
-			return unlock_error
-	if current_run.mode == RunState.MODE_ENDLESS:
-		meta_progress_service.record_endless_acts(int(current_run.run_statistics.get("acts_cleared", 0)))
 	return abandon_run()
-
-func best_endless_acts() -> int:
-	_ensure_services()
-	return meta_progress_service.best_endless_acts()
 
 func resume_scene_path() -> String:
 	if current_run == null:
@@ -669,6 +707,8 @@ func _commit_transaction(new_run: RunState, new_rng: RunRngService, before_publi
 	var codex_error: Error = meta_progress_service.record_discovered_piece_ids(_visible_piece_ids(current_run))
 	if codex_error != OK:
 		push_warning("Unable to save codex progress: %s" % error_string(codex_error))
+	meta_progress_service.record({"best_run_fusions": current_run.owned_recipe_history.size()})
+	_unlock_achievements()
 	run_saved.emit()
 	active_run_changed.emit(current_run)
 	if previous_phase != current_run.phase:

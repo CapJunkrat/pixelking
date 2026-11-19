@@ -13,6 +13,8 @@ func _run() -> void:
 	root.add_child(manager)
 	manager.configure_save_path(save_path)
 	manager.meta_progress_service.save_path = meta_path
+	var unlocked: Array[String] = []
+	manager.achievements_unlocked.connect(func(ids: Array[String]) -> void: unlocked.append_array(ids))
 	_expect(manager.create_run(246813579, RunState.MODE_STANDARD, true), "complete flow creates a run")
 	for _round_index: int in range(3):
 		var candidates: Array = manager.current_run.pending_choice.get("candidate_piece_def_ids", []) as Array
@@ -20,7 +22,7 @@ func _run() -> void:
 	_expect(manager.ensure_run_map() == OK, "route map is generated")
 	var guard: int = 0
 	var acts_seen: Array[int] = []
-	var unlock_title_seen: bool = false
+	var act_three_seen: bool = false
 	while manager.current_run.act_index < RunState.ACT_COUNT and guard < 80:
 		guard += 1
 		# The map screen does this on every visit; after a Boss it starts the next act.
@@ -40,19 +42,21 @@ func _run() -> void:
 			_expect(manager.confirm_deployment() == OK, "battle deployment is confirmed")
 			_expect(manager.start_current_battle() == OK, "confirmed battle starts")
 			_expect(manager.apply_battle_outcome(true) == OK, "battle victory commits")
-			if str(manager.current_run.pending_choice.get("title_key", "")) == "ENDLESS_UNLOCKED_TITLE":
-				unlock_title_seen = true
-				_expect(manager.endless_unlocked(), "beating the last Boss unlocks endless mode at once")
+			if str(manager.current_run.pending_choice.get("description_key", "")) == "ACT_3_CLEARED_DESC":
+				act_three_seen = true
+				_expect(manager.current_run.pending_choice.get("title_key", "") == "ACT_CLEARED_TITLE", "the third Boss is an ordinary act-cleared reward")
+				_expect("act_3" in unlocked, "beating the third Boss unlocks its achievement at once")
 		else:
 			_expect(manager.begin_current_run_interaction() == OK, "non-battle interaction is staged")
 		_resolve_pending(manager)
 	_expect(acts_seen.slice(0, 3) == ([0, 1, 2] as Array[int]), "the run goes through three acts, each on its own map")
 	_expect(int(manager.current_run.run_statistics.get("acts_cleared", 0)) == 3, "all three acts are cleared")
-	_expect(unlock_title_seen, "the third Boss's reward announces that endless mode is unlocked")
-	_expect(bool(manager.current_run.run_statistics.get("run_won", false)), "the run records the won journey")
-	_expect(manager.current_run.mode == RunState.MODE_ENDLESS, "the journey continues in endless mode")
+	_expect(act_three_seen, "the third Boss's reward says the journey goes on")
 	_expect(manager.current_run.act_index == RunState.ACT_COUNT and manager.current_run.map_state != null, "Act 4 begins on a new map with the same army")
-	_expect(manager.endless_unlocked(), "standard victory unlocks endless mode")
+	var stats: Dictionary = manager.lifetime_stats()
+	_expect(int(stats.get("best_acts", 0)) == 3 and int(stats.get("total_runs", 0)) == 1, "lifetime records follow the journey (%s)" % [stats])
+	_expect(int(stats.get("bosses", 0)) == 3, "three different Bosses are on record")
+	_expect("first_steps" in unlocked and "act_3" in unlocked, "journey achievements unlock along the way")
 	manager.abandon_run()
 	manager.queue_free()
 	_cleanup()

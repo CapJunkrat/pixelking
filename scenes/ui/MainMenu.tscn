@@ -585,6 +585,7 @@ theme_override_constants/outline_size = 3
 theme_override_font_sizes/font_size = 24
 text = "Start a New Journey?"
 horizontal_alignment = 1
+autowrap_mode = 3
 
 [node name="Divider" type="ColorRect" parent="OverwriteConfirmation/Center/Panel/Content" unique_id=21250259]
 custom_minimum_size = Vector2(0, 2)
@@ -608,6 +609,7 @@ theme_override_colors/font_color = Color(1, 0.5, 0.37, 1)
 theme_override_font_sizes/font_size = 12
 text = "The previous journey cannot be recovered."
 horizontal_alignment = 1
+autowrap_mode = 3
 
 [node name="Actions" type="HBoxContainer" parent="OverwriteConfirmation/Center/Panel/Content" unique_id=499341313]
 layout_mode = 2

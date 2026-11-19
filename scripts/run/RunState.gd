@@ -4,7 +4,8 @@ extends RefCounted
 const CURRENT_RUN_VERSION := 4
 const LEGACY_RUN_VERSION := 3
 const MODE_STANDARD := "standard"
-const MODE_ENDLESS := "endless"
+## Saves from when endless mode was separate; they load as ordinary journeys.
+const LEGACY_MODE_ENDLESS := "endless"
 const MAX_ACTIVE_NON_KING_PIECES := 5
 const MAX_RESERVE_PIECES := 5
 ## Relic and item slots. The War Banner only widens the battle line, never this.
@@ -15,8 +16,8 @@ const LEGACY_MAX_CHALLENGER_SLOTS := 6
 ## Each run gets one free retry. A defeat with a retry left sends the player back to
 ## redeploy; a defeat with none left ends the run.
 const MAX_RETRIES := 1
-## A standard run is three acts, each its own map ending in a Boss. Endless runs go on
-## after the third act with ever stronger enemies.
+## The three acts with their own Bosses, each its own map. A journey has no last act:
+## after the third it goes on with ever stronger enemies until the army falls.
 const ACT_COUNT := 3
 const FusionPlanType = preload("res://scripts/run/FusionPlan.gd")
 const RunPhaseType = preload("res://scripts/run/RunPhase.gd")
@@ -49,15 +50,11 @@ var next_piece_instance_id: int = 1
 ## Squares the player chose by hand, kept for every later battle of this Run:
 ## str(instance_id) -> {"x", "y"}. Pieces without one are placed automatically.
 var preferred_positions: Dictionary = {}
-## The act being played, from 0 (Act 1). Endless runs count past ACT_COUNT - 1.
+## The act being played, from 0 (Act 1); goes on past ACT_COUNT - 1.
 var act_index: int = 0
 
-## Whether the current act is the run's last one (never in endless mode).
-func is_final_act() -> bool:
-	return mode != MODE_ENDLESS and act_index >= ACT_COUNT - 1
-
 ## How far through the whole run the current battle is: 0 at the first layer of Act 1,
-## 1 at the end of Act 3, and above 1 in endless acts beyond it.
+## 1 at the end of Act 3, and above 1 in the acts beyond it.
 func run_stage() -> float:
 	var local: float = 0.0
 	if map_state != null:
@@ -66,11 +63,11 @@ func run_stage() -> float:
 			local = clampf(float(node.layer_index) / float(maxi(1, map_state.total_layers - 1)), 0.0, 1.0)
 	return (float(act_index) + local) / float(ACT_COUNT)
 
-func initialize_new(seed_value: int, mode_value: String = MODE_STANDARD) -> void:
+func initialize_new(seed_value: int, _mode_value: String = MODE_STANDARD) -> void:
 	run_version = CURRENT_RUN_VERSION
 	phase = RunPhaseType.OPENING_DRAFT
 	was_migrated_from_legacy = false
-	mode = mode_value
+	mode = MODE_STANDARD
 	run_seed = seed_value
 	rng_stream_states.clear()
 	current_map_id = &""
@@ -172,7 +169,7 @@ func restore_retries() -> void:
 	retries_left = MAX_RETRIES
 
 func is_valid() -> bool:
-	if run_version != CURRENT_RUN_VERSION or not RunPhaseType.is_valid(phase) or mode not in [MODE_STANDARD, MODE_ENDLESS]:
+	if run_version != CURRENT_RUN_VERSION or not RunPhaseType.is_valid(phase) or mode != MODE_STANDARD:
 		return false
 	if failed_battles < 0 or retries_left < 0 or retries_left > MAX_RETRIES:
 		return false
@@ -249,12 +246,12 @@ func load_from_dictionary(data: Dictionary, normalize_active_battle: bool = true
 	if loaded_version not in [LEGACY_RUN_VERSION, CURRENT_RUN_VERSION]:
 		return false
 	var loaded_mode: String = str(data.get("mode", ""))
-	if loaded_mode not in [MODE_STANDARD, MODE_ENDLESS]:
+	if loaded_mode not in [MODE_STANDARD, LEGACY_MODE_ENDLESS]:
 		return false
 	run_version = CURRENT_RUN_VERSION
 	phase = &""
 	was_migrated_from_legacy = loaded_version == LEGACY_RUN_VERSION
-	mode = loaded_mode
+	mode = MODE_STANDARD
 	run_seed = int(data.get("seed", 0))
 	rng_stream_states = _dictionary_value(data, "rng_stream_states")
 	current_map_id = StringName(str(data.get("current_map_id", "")))

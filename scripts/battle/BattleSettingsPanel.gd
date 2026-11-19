@@ -1,6 +1,9 @@
 class_name BattleSettingsPanel
 extends ColorRect
 
+## Asks the battle to copy its battle code (line-up and moves) to the clipboard.
+signal copy_code_requested(button: Button)
+
 @onready var music_slider: HSlider = $Center/Panel/Margin/Content/MusicVolume
 @onready var sfx_slider: HSlider = $Center/Panel/Margin/Content/SFXVolume
 @onready var short_animations_toggle: CheckButton = $Center/Panel/Margin/Content/ShortAnimations
@@ -8,8 +11,17 @@ extends ColorRect
 @onready var settings_manager: AppSettingsManager = get_node("/root/SettingsManager") as AppSettingsManager
 @onready var audio_manager: AppAudioManager = get_node("/root/AudioManager") as AppAudioManager
 
+var copy_code_button: Button = null
+
 func _ready() -> void:
 	$Center/Panel/Margin/Content/ResumeButton.pressed.connect(close)
+	# Copies everything needed to replay this battle, for bug reports.
+	var resume: Button = $Center/Panel/Margin/Content/ResumeButton
+	copy_code_button = resume.duplicate() as Button
+	copy_code_button.name = "CopyCodeButton"
+	resume.get_parent().add_child(copy_code_button)
+	resume.get_parent().move_child(copy_code_button, resume.get_index())
+	copy_code_button.pressed.connect(func() -> void: copy_code_requested.emit(copy_code_button))
 	$Center/Panel/Margin/Content/MainMenuButton.pressed.connect(_request_main_menu)
 	leave_confirmation.confirmed.connect(_return_to_menu)
 	music_slider.value_changed.connect(_on_music_changed)
@@ -67,6 +79,7 @@ func _apply_locale() -> void:
 	$Center/Panel/Margin/Content/SfxLabel.text = _text("SETTINGS_SOUND")
 	short_animations_toggle.text = _text("SETTINGS_SHORT_ANIMATIONS")
 	$Center/Panel/Margin/Content/ResumeButton.text = _text("BATTLE_SETTINGS_RESUME")
+	copy_code_button.text = _text("BATTLE_COPY_CODE")
 	$Center/Panel/Margin/Content/MainMenuButton.text = _text("BATTLE_SETTINGS_MAIN_MENU")
 	leave_confirmation.title = _text("BATTLE_SETTINGS_MAIN_MENU")
 	leave_confirmation.dialog_text = _text("BATTLE_SETTINGS_CONFIRM")

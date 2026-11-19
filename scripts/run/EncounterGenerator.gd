@@ -13,10 +13,10 @@ const BACK_RANK := 7
 const FRONT_RANK := 6
 const THIRD_RANK := 5
 ## Strength (sum of piece values, King excluded) at the start of Act 1 and the end of
-## Act 3. Endless acts past that add ENDLESS_STEP per act.
+## Act 3. Acts past that add LATE_ACT_STEP per act.
 const NORMAL_BUDGET := Vector2(7.0, 24.0)
 const ELITE_BUDGET := Vector2(14.0, 30.0)
-const ENDLESS_STEP := 5.0
+const LATE_ACT_STEP := 5.0
 ## Early battles never field more than this multiple of the player's own strength.
 const EARLY_CAP_MULTIPLIER := 1.0
 const EARLY_LAYERS := 2
@@ -31,7 +31,7 @@ const POOLS := [
 ## Legendary pieces that join enemy armies from Act 3 on.
 const LEGENDARY_ENEMIES: Array[String] = ["archmage", "stone_giant"]
 ## Percent per rarity [common, rare, epic, legendary] of each enemy pick, by act
-## (Act 1, 2, 3; endless acts use the last row). Later acts field rarer pieces rather
+## (Act 1, 2, 3; later acts use the last row). Later acts field rarer pieces rather
 ## than more pawns.
 const ACT_RARITY_ODDS: Array = [
 	[60, 30, 10, 0],
@@ -52,12 +52,12 @@ static func budget(tier: StringName, layer: int, total_layers: int, player_stren
 	return budget_at(tier, progress(layer, total_layers), layer < EARLY_LAYERS, player_strength)
 
 ## The budget `stage` of the way through the run (RunState.run_stage: 0 to 1 over the
-## three acts, more in endless). `early` caps it by the player's own strength.
+## three acts, more after that). `early` caps it by the player's own strength.
 static func budget_at(tier: StringName, stage: float, early: bool, player_strength: int) -> int:
 	var curve: Vector2 = ELITE_BUDGET if tier == &"elite" else NORMAL_BUDGET
 	var value: float = lerpf(curve.x, curve.y, clampf(stage, 0.0, 1.0))
 	if stage > 1.0:
-		value += (stage - 1.0) * float(RunState.ACT_COUNT) * ENDLESS_STEP
+		value += (stage - 1.0) * float(RunState.ACT_COUNT) * LATE_ACT_STEP
 	if early and player_strength > 0:
 		value = minf(value, maxf(6.0, player_strength * EARLY_CAP_MULTIPLIER))
 	return roundi(value)
@@ -195,7 +195,7 @@ static func _place(army: Array[String], king_file: int, guards: int) -> Array[Di
 		result.append(_placement(id, square, index + 1))
 	return result
 
-## Endless Bosses: adds pieces worth about `extra` to a fixed Boss army, on free squares
+## Bosses past Act 3: add pieces worth about `extra` to a fixed Boss army, on free squares
 ## of the enemy corner (the most valuable first, while room lasts).
 static func reinforce(placements: Array[Dictionary], extra: int, seed_value: int) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
@@ -227,7 +227,7 @@ static func reinforce(placements: Array[Dictionary], extra: int, seed_value: int
 			break
 		var pick: String = affordable[rng.randi_range(0, affordable.size() - 1)]
 		taken[square] = true
-		result.append({"placement_id": "endless_%d" % index, "piece_def_id": pick, "position": {"x": square.x, "y": square.y}})
+		result.append({"placement_id": "late_%d" % index, "piece_def_id": pick, "position": {"x": square.x, "y": square.y}})
 		remaining -= _value(pick)
 		index += 1
 	return result

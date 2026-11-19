@@ -31,6 +31,8 @@ var codex_grid: GridContainer
 var codex_title_label: Label
 var codex_progress_label: Label
 var codex_back_button: Button
+var achievement_button: Button
+var achievement_overlay: AchievementPanel
 var debug_badge: Label
 var _intro_tween: Tween
 var _intro_playing: bool = false
@@ -43,6 +45,7 @@ func _ready() -> void:
 	continue_button.pressed.connect(_on_continue_pressed)
 	$SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton.pressed.connect(_on_settings_pressed)
 	codex_button.pressed.connect(_open_codex)
+	achievement_button.pressed.connect(_open_achievements)
 	title_logo.gui_input.connect(_on_title_logo_input)
 	codex_back_button.pressed.connect(_close_codex)
 	_setup_menu_button_visuals()
@@ -74,6 +77,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_close_settings()
 		elif codex_overlay.visible:
 			_close_codex()
+		elif achievement_overlay.visible:
+			achievement_overlay.close()
 		elif battle_placeholder.visible:
 			_close_battle_placeholder()
 
@@ -85,6 +90,17 @@ func _build_codex_controls() -> void:
 	menu_buttons.add_child(codex_button)
 	var codex_label: Label = codex_button.get_node("Content/Group/Label") as Label
 	codex_label.text = "MENU_CODEX"
+
+	# Achievements: a menu button after the codex and its own full-screen page.
+	achievement_button = settings_button.duplicate() as Button
+	achievement_button.name = "AchievementButton"
+	menu_buttons.add_child(achievement_button)
+	var achievement_icon: TextureRect = achievement_button.get_node("Content/Group/Icon") as TextureRect
+	achievement_icon.texture = piece_skin_manager.call("piece_texture", &"white", &"king") as Texture2D
+	achievement_overlay = AchievementPanel.new()
+	achievement_overlay.build($SettingsOverlay/SettingsPanel.get_theme_stylebox("panel").duplicate())
+	add_child(achievement_overlay)
+	achievement_overlay.closed.connect(func() -> void: achievement_button.grab_focus())
 
 	codex_overlay = ColorRect.new()
 	codex_overlay.name = "CodexOverlay"
@@ -175,6 +191,9 @@ func _open_codex() -> void:
 	_render_codex()
 	codex_overlay.show()
 	codex_back_button.grab_focus()
+
+func _open_achievements() -> void:
+	achievement_overlay.open(run_manager)
 
 func _close_codex() -> void:
 	codex_overlay.hide()
@@ -327,6 +346,7 @@ func _apply_locale(_locale: String) -> void:
 	$SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton/Content/Group/Label.text = Localization.text("MENU_SETTINGS")
 	var codex_label: Label = codex_button.get_node("Content/Group/Label") as Label
 	codex_label.text = Localization.text("MENU_CODEX")
+	(achievement_button.get_node("Content/Group/Label") as Label).text = Localization.text("MENU_ACHIEVEMENTS")
 	codex_title_label.text = Localization.text("CODEX_TITLE")
 	codex_back_button.text = Localization.text("COMMON_BACK")
 	debug_badge.text = Localization.text("DEBUG_ENABLED")

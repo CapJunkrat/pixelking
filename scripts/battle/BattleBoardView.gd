@@ -1229,6 +1229,38 @@ func _bent_corner_square(definition: PieceDef, from: Vector2i, to: Vector2i) -> 
 					return corner
 	return Vector2i(to.x, from.y)
 
+## Where the screen and the rules disagree, for battle codes: "d5:hidden" (a piece the
+## rules have but the screen hides), "d5:nosprite", "d5:faded", "d5:ghost" (a sprite
+## with no piece behind it), "d5:wrongart". Empty when they agree. While a move is
+## still animating some squares are hidden on purpose; that is reported as "presenting".
+func view_report() -> Array[String]:
+	var issues: Array[String] = []
+	if board == null:
+		return issues
+	if is_presenting():
+		issues.append("presenting")
+	for rank: int in range(board.board_size):
+		for file: int in range(board.board_size):
+			var square: Vector2i = Vector2i(file, rank)
+			var name: String = BattleRecord.square_name(square)
+			var piece: ChessPiece = board.get_piece(square)
+			var sprite: Sprite2D = _piece_sprites.get(square) as Sprite2D
+			if piece == null:
+				if sprite != null and is_instance_valid(sprite) and sprite.visible:
+					issues.append("%s:ghost" % name)
+				continue
+			if _hidden_squares.has(square):
+				issues.append("%s:hidden" % name)
+			elif sprite == null or not is_instance_valid(sprite) or not sprite.is_inside_tree():
+				issues.append("%s:nosprite" % name)
+			elif not sprite.is_visible_in_tree():
+				issues.append("%s:invisible" % name)
+			elif sprite.modulate.a < 0.3 or sprite.self_modulate.a < 0.3 or sprite.scale.length() < 0.05:
+				issues.append("%s:faded" % name)
+			elif sprite.texture != _piece_texture(piece):
+				issues.append("%s:wrongart" % name)
+	return issues
+
 func is_presenting() -> bool:
 	return not _presentation_tweens.is_empty() or (_strike != null and _strike.is_playing()) or _echoes_playing()
 

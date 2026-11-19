@@ -25,15 +25,8 @@ func test_default_catalog_is_valid_and_resource_backed() -> void:
 	for act: int in range(3):
 		assert(EncounterDefDatabase.bosses_for_act(act).size() == 3)
 	assert(EncounterDefDatabase.bosses_for_act(3).size() == 9)
-	# Endless: no act is ever the last, and Bosses past Act 3 bring reinforcements.
-	var endless: RunState = RunState.new()
-	endless.initialize_new(5, RunState.MODE_ENDLESS)
-	endless.act_index = 5
-	assert(not endless.is_final_act())
-	var standard: RunState = RunState.new()
-	standard.initialize_new(5)
-	standard.act_index = 2
-	assert(standard.is_final_act())
+	# Journeys have no last act; Bosses past Act 3 bring reinforcements.
+	assert(EncounterDefDatabase.boss_ids().size() == 9)
 	for boss: EncounterDef in EncounterDefDatabase.bosses_for_act(0) + EncounterDefDatabase.bosses_for_act(1) + EncounterDefDatabase.bosses_for_act(2):
 		assert(boss.is_valid())
 		var reinforced: Array[Dictionary] = EncounterGenerator.reinforce(boss.enemy_placements, 12, 77)

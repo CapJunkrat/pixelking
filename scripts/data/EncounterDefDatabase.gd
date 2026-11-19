@@ -9,7 +9,7 @@ static func has_def(id: StringName) -> bool:
 	return get_def(id) != null
 
 ## The encounter of `node` in this run. A Boss node draws one of its act's Bosses
-## (any Boss in endless acts past the third), the same one for the same battle seed.
+## (any Boss in the acts past the third), the same one for the same battle seed.
 static func for_node(run_state: RunState, node: MapNodeState) -> EncounterDef:
 	if node == null:
 		return null
@@ -40,3 +40,11 @@ static func for_current(run_state: RunState) -> EncounterDef:
 static func all_defs() -> Array[EncounterDef]:
 	var registry: ContentRegistry = DefaultContent.registry()
 	return registry.ordered_encounters() if registry != null else []
+
+## Every Boss that can lead an act, by id.
+static func boss_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for definition: EncounterDef in all_defs():
+		if definition.is_boss and definition.act > 0:
+			ids.append(String(definition.id))
+	return ids

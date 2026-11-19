@@ -6,6 +6,8 @@ extends ColorRect
 
 signal retry_requested
 signal exit_requested
+## Asks the battle to copy its battle code (line-up and moves) to the clipboard.
+signal copy_code_requested(button: Button)
 
 const GOLD := Color("#e0b45c")
 const GOLD_SOFT := Color("#f5d58f")
@@ -27,6 +29,7 @@ var emblem: ResultEmblem = null
 var stats_row: HBoxContainer = null
 var best_row: HBoxContainer = null
 var growth_label: RichTextLabel = null
+var copy_code_button: Button = null
 
 func _ready() -> void:
 	retry_button.pressed.connect(func() -> void: retry_requested.emit())
@@ -57,7 +60,20 @@ func _ready() -> void:
 	stats_row.visible = false
 	best_row.visible = false
 	growth_label.visible = false
+	# A small text button under the others: copies the whole battle for bug reports.
+	copy_code_button = Button.new()
+	copy_code_button.name = "CopyCodeButton"
+	copy_code_button.flat = true
+	copy_code_button.add_theme_font_size_override("font_size", 11)
+	copy_code_button.add_theme_color_override("font_color", MUTED)
+	copy_code_button.text = _copy_text()
+	copy_code_button.pressed.connect(func() -> void: copy_code_requested.emit(copy_code_button))
+	content.add_child(copy_code_button)
 	hide()
+
+func _copy_text() -> String:
+	var localization: Node = get_node_or_null("/root/Localization")
+	return str(localization.call("text", "BATTLE_COPY_CODE")) if localization != null else "Copy battle code"
 
 func present(title_text: String, detail_text: String) -> void:
 	title_label.text = title_text

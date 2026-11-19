@@ -30,7 +30,7 @@ func ensure_deployment(run_state: RunState) -> Error:
 		deployment.enemy_placements = EncounterGenerator.upgrade_boss_pawns(
 			deployment.enemy_placements, run_state.act_index, run_state.current_encounter_seed)
 	if encounter.is_boss and run_state.act_index >= RunState.ACT_COUNT:
-		# Endless: each act past the third brings the Boss more reinforcements.
+		# Each act past the third brings the Boss more reinforcements.
 		deployment.enemy_placements = EncounterGenerator.reinforce(
 			deployment.enemy_placements,
 			(run_state.act_index - RunState.ACT_COUNT + 1) * 6,
