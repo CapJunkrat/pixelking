@@ -91,6 +91,9 @@ var _finale_nodes: Array[Node] = []
 var _pillar_square: Vector2i = NO_SQUARE
 var _pillar_strength: float = 0.0
 var _banner: Control = null
+## Extra victims of one blow (every enemy a boomerang passes through) each play the
+## full hit reaction, in step with the main strike.
+var _echo_strikes: Array[StrikeDirector] = []
 var _board_canvas: Node2D = null
 var _ground_canvas: Node2D = null
 var _air_canvas: Node2D = null
@@ -768,6 +771,7 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 	_pending_execution = {}
 	_pending_banner = {}
 	_clear_finale()
+	_clear_echoes()
 	var destroyed: Array[Dictionary] = []
 	var broken_rocks: Array[Vector2i] = []
 	for event: BattleEvent in events:
@@ -810,6 +814,13 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 	if board == null:
 		return
 	_last_speed = speed
+	# Enemies a boomerang passes through react like the main target, at the same moment.
+	var pierced: Array[Dictionary] = []
+	if capture_event != null:
+		for entry: Dictionary in destroyed.duplicate():
+			if str(entry.get("cause", "")) == "pierce":
+				pierced.append(entry)
+				destroyed.erase(entry)
 	_spawn_doomed(destroyed, move_event, capture_event)
 	# A broken rock stays until the move lands (it bursts with the follow-up effects).
 	for square: Vector2i in broken_rocks:
@@ -834,9 +845,15 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 	var captured: bool = capture_event != null
 	var piece_id: String = str(data.get("piece_def_id", "queen"))
 	if captured and _present_strike(data, capture_event.payload, speed * (SHORT_STRIKE_SPEED if short else 1.0)):
+		for entry: Dictionary in pierced:
+			_play_echo_strike(data, entry, speed * (SHORT_STRIKE_SPEED if short else 1.0))
 		# A Powder Keg goes off when it bursts; any other blast when the blow lands.
 		_doom_trigger = &"split" if NewPieceStrikes.victim_reaction(StringName(str(capture_event.payload.get("piece_def_id", "")))) == &"keg" else &"impact"
 		return
+	if not pierced.is_empty():
+		var fallback: Array[Dictionary] = []
+		fallback.assign(pierced)
+		_spawn_doomed(fallback, move_event, capture_event)
 	# A shell that absorbed the blow: the strike plays, the victim stays, the attacker bounces back.
 	if not captured and shell_event != null:
 		var shelled_square: Vector2i = shell_event.payload.get("position", NO_SQUARE)
@@ -999,7 +1016,7 @@ func _present_strike(move_data: Dictionary, capture_data: Dictionary, speed: flo
 	return true
 
 func _on_strike_finished() -> void:
-	if _presentation_tweens.is_empty():
+	if _presentation_tweens.is_empty() and not _echoes_playing():
 		_end_presentation()
 
 ## Effects that play on the settled board after a move: promotion flash, check alarm.
@@ -1106,7 +1123,55 @@ func _bent_corner_square(definition: PieceDef, from: Vector2i, to: Vector2i) -> 
 	return Vector2i(to.x, from.y)
 
 func is_presenting() -> bool:
-	return not _presentation_tweens.is_empty() or (_strike != null and _strike.is_playing())
+	return not _presentation_tweens.is_empty() or (_strike != null and _strike.is_playing()) or _echoes_playing()
+
+func _echoes_playing() -> bool:
+	for echo: StrikeDirector in _echo_strikes:
+		if is_instance_valid(echo) and echo.is_playing():
+			return true
+	return false
+
+## The hit reaction of one extra victim of the current blow (same attack, same timing).
+func _play_echo_strike(move_data: Dictionary, entry: Dictionary, speed: float) -> void:
+	var from: Vector2i = move_data.get("from", NO_SQUARE)
+	var to: Vector2i = move_data.get("to", NO_SQUARE)
+	var victim_square: Vector2i = entry.get("position", NO_SQUARE)
+	var attacker_id: String = str(move_data.get("piece_def_id", ""))
+	var attacker_def: PieceDef = PieceDefDatabase.get_def(attacker_id)
+	var victim_def: PieceDef = PieceDefDatabase.get_def(str(entry.get("piece_def_id", "")))
+	if attacker_def == null or victim_def == null or not board.in_bounds(victim_square):
+		return
+	var attack: Array = StrikeDirector.resolve_attack(StringName(attacker_def.art_key()), attacker_def.strike_type, from, victim_square)
+	var attacker_texture: Texture2D = _texture_for(int(move_data.get("color", player_color)), attacker_id)
+	var victim_texture: Texture2D = _texture_for(int(entry.get("color", player_color)), victim_def.id)
+	if attacker_texture == null or victim_texture == null or not StrikeDirector.can_play(attack[0], attack[1]):
+		return
+	var echo: StrikeDirector = StrikeDirector.new()
+	echo.name = "EchoStrike"
+	echo.victim_only = true
+	add_child(echo)
+	echo.setup(self)
+	echo.finished.connect(_on_echo_finished)
+	_echo_strikes.append(echo)
+	echo.play(attack[0], attacker_texture, victim_texture, from, to, attack[1], attacker_def.weight_class, victim_def.weight_class, speed, victim_square, NO_SQUARE, StringName(victim_def.id))
+	echo.align_impact(_strike)
+
+func _on_echo_finished() -> void:
+	if _presentation_tweens.is_empty() and not _strike.is_playing() and not _echoes_playing():
+		_end_presentation()
+
+## Echo strikes that have finished and faded are removed before the next blow.
+func _clear_echoes(force: bool = false) -> void:
+	var kept: Array[StrikeDirector] = []
+	for echo: StrikeDirector in _echo_strikes:
+		if not is_instance_valid(echo):
+			continue
+		if force or not echo.is_playing():
+			echo.stop()
+			echo.queue_free()
+		else:
+			kept.append(echo)
+	_echo_strikes = kept
 
 ## A tap during the execution jumps straight to the banner.
 func _skip_execution() -> void:
@@ -1121,6 +1186,7 @@ func _skip_execution() -> void:
 	_air_canvas.queue_redraw()
 	if _strike != null:
 		_strike.stop()
+	_clear_echoes(true)
 	_end_presentation()
 
 func skip_presentations() -> void:
@@ -1131,11 +1197,12 @@ func skip_presentations() -> void:
 	_presentation_tweens.clear()
 	if _strike != null:
 		_strike.stop()
+	_clear_echoes(true)
 	_end_presentation()
 
 func _finish_tween(tween: Tween) -> void:
 	_presentation_tweens.erase(tween)
-	if _presentation_tweens.is_empty() and not _strike.is_playing():
+	if _presentation_tweens.is_empty() and not _strike.is_playing() and not _echoes_playing():
 		_end_presentation()
 
 func _end_presentation() -> void:

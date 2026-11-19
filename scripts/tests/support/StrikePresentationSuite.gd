@@ -271,6 +271,23 @@ func _check_core_extras(view: BattleBoardView, layer: Node2D, battle: Node, game
 	_expect(layer.transform == Transform2D.IDENTITY, "skipping a strike restores the board camera")
 	_expect(game_state.board.to_ascii() == authoritative, "strike animations never mutate authoritative battle state")
 
+	# A boomerang through three enemies: every one plays the full hit, all at once.
+	view.present_events([
+		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_MOVED, 1, 1, {"from": Vector2i(2, 1), "to": Vector2i(2, 1), "target": Vector2i(2, 3), "piece_def_id": "ranger", "color": GameRules.PieceColor.WHITE, "ranged": true}),
+		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_CAPTURED, 2, 1, {"position": Vector2i(2, 3), "piece_def_id": "pawn", "color": GameRules.PieceColor.BLACK}),
+		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_DESTROYED, 3, 1, {"position": Vector2i(2, 4), "piece_def_id": "knight", "color": GameRules.PieceColor.BLACK, "cause": "pierce"}),
+		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_DESTROYED, 4, 1, {"position": Vector2i(2, 5), "piece_def_id": "rook", "color": GameRules.PieceColor.BLACK, "cause": "pierce"}),
+	] as Array[BattleEvent], 2.0)
+	var echoes: Array = view.get("_echo_strikes")
+	var main: StrikeDirector = view.get_node("StrikeDirector") as StrikeDirector
+	_expect(echoes.size() == 2, "each extra boomerang victim plays its own hit")
+	var aligned: bool = true
+	for echo: Variant in echoes:
+		aligned = aligned and is_equal_approx((echo as StrikeDirector)._impact_time, main._impact_time)
+	_expect(aligned, "every boomerang victim is hit at the same moment")
+	await _settle(view)
+	_expect(not view.is_presenting(), "the boomerang presentation finishes")
+
 	# A piece held by a gorgon petrifies from the feet up, then stays stone without replaying.
 	var held: BoardState = BoardState.new()
 	held.clear_for_setup()

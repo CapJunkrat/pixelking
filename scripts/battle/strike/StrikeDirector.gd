@@ -187,6 +187,9 @@ var _ghosts: Array[Sprite2D] = []
 var _trail: Array[Pose] = []
 var _bodies: Array[Body] = []
 var _pose: Pose = Pose.new()
+## Plays only the victim's side of a strike (an extra victim of the same blow, such
+## as every enemy a boomerang passes through): no attacker, no camera, no attack art.
+var victim_only: bool = false
 ## The victim survives (a shell absorbed the blow): the attacker springs back to its
 ## own square right after the hit instead of standing on the victim.
 var _bounce: bool = false
@@ -241,6 +244,9 @@ func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: 
 	var own_reaction: StringName = NewPieceStrikes.victim_reaction(victim_id)
 	if not own_reaction.is_empty():
 		_reaction = own_reaction
+	if victim_only and _reaction == &"underdog":
+		# An extra victim reacts at the main blow's moment: no slow struggle.
+		_reaction = &"blunt_crack"
 	_underdog = _reaction == &"underdog"
 
 	_a = _proj.square_world(from)
@@ -319,9 +325,19 @@ func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: 
 	_holder.add_child(_attacker)
 	# Built last: some events aim at heights that need both sprites measured.
 	_events = _build_events()
+	if victim_only:
+		_holder.visible = false
+		_events = []
 
 	_phase = Phase.PLAYING
 	_render()
+
+## Lands this (victim-only) strike at the same moment as `main`.
+func align_impact(main: StrikeDirector) -> void:
+	_impact_time = main._impact_time
+	_settle_time = _impact_time + 0.14
+	_done_time = maxf(_done_time, _impact_time + 0.5)
+	_end_time = maxf(_end_time, _impact_time + 2.0)
 
 ## Stops immediately and removes every trace, including lingering debris.
 func stop() -> void:
@@ -1353,6 +1369,8 @@ func _focus() -> float:
 
 ## Zoom punch and shake around the impact point, and dimming of the bystanders.
 func _apply_camera() -> void:
+	if victim_only:
+		return
 	var focus: float = _focus()
 	var strength: float = _shake * _shake * 3.4 * _unit
 	var offset: Vector2 = Vector2(roundf(randf_range(-1.0, 1.0) * strength), roundf(randf_range(-1.0, 1.0) * strength))
@@ -1362,7 +1380,7 @@ func _apply_camera() -> void:
 	_dim_bystanders(1.0 - 0.62 * focus)
 
 func _reset_camera() -> void:
-	if _view == null:
+	if _view == null or victim_only:
 		return
 	_view.set_camera(Transform2D.IDENTITY)
 	_dim_bystanders(1.0)
@@ -1381,9 +1399,10 @@ func _draw_ground() -> void:
 	fx.draw_ground(canvas)
 	if _phase != Phase.PLAYING:
 		return
-	_draw_special_ground(canvas)
-	_extra.draw_ground(canvas)
-	if _pose.alpha > 0.05:
+	if not victim_only:
+		_draw_special_ground(canvas)
+		_extra.draw_ground(canvas)
+	if _pose.alpha > 0.05 and not victim_only:
 		_draw_shadow(canvas, _pose.x, _pose.z, _pose.y, 1.0, _pose.alpha)
 	if not _split:
 		_draw_shadow(canvas, _b.x, _b.z, 0.0, 1.0)
@@ -1405,7 +1424,9 @@ func _draw_air() -> void:
 		return
 	var canvas: Node2D = _view.air_canvas()
 	fx.draw_air(canvas)
-	if _phase == Phase.PLAYING:
+	if _phase == Phase.PLAYING and victim_only:
+		_extra.draw_reaction_air(canvas)
+	elif _phase == Phase.PLAYING:
 		match _attack_id:
 			&"queen": _draw_lance(canvas)
 			&"king": _draw_judgment(canvas)

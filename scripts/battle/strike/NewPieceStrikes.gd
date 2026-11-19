@@ -1137,6 +1137,10 @@ func draw_air(canvas: CanvasItem) -> void:
 	_draw_attack_air(canvas)
 	_draw_reaction_air(canvas)
 
+## Only the victim's side (for a strike that plays an extra victim).
+func draw_reaction_air(canvas: CanvasItem) -> void:
+	_draw_reaction_air(canvas)
+
 func _draw_attack_air(canvas: CanvasItem) -> void:
 	var u: float = d._t
 	var o: StrikeDirector.Pose = d._pose
