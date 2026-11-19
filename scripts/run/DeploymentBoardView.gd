@@ -22,6 +22,9 @@ var _piece_layer: Node2D = null
 var _pieces: Dictionary = {}
 var _sprites: Dictionary = {}
 var _drop_square: Vector2i = NO_SQUARE
+var _tap_cycle: TapCycle = TapCycle.new()
+## True while a tap that stepped to another stacked piece is being handled.
+var last_tap_cycled: bool = false
 ## Rock squares (Vector2i -> true), drawn as boulders; taps on them are ignored.
 var rocks: Dictionary = {}
 ## Squares to mark for a previewed enemy piece: "move" (blue dot) or "attack" (red tile).
@@ -65,19 +68,34 @@ func is_deploy_square(square: Vector2i) -> bool:
 func square_center(square: Vector2i) -> Vector2:
 	return projection.square_center(square)
 
-## Square a local point selects. With a piece in hand an empty deployment square wins
-## over a piece that visually overlaps it; otherwise standing pieces win, nearest first.
+## Square a first tap at a local point selects. The board decides: with a piece in
+## hand an empty deployment square wins, then a piece standing on the tapped square; on
+## an empty square, the piece whose figure covers the point (front-most first).
 func square_at(point: Vector2) -> Vector2i:
 	var ground: Vector2i = projection.screen_to_square(point)
-	if selected_square != NO_SQUARE and ground != NO_SQUARE and is_deploy_square(ground) and not _pieces.has(ground):
+	if _drops_on(ground):
 		return ground
-	for rank: int in range(board_size):
-		for file: int in range(board_size):
-			var square: Vector2i = Vector2i(file, rank)
-			var sprite: Sprite2D = _sprites.get(square) as Sprite2D
-			if sprite != null and BoardPainter.sprite_hit_rect(sprite).has_point(point):
-				return square
-	return ground
+	var under: Array[Vector2i] = BoardPainter.pieces_under(point, ground, _sprites)
+	return under[0] if not under.is_empty() else ground
+
+## Square a tap selects, stepping to the next stacked piece when the same spot is
+## tapped again. `last_tap_cycled` tells whether it stepped.
+func tap_at(point: Vector2) -> Vector2i:
+	var ground: Vector2i = projection.screen_to_square(point)
+	var square: Vector2i = ground
+	if _drops_on(ground):
+		_tap_cycle.reset()
+	else:
+		var under: Array[Vector2i] = BoardPainter.pieces_under(point, ground, _sprites)
+		if under.is_empty():
+			_tap_cycle.reset()
+		else:
+			square = _tap_cycle.pick(point, under, projection.cell * 0.3)
+	last_tap_cycled = _tap_cycle.cycled
+	return square
+
+func _drops_on(ground: Vector2i) -> bool:
+	return selected_square != NO_SQUARE and ground != NO_SQUARE and is_deploy_square(ground) and not _pieces.has(ground)
 
 ## Same entry point as a tap on that square. Used by input handling and scene tests.
 func press_square(square: Vector2i) -> void:
@@ -91,11 +109,12 @@ func _gui_input(event: InputEvent) -> void:
 	var click: InputEventMouseButton = event as InputEventMouseButton
 	if click == null or not click.pressed or click.button_index != MOUSE_BUTTON_LEFT:
 		return
-	var square: Vector2i = square_at(click.position)
+	var square: Vector2i = tap_at(click.position)
 	if square == NO_SQUARE:
 		return
 	accept_event()
 	press_square(square)
+	last_tap_cycled = false
 
 func _rebuild() -> void:
 	if _piece_layer == null:

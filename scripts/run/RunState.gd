@@ -150,6 +150,21 @@ func move_piece_to_reserve(instance_id: int) -> bool:
 	reserve_piece_ids.append(instance_id)
 	return true
 
+## Trades a piece on the battle line for one in reserve, each taking the other's place
+## in its list. Works when both sides are full, since neither side grows.
+func swap_active_with_reserve(active_id: int, reserve_id: int) -> bool:
+	var active_piece: PieceInstanceState = get_piece_state(active_id)
+	var reserve_piece: PieceInstanceState = get_piece_state(reserve_id)
+	if active_piece == null or reserve_piece == null or active_piece.is_king or reserve_piece.is_king:
+		return false
+	var active_index: int = active_piece_ids.find(active_id)
+	var reserve_index: int = reserve_piece_ids.find(reserve_id)
+	if active_index < 0 or reserve_index < 0:
+		return false
+	active_piece_ids[active_index] = reserve_id
+	reserve_piece_ids[reserve_index] = active_id
+	return true
+
 func has_full_retries() -> bool:
 	return retries_left >= MAX_RETRIES
 

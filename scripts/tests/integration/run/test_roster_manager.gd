@@ -60,7 +60,36 @@ func _run() -> void:
 	loader.abandon_run()
 	loader.queue_free()
 	_cleanup()
+	await _test_full_swap(manager_script)
+	_cleanup()
 	_finish()
+
+## Both the line and the reserve full: a line piece and a reserve piece still trade places,
+## on the roster screen and during deployment.
+func _test_full_swap(manager_script: Script) -> void:
+	var manager: AppRunManager = manager_script.new() as AppRunManager
+	manager.configure_save_path(TEST_PATH)
+	root.add_child(manager)
+	await process_frame
+	_expect(RunTestFixture.create_drafted_run(manager) == OK, "swap fixture creates a drafted Run")
+	while manager.current_run.allocate_piece("pawn") != null:
+		pass
+	_expect(manager.current_run.reserve_piece_ids.size() == RunState.MAX_RESERVE_PIECES, "the reserve is full for the swap test")
+	var line_id: int = manager.current_run.active_piece_ids[1]
+	var bench_id: int = manager.current_run.reserve_piece_ids[2]
+	_expect(manager.move_roster_piece(bench_id, true) != OK, "a full line refuses a plain move in")
+	_expect(manager.swap_roster_pieces(line_id, bench_id) == OK, "a line piece and a reserve piece swap while both sides are full")
+	_expect(bench_id in manager.current_run.active_piece_ids and manager.current_run.reserve_piece_ids[2] == line_id, "the swap trades list places")
+	var king_id: int = manager.current_run.active_piece_ids[0]
+	_expect(manager.swap_roster_pieces(king_id, line_id) == ERR_UNAUTHORIZED, "the King never swaps into the reserve")
+	_expect(manager.swap_roster_pieces(line_id, bench_id) == ERR_UNAVAILABLE, "a swap needs one piece from each side")
+	_expect(RunTestFixture.select_first_battle(manager) == OK and manager.begin_deployment() == OK, "a full roster deploys")
+	var square: Vector2i = manager.current_run.deployment_state.player_position(bench_id)
+	_expect(manager.swap_roster_pieces(bench_id, line_id) == OK, "pieces swap during deployment while both sides are full")
+	_expect(manager.current_run.deployment_state.player_position(line_id) == square, "the reserve piece takes the square the line piece left")
+	manager.abandon_run()
+	manager.queue_free()
+	await process_frame
 
 func _expect(condition: bool, message: String) -> void:
 	if condition:

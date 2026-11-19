@@ -210,6 +210,34 @@ func move_roster_piece(instance_id: int, to_active: bool) -> Error:
 		roster_changed.emit(current_run)
 	return commit_error
 
+## Trades a battle-line piece for a reserve piece in one step, so it works even when
+## both the line and the reserve are full.
+func swap_roster_pieces(active_id: int, reserve_id: int) -> Error:
+	_ensure_services()
+	if current_run == null:
+		return ERR_DOES_NOT_EXIST
+	if not _phase_is([RunPhase.MAP, RunPhase.NODE_SELECTED, RunPhase.DEPLOYMENT, RunPhase.BATTLE_READY]):
+		return ERR_UNAVAILABLE
+	var transaction: Dictionary = _clone_transaction()
+	if transaction.is_empty():
+		return ERR_INVALID_DATA
+	var roster_run: RunState = transaction["run"] as RunState
+	var roster_rng: RunRngService = transaction["rng"] as RunRngService
+	var error: Error = roster_service.swap(roster_run, active_id, reserve_id)
+	if error != OK:
+		return error
+	if roster_run.deployment_state != null:
+		error = deployment_service.synchronize_with_roster(roster_run)
+		if error != OK:
+			return error
+		error = flow_state_machine.transition(roster_run, RunPhase.DEPLOYMENT)
+		if error != OK:
+			return error
+	var commit_error: Error = _commit_transaction(roster_run, roster_rng)
+	if commit_error == OK:
+		roster_changed.emit(current_run)
+	return commit_error
+
 func begin_deployment() -> Error:
 	_ensure_services()
 	if current_run == null:

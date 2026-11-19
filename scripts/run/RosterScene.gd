@@ -238,7 +238,7 @@ func _piece_tile(piece: PieceInstanceState, on_line: bool) -> Button:
 		if chosen:
 			style.set_border_width_all(2)
 		tile.add_theme_stylebox_override(state, style)
-	tile.pressed.connect(_select.bind("piece:%d" % piece.instance_id))
+	tile.pressed.connect(_on_piece_tile_pressed.bind(piece.instance_id))
 	# A thin rarity stripe along the bottom edge.
 	var stripe: ColorRect = ColorRect.new()
 	stripe.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -365,6 +365,29 @@ func _select(key: String) -> void:
 	selected = "" if selected == key else key
 	status_label.visible = false
 	_render()
+
+## Selects a piece; with a piece of the other row already selected, trades the two
+## (line <-> reserve) directly, which also works when both rows are full.
+func _on_piece_tile_pressed(instance_id: int) -> void:
+	var run: RunState = run_manager.current_run
+	if selected.begins_with("piece:"):
+		var other_id: int = int(selected.trim_prefix("piece:"))
+		var other: PieceInstanceState = run.get_piece_state(other_id)
+		var piece: PieceInstanceState = run.get_piece_state(instance_id)
+		var other_on_line: bool = other_id in run.active_piece_ids
+		var on_line: bool = instance_id in run.active_piece_ids
+		if other != null and piece != null and not other.is_king and not piece.is_king and other_on_line != on_line:
+			var line_id: int = other_id if other_on_line else instance_id
+			var reserve_id: int = instance_id if other_on_line else other_id
+			if run_manager.swap_roster_pieces(line_id, reserve_id) != OK:
+				_show_status(_text("ROSTER_CAPACITY_ERROR"))
+				_nudge(reserve_grid)
+				return
+			selected = ""
+			status_label.visible = false
+			_render()
+			return
+	_select("piece:%d" % instance_id)
 
 func _move_selected() -> void:
 	if not selected.begins_with("piece:"):

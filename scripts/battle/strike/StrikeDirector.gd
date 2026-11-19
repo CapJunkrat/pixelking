@@ -146,6 +146,8 @@ var _a: Vector3 = Vector3.ZERO
 var _b: Vector3 = Vector3.ZERO
 var _dest: Vector3 = Vector3.ZERO
 var _corner: Vector3 = Vector3.ZERO
+## Where the victim's egg is laid (Ember Bird / Flame Phoenix), set before play().
+var egg_square: Vector2i = Vector2i(-1, -1)
 var _dir: Vector2 = Vector2.RIGHT
 var _face: float = 1.0
 var _slash_angle: float = 0.0

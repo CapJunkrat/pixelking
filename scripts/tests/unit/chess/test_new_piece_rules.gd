@@ -159,6 +159,13 @@ func _test_chameleon() -> void:
 func _test_crystal_mage() -> void:
 	var board: BoardState = _board({Vector2i(3, 3): [&"crystal_mage", W], Vector2i(3, 5): [&"pawn", B], Vector2i(0, 0): [&"king", W], Vector2i(7, 7): [&"king", B]})
 	var mage: ChessPiece = board.get_piece(Vector2i(3, 3))
+	var walks: Array[Vector2i] = _moves(board, Vector2i(3, 3), W)
+	expect(Vector2i(7, 7) not in walks and Vector2i(6, 6) in walks and Vector2i(0, 6) in walks, "the Crystal Mage walks diagonal rays like a Bishop")
+	expect(Vector2i(3, 4) not in walks and Vector2i(5, 3) not in walks and Vector2i(1, 3) not in walks, "the Crystal Mage no longer walks along files and ranks")
+	expect(Vector2i(3, 5) in walks, "the Crystal Mage still shoots 2-3 squares along any line")
+	var close: BoardState = _board({Vector2i(3, 3): [&"crystal_mage", W], Vector2i(3, 4): [&"pawn", B], Vector2i(0, 0): [&"king", W], Vector2i(7, 7): [&"king", B]})
+	close.make_move(Vector2i(3, 3), Vector2i(3, 4))
+	expect(close.get_piece(Vector2i(3, 4)) != null and close.get_piece(Vector2i(3, 4)).def.id == "crystal_mage", "the Crystal Mage still captures an enemy next to it")
 	mage.capture_count = 2
 	expect(mage.def.is_ranged(), "the Crystal Mage is a ranged piece")
 	board.make_move(Vector2i(3, 3), Vector2i(3, 5))

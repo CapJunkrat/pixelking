@@ -50,6 +50,19 @@ func _run() -> void:
 	_expect(selected_id in manager.current_run.active_piece_ids, "sending it moves it to the battle line")
 	_expect(selected_id not in manager.current_run.reserve_piece_ids, "and out of the reserve")
 	_expect(roster_scene.selected == "piece:%d" % selected_id, "the piece stays chosen after moving")
+	# Both rows full: tap a line piece, then a reserve piece, and the two trade places.
+	while manager.current_run.allocate_piece("pawn") != null:
+		pass
+	roster_scene.selected = ""
+	roster_scene._render()
+	var line_id: int = manager.current_run.active_piece_ids[2]
+	var bench_id: int = manager.current_run.reserve_piece_ids[0]
+	(line_grid.get_node("Piece_%d" % line_id) as Button).pressed.emit()
+	await process_frame
+	(reserve_grid.get_node("Piece_%d" % bench_id) as Button).pressed.emit()
+	await process_frame
+	_expect(bench_id in manager.current_run.active_piece_ids and line_id in manager.current_run.reserve_piece_ids, "tapping a line piece then a reserve piece swaps them while both rows are full")
+	_expect(roster_scene.selected.is_empty(), "the swap clears the selection")
 	roster_scene.queue_free()
 	manager.abandon_run()
 	_cleanup()

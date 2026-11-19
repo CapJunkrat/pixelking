@@ -36,7 +36,7 @@ const ATTACKS := {
 	&"squire": {"impact": 0.52, "done": 1.9, "end": 2.4, "hitstop": 0.09, "shake": 0.5},
 	&"stand_in": {"impact": 0.7, "done": 1.25, "end": 2.2, "hitstop": 0.11, "shake": 0.8},
 	&"powder_keg": {"impact": 0.5, "done": 1.1, "end": 2.0, "hitstop": 0.08, "shake": 0.7},
-	&"ember_bird": {"impact": 0.7, "done": 2.3, "end": 3.2, "hitstop": 0.08, "shake": 0.5},
+	&"ember_bird": {"impact": 0.62, "done": 2.3, "end": 3.2, "hitstop": 0.08, "shake": 0.5},
 	&"gargoyle": {"impact": 0.66, "done": 2.15, "end": 2.6, "hitstop": 0.12, "shake": 1.2},
 	&"crystal_mage": {"impact": 0.66, "done": 1.8, "end": 2.3, "hitstop": 0.1, "shake": 0.6},
 	&"ranger": {"impact": 0.58, "done": 1.9, "end": 2.3, "hitstop": 0.1, "shake": 0.6},
@@ -50,7 +50,7 @@ const ATTACKS := {
 	&"stone_giant": {"impact": 1.0, "done": 2.45, "end": 2.9, "hitstop": 0.16, "shake": 1.8},
 	&"blast_catapult": {"impact": 1.05, "done": 1.2, "end": 2.6, "hitstop": 0.16, "shake": 2.0},
 	&"sky_archer": {"impact": 1.2, "done": 1.3, "end": 2.5, "hitstop": 0.14, "shake": 1.1},
-	&"flame_phoenix": {"impact": 0.78, "done": 1.95, "end": 2.6, "hitstop": 0.12, "shake": 1.2},
+	&"flame_phoenix": {"impact": 0.72, "done": 1.95, "end": 2.6, "hitstop": 0.12, "shake": 1.2},
 	&"thousand_faces": {"impact": 0.95, "done": 3.2, "end": 3.5, "hitstop": 0.08, "shake": 0.5},
 }
 
@@ -446,16 +446,41 @@ func pose(u: float, o: StrikeDirector.Pose) -> void:
 		&"powder_keg":
 			_dash(u, o, 0.18, 0.28, 0.22, 0.55, 0.3, 1.0, 0.0, 2.0)
 		&"ember_bird":
-			var flapping: bool = u < 0.75
-			o.sy = 1.0 + (0.1 * sin(u * 28.0) if flapping else 0.0)
-			o.sx = 1.0 - (0.05 * sin(u * 28.0) if flapping else 0.0)
-			o.y = c * 0.12 * _smooth(u / 0.2) if flapping else 0.0
-			var fly: float = 0.75 + _burn_time() + 0.2
-			if u >= fly:
-				var q: float = _q(u, fly, 0.5)
-				o.at(a.lerp(d._dest, _smooth(q)))
-				o.y = c * 0.9 * sin(q * PI)
-				o.sy = 1.0 + 0.1 * sin(u * 40.0)
+			# Melee: takes off, dives claws first into the target, hovers over it while
+			# it burns, then lands on its square.
+			var lift: Vector3 = d._along(a, -c * 0.15)
+			var hit: Vector3 = _toward(0.3)
+			var hover: Vector3 = _toward(0.55)
+			var land: float = 0.75 + _burn_time()
+			o.sy = 1.0 + 0.1 * sin(u * 28.0)
+			o.sx = 1.0 - 0.05 * sin(u * 28.0)
+			if u < 0.3:
+				var s: float = _smooth(u / 0.3)
+				o.at(a.lerp(lift, s))
+				o.y = c * 0.8 * s
+			elif u < 0.62:
+				var q: float = _ease_in((u - 0.3) / 0.32)
+				o.at(lift.lerp(hit, q))
+				o.y = lerpf(c * 0.8, c * 0.3, q)
+				o.rot = 0.3 * face * q
+				o.sx = 1.12
+				o.sy = 0.9
+				o.trail = true
+			elif u < 0.85:
+				var q: float = _smooth((u - 0.62) / 0.23)
+				o.at(hit.lerp(hover, q))
+				o.y = lerpf(c * 0.3, c * 0.6, q)
+				o.rot = 0.3 * face * (1.0 - q)
+			elif u < land:
+				o.at(hover)
+				o.y = c * 0.6 + c * 0.05 * sin(u * 6.0)
+			else:
+				var q: float = _q(u, land, 0.45)
+				o.at(hover.lerp(d._dest, _smooth(q)))
+				o.y = c * 0.6 * (1.0 - _smooth(q))
+				if q >= 1.0:
+					o.sx = 1.0
+					o.sy = 1.0
 		&"gargoyle":
 			if u < 0.3:
 				var s: float = _smooth(u / 0.3)
@@ -680,35 +705,41 @@ func pose(u: float, o: StrikeDirector.Pose) -> void:
 				o.sy = lerpf(0.86, 1.0, _smooth(q))
 				o.rot = -0.15 * face * (1.0 - q)
 		&"flame_phoenix":
-			var past: Vector3 = d._along(d._b, c * 1.1)
-			if not d._on_board(past):
-				past = d._along(d._b, c * 0.5)
-			if u < 0.45:
-				var s: float = _smooth(u / 0.45)
+			# Melee: rises, dives talons first onto the target, holds it in its flames,
+			# then hops down onto the square.
+			var hit: Vector3 = _toward(0.25)
+			if u < 0.4:
+				var s: float = _smooth(u / 0.4)
 				o.y = c * 1.1 * s
 				o.sy = 1.0 + 0.1 * sin(u * 30.0)
-				o.white = 0.25 * s
-			elif u < 0.86:
-				var q: float = _ease_in((u - 0.45) / 0.41)
-				o.at(a.lerp(past, q))
+				o.white = 0.15 * s
+			elif u < 0.72:
+				var q: float = _ease_in((u - 0.4) / 0.32)
+				o.at(a.lerp(hit, q))
 				o.y = lerpf(c * 1.1, c * 0.3, q)
-				o.rot = 0.25 * face
+				o.rot = 0.25 * face * q
 				o.sx = 1.15
 				o.sy = 0.9
 				o.trail = true
-				o.white = 0.35
-			elif u < 1.5:
-				var q: float = (u - 0.86) / 0.64
-				o.at(past.lerp(d._dest, _smooth(q)))
-				o.y = c * 0.3 + c * 1.2 * sin(q * PI)
-				o.rot = lerpf(0.25, -0.15, q) * face
+				o.white = 0.2
+			elif u < 0.86:
+				var q: float = (u - 0.72) / 0.14
+				o.at(hit)
+				o.y = c * 0.3 * (1.0 - 0.3 * sin(q * PI))
+				o.sx = 1.15 - 0.15 * q
+				o.sy = 0.85 + 0.15 * q
+				o.rot = 0.25 * face * (1.0 - q)
+			elif u < 1.4:
+				var q: float = _smooth((u - 0.86) / 0.54)
+				o.at(hit)
+				o.y = lerpf(c * 0.3, c * 0.55, q)
+			elif u < 1.75:
+				var q: float = _smooth((u - 1.4) / 0.35)
+				o.at(hit.lerp(d._dest, q))
+				o.y = c * 0.55 * (1.0 - q) + c * 0.2 * sin(q * PI)
 			else:
 				o.at(d._dest)
-				if u < 1.75:
-					var q: float = (u - 1.5) / 0.25
-					o.y = c * 0.3 * (1.0 - _ease_in(q))
-					o.rot = -0.15 * face * (1.0 - q)
-				elif u < 1.9:
+				if u < 1.9:
 					var w: float = sin((u - 1.75) / 0.15 * PI)
 					o.sy = 1.0 - 0.15 * w
 					o.sx = 1.0 + 0.12 * w
@@ -1229,20 +1260,18 @@ func _draw_attack_air(canvas: CanvasItem) -> void:
 			if randf() < 0.6:
 				_part(Vector3(o.x, o.y + _ah(13.0), o.z), Vector3(randf_range(-15.0, 15.0), randf_range(15.0, 40.0), 0.0), Color("#ffd27a") if randf() < 0.5 else Color("#ff8a3c"), randf_range(0.15, 0.3), 80.0)
 		&"ember_bird":
-			for index: int in range(3):
-				var start: float = 0.3 + index * 0.14
-				if u < start:
-					continue
-				var q: float = _q(u, start, 0.26)
-				if q >= 1.0 and (not d._impacted or d._rt > 0.5):
-					continue
-				var p: Vector3 = Vector3(d._a.x + face * _n(2.0), _ah(9.0), d._a.z).lerp(_vc(0.3 + index * 0.2), q)
-				p.y += d._cell * 0.4 * 4.0 * q * (1.0 - q)
-				var at: Vector2 = _screen(p)
-				canvas.draw_rect(Rect2(at - Vector2(1.5, 0.5) * d._unit, Vector2(3.0, 1.0) * d._unit), Color("#ff5a2a"))
-				_px(canvas, at, Color("#ffd27a"))
-				if q < 1.0 and randf() < 0.7:
-					_part(p, Vector3(randf_range(-8.0, 8.0), randf_range(0.0, 10.0), 0.0), FIRE[1 + randi() % 2], randf_range(0.15, 0.3), -20.0)
+			# Embers stream off the diving bird; three burning claw marks rake the target.
+			if u > 0.3 and u < 0.62 and randf() < 0.8:
+				_part(Vector3(o.x, o.y + _ah(6.0), o.z), Vector3(randf_range(-8.0, 8.0), randf_range(0.0, 12.0), 0.0), FIRE[1 + randi() % 3], randf_range(0.15, 0.35), -20.0)
+			if d._impacted and d._rt < 0.3:
+				var fade: float = 1.0 - d._rt / 0.3
+				var centre: Vector2 = _screen(_vc(0.55))
+				for index: int in range(3):
+					var offset: Vector2 = Vector2((index - 1) * 3.0, 0.0) * d._unit
+					var top: Vector2 = centre + offset + Vector2(2.5 * face, -5.0) * d._unit
+					var bottom: Vector2 = centre + offset + Vector2(-2.5 * face, 5.0) * d._unit
+					canvas.draw_line(top, bottom, Color(1.0, 0.55, 0.2, fade), 1.5 * d._unit)
+					canvas.draw_line(top.lerp(bottom, 0.3), top.lerp(bottom, 0.7), Color(1.0, 0.94, 0.7, fade), 0.8 * d._unit)
 		&"crystal_mage":
 			if u < 0.1 or d._impacted:
 				return
@@ -1350,14 +1379,14 @@ func _draw_attack_air(canvas: CanvasItem) -> void:
 				canvas.draw_rect(Rect2(at + Vector2(-0.5, -6.0) * d._unit, Vector2(1.0, 7.0) * d._unit), Color("#fff3c4"))
 		&"flame_phoenix":
 			var wings: float = 0.0
-			if u < 0.45:
-				wings = _smooth(u / 0.45)
+			if u < 0.4:
+				wings = _smooth(u / 0.4)
 			elif u < 0.86:
 				wings = 1.0
-			elif u < 1.5:
-				wings = 1.0 - 0.4 * (u - 0.86) / 0.64
+			elif u < 1.4:
+				wings = 1.0 - 0.4 * (u - 0.86) / 0.54
 			elif u < 1.75:
-				wings = 0.6 * (1.0 - (u - 1.5) / 0.25)
+				wings = 0.6 * (1.0 - (u - 1.4) / 0.35)
 			if wings > 0.0:
 				var flap: float = sin(u * 22.0) * 2.0
 				for side: float in [-1.0, 1.0]:
@@ -1367,7 +1396,7 @@ func _draw_attack_air(canvas: CanvasItem) -> void:
 						canvas.draw_rect(Rect2(at, Vector2(1.0, 2.0) * d._unit), FIRE[mini(3, index / 3)])
 				if randf() < 0.8:
 					_part(Vector3(o.x + randf_range(-9.0, 9.0) * d._unit * wings, o.y + _ah(randf_range(6.0, 12.0)), o.z), Vector3(randf_range(-6.0, 6.0), randf_range(5.0, 20.0), 0.0), _fire(), randf_range(0.2, 0.4), -30.0)
-			if u > 0.45 and u < 0.86:
+			if u > 0.4 and u < 0.72:
 				for _i: int in range(2):
 					_part(Vector3(o.x + randf_range(-2.0, 2.0) * d._unit, 0.0, o.z + randf_range(-2.0, 2.0) * d._unit), Vector3(randf_range(-3.0, 3.0), randf_range(8.0, 20.0), 0.0), _fire(), randf_range(0.4, 0.8), -25.0)
 		&"thousand_faces":
@@ -1421,18 +1450,6 @@ func _draw_reaction_air(canvas: CanvasItem) -> void:
 				var height: float = 30.0 * grow * (1.0 - absf(dx) / 6.0) * (0.75 + 0.25 * sin(rt * 35.0 + dx * 1.7))
 				var green: float = 0.9 if absi(dx) < 2 else (0.63 if absi(dx) < 4 else 0.35)
 				canvas.draw_rect(Rect2(foot + Vector2(dx, -height) * d._unit, Vector2(1.0, height) * d._unit), Color(1.0, green, 0.24, 0.55 * fade))
-		&"ember":
-			if not d._split:
-				return
-			var k: float = clampf((rt - 0.7) / 0.4, 0.0, 1.0)
-			if k <= 0.0:
-				return
-			var at: Vector2 = _screen(Vector3(b.x, 0.0, b.z))
-			var pulse: float = 0.6 + 0.4 * sin(rt * 8.0)
-			canvas.draw_circle(at - Vector2(0.0, _n(4.0)), _n(6.0), Color(1.0, 0.59, 0.24, 0.3 * pulse * k))
-			canvas.draw_rect(Rect2(at + Vector2(-2.0, -8.0) * d._unit, Vector2(5.0, 8.0) * d._unit), Color(0.165, 0.118, 0.18, k))
-			canvas.draw_rect(Rect2(at + Vector2(-1.0, -7.0) * d._unit, Vector2(3.0, 6.0) * d._unit), Color(1.0, 0.7, 0.36, k))
-			canvas.draw_rect(Rect2(at + Vector2(-1.0, -6.0) * d._unit, Vector2(1.0, 2.0) * d._unit), Color(1.0, 0.94, 0.69, k))
 		&"chip":
 			var at: Vector2 = _screen(Vector3(b.x, d._victim_at(1.0) + _vh(4.0), b.z))
 			for index: int in range(3):
@@ -1440,7 +1457,8 @@ func _draw_reaction_air(canvas: CanvasItem) -> void:
 				var lost: bool = index == 0 and rt > 0.35
 				canvas.draw_rect(Rect2(pip - Vector2(1.5, 1.5) * d._unit, Vector2(3.0, 3.0) * d._unit), Color("#0d0a14"))
 				_px(canvas, pip, Color("#3a3540") if lost else Color("#bdbbc1"))
-		&"rebirth":
+		&"ember", &"rebirth":
+			# The spark of a fallen bird flies to the square where its egg is laid.
 			if not d._split:
 				return
 			var q: float = clampf((rt - 0.25) / 0.8, 0.0, 1.0)
@@ -1578,8 +1596,11 @@ func _keg_shell(u: float) -> Array:
 	p.y += d._cell * 3.2 * 4.0 * q * (1.0 - q)
 	return [p, q]
 
-## The Flame Phoenix flies back to its own corner to wait for rebirth.
+## Where a fallen Ember Bird / Flame Phoenix waits for rebirth: the square its egg was
+## laid on (from the move result), else its own corner.
 func _rebirth_corner() -> Vector3:
+	if d.egg_square.x >= 0:
+		return d._proj.square_world(d.egg_square)
 	var size: int = d._proj.board_size
 	var corner: Vector2i = Vector2i(0, 0) if d._b.z >= 0.0 else Vector2i(size - 1, size - 1)
 	return d._proj.square_world(corner)

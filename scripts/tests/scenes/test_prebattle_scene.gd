@@ -142,6 +142,64 @@ func _run() -> void:
 	manager.reset_deployment_formation()
 	_expect(manager.current_run.preferred_positions.is_empty(), "the formation can still be reset by the game")
 
+	# Line and reserve both full: pick up a reserve piece, then tap a board piece to trade.
+	while manager.current_run.allocate_piece("pawn") != null:
+		pass
+	manager.deployment_service.synchronize_with_roster(manager.current_run)
+	preview._render()
+	await process_frame
+	_expect(manager.current_run.reserve_piece_ids.size() == RunState.MAX_RESERVE_PIECES, "both the line and the reserve are full")
+	var bench_id: int = manager.current_run.reserve_piece_ids[0]
+	var line_id: int = manager.current_run.active_piece_ids[1]
+	var line_square: Vector2i = manager.current_run.deployment_state.player_position(line_id)
+	(reserve_row.get_node("Piece_%d" % bench_id) as Button).pressed.emit()
+	await process_frame
+	_expect(preview.reserve_held == bench_id and bench_id in manager.current_run.reserve_piece_ids, "with the line full a reserve piece is picked up, not refused")
+	board.square_pressed.emit(line_square)
+	await process_frame
+	_expect(preview.reserve_held == 0 and bench_id in manager.current_run.active_piece_ids and line_id in manager.current_run.reserve_piece_ids, "tapping a board piece trades it for the reserve piece in hand")
+	_expect(manager.current_run.deployment_state.player_position(bench_id) == line_square, "the reserve piece takes the traded piece's square")
+	board.square_pressed.emit(line_square)
+	await process_frame
+	(reserve_row.get_node("Piece_%d" % line_id) as Button).pressed.emit()
+	await process_frame
+	_expect(line_id in manager.current_run.active_piece_ids and manager.current_run.deployment_state.player_position(line_id) == line_square, "holding a board piece and tapping a reserve piece trades them while both sides are full")
+
+	# Stacked pieces: tapping the same spot again picks up the next piece instead of
+	# moving the piece in hand onto it.
+	preview._put_down()
+	var spot: Vector2 = Vector2(INF, INF)
+	var stack: Array[Vector2i] = []
+	for key: Variant in board._sprites:
+		var foot: Vector2 = (board._sprites[key] as Sprite2D).position
+		for step: int in range(4, 120, 2):
+			var probe: Vector2 = foot + Vector2(0, -step)
+			var under: Array[Vector2i] = BoardPainter.pieces_under(probe, board.projection.screen_to_square(probe), board._sprites)
+			if under.size() >= 2 and manager.current_run.deployment_state.player_at(under[0]) > 0 and manager.current_run.deployment_state.player_at(under[1]) > 0:
+				spot = probe
+				stack = under
+				break
+		if spot.x != INF:
+			break
+	_expect(spot.x != INF, "two of your pieces stand stacked on screen")
+	var before_cycle: Dictionary = manager.current_run.deployment_state.player_positions.duplicate()
+	var first_id: int = manager.current_run.deployment_state.player_at(stack[0])
+	var second_id: int = manager.current_run.deployment_state.player_at(stack[1])
+	var stacked_tap: InputEventMouseButton = InputEventMouseButton.new()
+	stacked_tap.button_index = MOUSE_BUTTON_LEFT
+	stacked_tap.pressed = true
+	stacked_tap.position = spot
+	board._gui_input(stacked_tap)
+	await process_frame
+	_expect(preview.arrange_selected == first_id, "the first tap picks up the piece on the tapped square")
+	# The piece in hand floats, so look again from the same spot.
+	stacked_tap.position = spot
+	board._gui_input(stacked_tap)
+	await process_frame
+	_expect(preview.arrange_selected == second_id, "tapping the same spot again picks up the stacked piece instead")
+	_expect(manager.current_run.deployment_state.player_positions == before_cycle, "stepping through stacked pieces never moves them")
+	preview._put_down()
+
 	# Back to the map and in again: the battle stays chosen and can be re-entered.
 	_expect(manager.leave_deployment() == OK and manager.current_run.phase == RunPhase.NODE_SELECTED, "leaving the preview returns the run to the map")
 	_expect(manager.resume_scene_path() == AppSceneRoutes.PATH_MAP, "after leaving, the game resumes on the map (not the preview)")

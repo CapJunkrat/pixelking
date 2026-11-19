@@ -79,6 +79,38 @@ static func place_sprite(sprite: Sprite2D, projection: BoardProjection, world: V
 	sprite.scale = Vector2(scale_value, scale_value) * (sprite.get_meta("stretch", Vector2.ONE) as Vector2)
 	sprite.position = projection.project(Vector3(ground.x, world.y, ground.z))
 
+## Whether a screen point lands on the painted figure of `sprite`.
+static func sprite_hit(sprite: Sprite2D, point: Vector2) -> bool:
+	if sprite == null or not sprite.visible or sprite.texture == null:
+		return false
+	if not sprite_hit_rect(sprite).has_point(point):
+		return false
+	if sprite.scale.x == 0.0 or sprite.scale.y == 0.0:
+		return false
+	var pixel: Vector2 = (point - sprite.position) / sprite.scale - sprite.offset
+	return PieceChunks.of(sprite.texture).covers(Vector2i(floori(pixel.x), floori(pixel.y)))
+
+## Squares of the pieces under a tap, in the order repeated taps cycle through them:
+## the piece standing on the tapped board square first, then every other piece whose
+## figure covers the point, the one drawn on top first. `sprites` maps square -> Sprite2D.
+static func pieces_under(point: Vector2, ground: Vector2i, sprites: Dictionary) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var ground_sprite: Sprite2D = sprites.get(ground) as Sprite2D
+	if ground_sprite != null and ground_sprite.visible:
+		result.append(ground)
+	var covering: Array = []
+	for key: Variant in sprites:
+		var square: Vector2i = key
+		if square == ground:
+			continue
+		var sprite: Sprite2D = sprites[key] as Sprite2D
+		if sprite_hit(sprite, point):
+			covering.append([sprite.position.y, square])
+	covering.sort_custom(func(left: Array, right: Array) -> bool: return float(left[0]) > float(right[0]))
+	for entry: Array in covering:
+		result.append(entry[1])
+	return result
+
 ## Screen rectangle a tap must land in to count as touching the piece.
 static func sprite_hit_rect(sprite: Sprite2D) -> Rect2:
 	var used: Rect2i = PieceChunks.of(sprite.texture).used

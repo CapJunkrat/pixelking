@@ -272,33 +272,127 @@ func get_executable_moves_for_color(pos: Vector2i, color: int) -> Array[Vector2i
 		return []
 	return MoveGenerator.generate_pseudo_legal(self, pos)
 
+## A move after which some enemy reply kills the moving piece or takes its King.
 func is_move_dangerous(from: Vector2i, to: Vector2i) -> bool:
-	var piece: ChessPiece = get_piece(from)
-	if piece == null or to not in get_executable_moves_for_color(from, piece.color):
-		return false
-	var simulation: BoardState = clone()
-	var result: Dictionary = simulation._apply_move(from, to, "queen", true)
-	if not bool(result.get("success", false)):
-		return false
-	var landing: Vector2i = result.get("landing", to)
-	return simulation.is_in_check(piece.color) or simulation.is_square_attacked(landing, GameRules.opposite(piece.color))
+	return bool(evaluate_landing(from, to).get("lethal", false))
 
-## A dangerous move whose landing square another of the mover's pieces defends, so
-## a capture there can be answered (an exchange rather than a lost piece).
+## A dangerous move where every killing reply can be answered by taking the attacker
+## (an exchange rather than a lost piece).
 func is_move_protected(from: Vector2i, to: Vector2i) -> bool:
+	var safety: Dictionary = evaluate_landing(from, to)
+	return bool(safety.get("lethal", false)) and bool(safety.get("protected", false))
+
+## How safe a move leaves the moving piece, worked out by playing every enemy reply
+## with the real rules (immunities, shields, shells, bodyguards, splash, boomerangs,
+## explosions all apply as they would in play). One enemy reply deep; items ignored.
+## Returns {
+##   "landing": where the mover ends up (a shooter, or an attacker bounced off a
+##              shell, stays on `from`),
+##   "lethal": some reply kills the mover or takes its King (also: the move itself
+##             gets the mover killed),
+##   "shell": some reply hits the mover but only breaks a shell / delays a hard egg,
+##   "protected": when lethal, every killing reply can be answered by taking the
+##                attacker where it ends up (melee: on the landing square; ranged: on
+##                its own square) and none of them takes the King; otherwise, an enemy
+##                standing on the landing square could be taken by another piece.
+## }
+func evaluate_landing(from: Vector2i, to: Vector2i) -> Dictionary:
+	var safety: Dictionary = {"landing": to, "lethal": false, "shell": false, "protected": false}
 	var piece: ChessPiece = get_piece(from)
 	if piece == null or to not in get_executable_moves_for_color(from, piece.color):
-		return false
-	var simulation: BoardState = clone()
-	var result: Dictionary = simulation._apply_move(from, to, "queen", true)
+		return safety
+	var color: int = piece.color
+	var enemy: int = GameRules.opposite(color)
+	var after: BoardState = clone()
+	var result: Dictionary = after._apply_move(from, to, "queen", true)
 	if not bool(result.get("success", false)):
-		return false
+		return safety
 	var landing: Vector2i = result.get("landing", to)
-	if simulation.is_in_check(piece.color) or not simulation.is_square_attacked(landing, GameRules.opposite(piece.color)):
-		return false
-	return simulation.is_square_attacked(landing, piece.color)
+	safety["landing"] = landing
+	after._hand_turn_to(enemy)
+	var mover: ChessPiece = after.get_piece(landing)
+	if mover == null or mover.instance_id != piece.instance_id or (has_king(color) and not after.has_king(color)):
+		safety["lethal"] = true
+		return safety
+	var all_answered: bool = true
+	for reply: Array in after._capture_replies(enemy):
+		var attacker: ChessPiece = after.get_piece(reply[0])
+		var replied: BoardState = after.clone()
+		var outcome: Dictionary = replied._apply_move(reply[0], reply[1], "queen", true)
+		if not bool(outcome.get("success", false)):
+			continue
+		var takes_king: bool = bool(outcome.get("king_captured", false)) and int(outcome.get("captured_color", -1)) == color
+		if takes_king or _lists_instance(outcome.get("removed", []), mover.instance_id):
+			safety["lethal"] = true
+			if all_answered and (takes_king or not replied._can_take_instance(color, attacker.instance_id)):
+				all_answered = false
+		elif _lists_instance(outcome.get("shells", []), mover.instance_id):
+			safety["shell"] = true
+	if bool(safety["lethal"]):
+		safety["protected"] = all_answered
+	else:
+		safety["protected"] = after._guards_square(landing, color)
+	return safety
 
-## Strict chess-legal moves remain available for check/checkmate analysis.
+## The board as it stands when `color` is to move next.
+func _hand_turn_to(color: int) -> void:
+	turn = color
+	turn_serial += 1
+	bonus_instance_id = 0
+
+## Every move of `color` that strikes an enemy piece: [[from, to], ...].
+func _capture_replies(color: int) -> Array:
+	var replies: Array = []
+	for x: int in range(board_size):
+		for y: int in range(board_size):
+			var square: Vector2i = Vector2i(x, y)
+			var piece: ChessPiece = grid[x][y]
+			if piece == null or piece.color != color:
+				continue
+			for target: Vector2i in MoveGenerator.generate_pseudo_legal(self, square):
+				var occupant: ChessPiece = get_piece(target)
+				if occupant != null and occupant.color != color:
+					replies.append([square, target])
+	return replies
+
+## Whether `color` (to move next) can kill the piece with `instance_id`. A piece that
+## is already gone counts as taken.
+func _can_take_instance(color: int, instance_id: int) -> bool:
+	var target: Vector2i = Vector2i(-1, -1)
+	for x: int in range(board_size):
+		for y: int in range(board_size):
+			var piece: ChessPiece = grid[x][y]
+			if piece != null and piece.instance_id == instance_id:
+				target = Vector2i(x, y)
+	if target.x < 0:
+		return true
+	_hand_turn_to(color)
+	var replies: Array = _capture_replies(color)
+	# Direct strikes at the attacker first; a boomerang or splash may also reach it.
+	replies.sort_custom(func(left: Array, right: Array) -> bool: return left[1] == target and right[1] != target)
+	for reply: Array in replies:
+		var trial: BoardState = clone()
+		var outcome: Dictionary = trial._apply_move(reply[0], reply[1], "queen", true)
+		if bool(outcome.get("success", false)) and _lists_instance(outcome.get("removed", []), instance_id):
+			return true
+	return false
+
+## Whether another piece of `color` could take an enemy that stepped onto `square`
+## (the board is the one after `color`'s move, with the enemy to move).
+func _guards_square(square: Vector2i, color: int) -> bool:
+	var trial: BoardState = clone()
+	var intruder: ChessPiece = ChessPiece.new(PieceDefDatabase.get_def("pawn"), GameRules.opposite(color), false)
+	intruder.instance_id = -1
+	intruder.has_moved = true
+	trial.set_piece(square, intruder)
+	return trial._can_take_instance(color, -1)
+
+static func _lists_instance(entries: Array, instance_id: int) -> bool:
+	for entry: Dictionary in entries:
+		if int(entry.get("instance_id", 0)) == instance_id:
+			return true
+	return false
+
 func get_legal_moves(pos: Vector2i) -> Array[Vector2i]:
 	return get_legal_moves_for_color(pos, turn)
 
@@ -614,7 +708,7 @@ func _lay_egg(victim: ChessPiece, serial: int, result: Dictionary) -> void:
 	egg.hatch_serial = serial + 2 * victim.def.revive_after_turns + 1
 	egg.has_moved = true
 	set_piece(square, egg)
-	result["eggs_laid"].append({"position": square, "piece_def_id": egg_def.id, "instance_id": egg.instance_id, "color": victim.color, "turns_left": egg_turns_left(egg, serial + 1)})
+	result["eggs_laid"].append({"position": square, "piece_def_id": egg_def.id, "instance_id": egg.instance_id, "victim_instance_id": victim.instance_id, "color": victim.color, "turns_left": egg_turns_left(egg, serial + 1)})
 
 ## The free square closest to `color`'s own bottom-left corner (White: a1, Black: h8).
 func egg_square(color: int) -> Vector2i:

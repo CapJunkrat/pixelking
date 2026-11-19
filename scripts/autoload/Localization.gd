@@ -109,7 +109,7 @@ const LOCALES := {
 			"DRAFT_ATTACK_GARGOYLE": "CAPTURE · like a Rook · arrows and stones cannot touch it",
 			"DRAFT_MOVE_CHAMELEON": "MOVE · 1 square · learns the moves of what it captures (2 kept for the Run)",
 			"DRAFT_ATTACK_CHAMELEON": "CAPTURE · as it moves",
-			"DRAFT_MOVE_CRYSTAL_MAGE": "MOVE · up to 3 squares in any direction · captures next to it · becomes an Archmage after 3 captures in the Run",
+			"DRAFT_MOVE_CRYSTAL_MAGE": "MOVE · diagonal rays like a Bishop · captures next to it · becomes an Archmage after 3 captures in the Run",
 			"DRAFT_ATTACK_CRYSTAL_MAGE": "SHOOTS · 2-3 squares away along any line · pieces in between block",
 			"DRAFT_MOVE_EMBER_BIRD": "MOVE · up to 3 diagonal squares over any piece · when captured, lays an egg near your bottom-left corner that hatches 2 turns later · once per battle",
 			"DRAFT_ATTACK_EMBER_BIRD": "CAPTURE · as it moves",

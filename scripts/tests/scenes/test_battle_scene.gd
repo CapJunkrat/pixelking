@@ -53,6 +53,35 @@ func _run() -> void:
 	await process_frame
 	_expect(battle.selected_square == Vector2i(1, 0), "clicking the current player's knight selects it")
 	_expect(Vector2i(0, 2) in battle.legal_targets, "selected knight exposes its legal move")
+	# Stacked pieces: a tap on the knight's head over the pawn's square picks the pawn
+	# (the board decides); tapping the same spot again steps to the knight, then back.
+	var knight_foot: Vector2 = (board_view.get_node("PieceLayer/Piece_1_0") as Sprite2D).position
+	var stacked: Vector2 = Vector2(INF, INF)
+	for step: int in range(4, 120):
+		var probe: Vector2 = knight_foot + Vector2(0, -step)
+		var under: Array[Vector2i] = board_view.pieces_at(probe)
+		if board_view.projection.screen_to_square(probe) == Vector2i(1, 1) and under.size() >= 2 and under[0] == Vector2i(1, 1) and Vector2i(1, 0) in under:
+			stacked = probe
+			break
+	_expect(stacked.x != INF, "the knight's figure covers part of the pawn's square behind it")
+	var tap_stacked: InputEventMouseButton = InputEventMouseButton.new()
+	tap_stacked.button_index = MOUSE_BUTTON_LEFT
+	tap_stacked.pressed = true
+	tap_stacked.position = stacked
+	board_view._gui_input(tap_stacked)
+	await process_frame
+	_expect(battle.selected_square == Vector2i(1, 1), "the first tap picks the piece on the tapped board square")
+	board_view._gui_input(tap_stacked)
+	await process_frame
+	_expect(battle.selected_square == Vector2i(1, 0), "tapping the same spot again steps to the piece stacked in front")
+	board_view._gui_input(tap_stacked)
+	await process_frame
+	_expect(battle.selected_square == Vector2i(1, 1), "and once more wraps round to the first piece")
+	var away: InputEventMouseButton = tap_stacked.duplicate() as InputEventMouseButton
+	away.position = knight_foot + Vector2(0, -12)
+	board_view._gui_input(away)
+	await process_frame
+	_expect(battle.selected_square == Vector2i(1, 0), "a tap elsewhere starts afresh from the board square")
 
 	# Tapping an enemy piece shows its reach in its own colours, without selecting it.
 	board_view.press_square(Vector2i(1, 7))

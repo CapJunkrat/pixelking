@@ -106,7 +106,7 @@ const STRINGS := {
 	"DRAFT_ATTACK_GARGOYLE": "吃子 · 像城堡一样 · 箭矢和石弹伤不到它",
 	"DRAFT_MOVE_CHAMELEON": "移动 · 1 格 · 学会被它吃掉的棋子的走法（整局保留 2 种）",
 	"DRAFT_ATTACK_CHAMELEON": "吃子 · 与移动相同",
-	"DRAFT_MOVE_CRYSTAL_MAGE": "移动 · 任意方向最多 3 格 · 可吃相邻的敌人 · 整局吃满 3 子后变为大法师",
+	"DRAFT_MOVE_CRYSTAL_MAGE": "移动 · 像主教一样斜线直到被阻挡 · 可吃相邻的敌人 · 整局吃满 3 子后变为大法师",
 	"DRAFT_ATTACK_CRYSTAL_MAGE": "射击 · 任意直线 2-3 格 · 中间有棋子会被挡住",
 	"DRAFT_MOVE_EMBER_BIRD": "移动 · 斜向最多 3 格，可越过棋子 · 被吃后在己方左下角附近留下一颗蛋，2 回合后孵化 · 每场战斗仅一次",
 	"DRAFT_ATTACK_EMBER_BIRD": "吃子 · 与移动相同",

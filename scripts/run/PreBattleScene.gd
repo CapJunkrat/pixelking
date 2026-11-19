@@ -52,6 +52,9 @@ var focus_id: String = ""
 ## Arranging by hand is always on: tap one of your pieces, then a square in your two
 ## ranks. 0 while no piece is picked up.
 var arrange_selected: int = 0
+## A reserve piece picked up while the battle line is full; tapping a piece on the
+## board then trades the two.
+var reserve_held: int = 0
 var _starting: bool = false
 
 func _ready() -> void:
@@ -506,6 +509,9 @@ func _slot(piece: PieceInstanceState, active: bool) -> Button:
 	button.tooltip_text = _piece_name(String(piece.piece_def_id))
 	if piece.is_king:
 		border = GOLD
+	elif piece.instance_id == reserve_held:
+		border = GOLD
+		fill = Color("#3a2e12")
 	elif active:
 		border = TEAL
 		fill = Color("#12333a")
@@ -528,6 +534,11 @@ func _focus(id: String) -> void:
 	_render_items()
 
 func _on_square_pressed(square: Vector2i) -> void:
+	# A repeat tap that stepped to another piece stacked under the same spot only
+	# picks that piece: whatever was in hand is put back first.
+	if board_view.last_tap_cycled:
+		arrange_selected = 0
+		reserve_held = 0
 	if _arrange_at(square):
 		return
 	# Any other tap puts the piece in hand back down.
@@ -547,6 +558,8 @@ func _on_square_pressed(square: Vector2i) -> void:
 func _arrange_at(square: Vector2i) -> bool:
 	var deployment: DeploymentState = run_manager.current_run.deployment_state
 	var own: int = deployment.player_at(square)
+	if reserve_held > 0:
+		return _swap_in_held_reserve(own)
 	if arrange_selected <= 0:
 		if own <= 0:
 			return false
@@ -590,24 +603,46 @@ func _show_own(instance_id: int) -> void:
 	focus_id = "own:%d" % instance_id
 	_render_pattern()
 
-## A reserve piece: swapped with the piece in hand onto its square, or sent into the line.
+## A reserve piece: swapped with the piece in hand onto its square, or sent into the
+## line. With the line full it is picked up instead, to be traded for a board piece.
 func _on_reserve_pressed(instance_id: int) -> void:
 	_show_own(instance_id)
-	if not _holding_benchable():
-		_toggle_piece(instance_id, true)
-		return
-	var held: int = arrange_selected
-	var square: Vector2i = run_manager.current_run.deployment_state.player_position(held)
-	arrange_selected = 0
-	var reserve_full: bool = run_manager.current_run.reserve_piece_ids.size() >= RunState.MAX_RESERVE_PIECES
-	var order: Array = [[instance_id, true], [held, false]] if reserve_full else [[held, false], [instance_id, true]]
-	for step: Array in order:
-		if run_manager.move_roster_piece(int(step[0]), bool(step[1])) != OK:
-			_render()
+	if _holding_benchable():
+		var held: int = arrange_selected
+		arrange_selected = 0
+		if run_manager.swap_roster_pieces(held, instance_id) != OK:
 			_nudge(bench_row)
-			return
-	run_manager.move_deployed_piece(instance_id, square)
+		_render()
+		return
+	if reserve_held == instance_id:
+		reserve_held = 0
+		_render_lineup()
+		return
+	if _active_non_king() >= run_manager.current_run.max_active_pieces():
+		reserve_held = instance_id
+		_render_lineup()
+		return
+	reserve_held = 0
+	_toggle_piece(instance_id, true)
+
+## With a reserve piece in hand, a tap on one of your board pieces trades the two; a
+## tap on the King shakes; any other tap puts the reserve piece back.
+func _swap_in_held_reserve(own: int) -> bool:
+	var incoming: int = reserve_held
+	if own <= 0:
+		reserve_held = 0
+		_render_lineup()
+		return false
+	var piece: PieceInstanceState = run_manager.current_run.get_piece_state(own)
+	if piece == null or piece.is_king:
+		_nudge(board_view)
+		return true
+	reserve_held = 0
+	if run_manager.swap_roster_pieces(own, incoming) != OK:
+		_nudge(bench_row)
+	_show_own(incoming)
 	_render()
+	return true
 
 func _toggle_piece(instance_id: int, to_active: bool) -> void:
 	if to_active and _active_non_king() >= run_manager.current_run.max_active_pieces():
@@ -648,6 +683,7 @@ func _start_battle() -> void:
 	# Everything but the board slides away; the battle screen then grows out of the
 	# board exactly where it stands (BattleController._play_intro).
 	arrange_selected = 0
+	reserve_held = 0
 	focus_id = ""
 	_render_board()
 	var leaving: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)

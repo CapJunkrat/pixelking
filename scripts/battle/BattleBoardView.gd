@@ -33,6 +33,9 @@ const INSPECT_TINT := Color(0.62, 0.42, 0.95, 0.5)
 const INSPECT_DOT := Color(0.74, 0.55, 1.0, 0.85)
 const SHELL_PIP := Color("#c9c3b6")
 const PROTECTED_MARK := Color("#f0a93a")
+## Shells and shields: the same ice blue as the shield domes and shell pips.
+const SHELL_MARK := Color("#a9d6ff")
+const DANGER_MARK := Color("#ff5a52")
 const SHELL_PIP_SHINE := Color("#f4efe4")
 const INSPECT_THREAT := Color(0.66, 0.36, 0.98, 0.5)
 const INSPECT_RING := Color(0.8, 0.62, 1.0, 0.95)
@@ -48,15 +51,25 @@ const GAZE_COLOR := Color(0.9, 1.0, 0.55)
 const LONG_PRESS_SECONDS := 0.45
 ## A finger that drifts further than this (pixels) is not holding still.
 const LONG_PRESS_SLOP := 14.0
+## How close (in cells) a tap must be to the previous one to step to the next stacked piece.
+const TAP_CYCLE_RADIUS_CELLS := 0.3
 
 @onready var piece_skin_manager: Node = get_node("/root/PieceSkinManager")
 
 var selected_square: Vector2i = NO_SQUARE
 var legal_targets: Array[Vector2i] = []
+## Marks on the selected piece's destinations (see BoardState.evaluate_landing):
+## Squares where an enemy reply kills the piece and nothing answers it: red "!".
 var dangerous_targets: Array[Vector2i] = []
-## Squares where the moved piece can be taken but another of yours defends it (an
-## exchange, not a loss). Marked with an amber shield instead of the red "!".
+## Squares where the piece can be killed but every such attacker can be taken back
+## (an exchange, not a loss): amber shield with a red "!".
 var protected_targets: Array[Vector2i] = []
+## Squares where an enemy can only break the piece's shell: cracked ice shield with "!".
+var shell_risk_targets: Array[Vector2i] = []
+## Safe squares another of your pieces covers: a small faint amber shield.
+var guarded_targets: Array[Vector2i] = []
+## Enemies your blow would only crack (a shell or a hard egg takes it): cracked shield.
+var shell_strike_targets: Array[Vector2i] = []
 ## An enemy piece tapped to see its reach (NO_SQUARE when none), with the empty squares
 ## it can move to and the squares of your pieces it can capture.
 var inspected_square: Vector2i = NO_SQUARE
@@ -78,6 +91,8 @@ var _pending_check: Dictionary = {}
 var _pending_bursts: Array[Vector2i] = []
 var _last_speed: float = 1.0
 var _pending_rings: Array[Vector2i] = []
+## Egg squares laid this move, keyed by the instance id of the bird that fell.
+var _eggs_by_victim: Dictionary = {}
 ## Pieces a blast or splash removes. The board has already lost them, so stand-ins
 ## keep them on screen until the explosion reaches them: [{square, sprite, def_id}].
 var _doomed: Array[Dictionary] = []
@@ -117,6 +132,7 @@ var _gazes: Array = []
 ## The piece being held down for its info card: square, where and how long.
 var _hold_square: Vector2i = NO_SQUARE
 var _hold_point: Vector2 = Vector2.ZERO
+var _tap_cycle: TapCycle = TapCycle.new()
 var _hold_seconds: float = 0.0
 
 func _ready() -> void:
@@ -164,7 +180,7 @@ func setup(board_value: BoardState, player_color_value: int) -> void:
 	player_color = player_color_value
 	selected_square = NO_SQUARE
 	legal_targets.clear()
-	dangerous_targets.clear()
+	_clear_marks()
 	_update_projection()
 	refresh(board)
 
@@ -187,20 +203,34 @@ func square_count() -> int:
 func square_center(square: Vector2i) -> Vector2:
 	return projection.square_center(square)
 
-## Square a local point selects. A legal destination wins over a piece that visually
-## overlaps it, then standing pieces (nearest first), then the bare square.
+## Square a first tap at a local point selects. The board decides: a legal destination
+## or a piece standing on the tapped square wins; on an empty square, the piece whose
+## figure covers the point (front-most first); else the bare square.
 func square_at(point: Vector2) -> Vector2i:
 	var ground: Vector2i = projection.screen_to_square(point)
 	if ground != NO_SQUARE and ground in legal_targets:
 		return ground
-	if board != null:
-		for rank: int in range(board.board_size):
-			for file: int in range(board.board_size):
-				var square: Vector2i = Vector2i(file, rank)
-				var sprite: Sprite2D = _piece_sprites.get(square) as Sprite2D
-				if sprite != null and sprite.visible and BoardPainter.sprite_hit_rect(sprite).has_point(point):
-					return square
-	return ground
+	var under: Array[Vector2i] = pieces_at(point)
+	return under[0] if not under.is_empty() else ground
+
+## Pieces under a point, in the order repeated taps cycle through them.
+func pieces_at(point: Vector2) -> Array[Vector2i]:
+	if board == null:
+		return []
+	return BoardPainter.pieces_under(point, projection.screen_to_square(point), _piece_sprites)
+
+## Square a tap selects, stepping to the next stacked piece when the same spot is
+## tapped again (see TapCycle).
+func tap_at(point: Vector2) -> Vector2i:
+	var ground: Vector2i = projection.screen_to_square(point)
+	if ground != NO_SQUARE and ground in legal_targets:
+		_tap_cycle.reset()
+		return ground
+	var under: Array[Vector2i] = pieces_at(point)
+	if under.is_empty():
+		_tap_cycle.reset()
+		return ground
+	return _tap_cycle.pick(point, under, projection.cell * TAP_CYCLE_RADIUS_CELLS)
 
 ## Same entry point as a tap on that square. Used by input handling and scene tests.
 func press_square(square: Vector2i) -> void:
@@ -308,27 +338,19 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 		_skip_execution()
 		return
-	_hold_square = piece_square_at(click.position)
+	var square: Vector2i = tap_at(click.position)
+	_hold_square = square if square != NO_SQUARE and board != null and board.get_piece(square) != null else NO_SQUARE
 	_hold_point = click.position
 	_hold_seconds = 0.0
-	var square: Vector2i = square_at(click.position)
 	if square == NO_SQUARE:
 		return
 	accept_event()
-	_on_square_pressed(square)
+	_on_square_pressed(square, _tap_cycle.cycled)
 
 ## The piece under a point, ignoring move targets (for long presses).
 func piece_square_at(point: Vector2) -> Vector2i:
-	if board == null:
-		return NO_SQUARE
-	for rank: int in range(board.board_size):
-		for file: int in range(board.board_size):
-			var square: Vector2i = Vector2i(file, rank)
-			var sprite: Sprite2D = _piece_sprites.get(square) as Sprite2D
-			if sprite != null and sprite.visible and BoardPainter.sprite_hit_rect(sprite).has_point(point):
-				return square
-	var ground: Vector2i = projection.screen_to_square(point)
-	return ground if ground != NO_SQUARE and board.get_piece(ground) != null else NO_SQUARE
+	var under: Array[Vector2i] = pieces_at(point)
+	return under[0] if not under.is_empty() else NO_SQUARE
 
 ## Counts a held piece towards a long press. Split out so tests can drive time.
 func advance_hold(delta: float) -> void:
@@ -341,13 +363,20 @@ func advance_hold(delta: float) -> void:
 		if board != null and board.get_piece(square) != null:
 			piece_info_requested.emit(square)
 
-func _on_square_pressed(board_position: Vector2i) -> void:
+## `cycled`: the tap stepped to another piece stacked under the same spot, so it only
+## picks that piece (never moves the selected one onto it).
+func _on_square_pressed(board_position: Vector2i, cycled: bool = false) -> void:
 	if board == null or not input_enabled or intro_locked or not board.on_board(board_position):
 		return
 	if item_targeting:
 		item_targeting = false
 		item_target_requested.emit(board_position)
 		return
+	if cycled:
+		selected_square = NO_SQUARE
+		legal_targets.clear()
+		_clear_marks()
+		clear_inspection(false)
 	if board_position in legal_targets:
 		move_requested.emit(selected_square, board_position)
 		return
@@ -360,38 +389,74 @@ func _on_square_pressed(board_position: Vector2i) -> void:
 	if piece != null and piece.color != player_color and not was_inspected:
 		selected_square = NO_SQUARE
 		legal_targets.clear()
-		dangerous_targets.clear()
-		protected_targets.clear()
+		_clear_marks()
 		inspect(board_position)
 		focus_changed.emit(board_position)
 		return
 	if piece != null and piece.color == board.turn and piece.color == player_color:
 		selected_square = board_position
 		legal_targets = board.get_executable_moves(board_position)
-		dangerous_targets.clear()
-		protected_targets.clear()
-		protected_targets.clear()
-		for target: Vector2i in legal_targets:
-			if board.is_move_dangerous(board_position, target):
-				if board.is_move_protected(board_position, target):
-					protected_targets.append(target)
-				else:
-					dangerous_targets.append(target)
+		_mark_targets(board_position)
 	else:
 		selected_square = NO_SQUARE
 		legal_targets.clear()
-		dangerous_targets.clear()
-		protected_targets.clear()
+		_clear_marks()
 	refresh()
 	focus_changed.emit(selected_square)
 
-## An amber shield in the corner of a square: the piece can be taken there, but
-## another of your pieces guards the square and can strike back.
-func _draw_protected_mark(square: Vector2i) -> void:
-	var polygon: PackedVector2Array = projection.square_polygon(square)
-	var centre: Vector2 = polygon[1] + Vector2(-9.0, 9.0)
-	var w: float = 6.5
-	var h: float = 8.0
+func _clear_marks() -> void:
+	dangerous_targets.clear()
+	protected_targets.clear()
+	shell_risk_targets.clear()
+	guarded_targets.clear()
+	shell_strike_targets.clear()
+
+## Sorts the selected piece's destinations into the marks above by playing the enemy
+## replies with the real rules (BoardState.evaluate_landing).
+func _mark_targets(from: Vector2i) -> void:
+	_clear_marks()
+	var mover: ChessPiece = board.get_piece(from)
+	for target: Vector2i in legal_targets:
+		var safety: Dictionary = board.evaluate_landing(from, target)
+		if bool(safety.get("lethal", false)):
+			if bool(safety.get("protected", false)):
+				protected_targets.append(target)
+			else:
+				dangerous_targets.append(target)
+		elif bool(safety.get("shell", false)):
+			shell_risk_targets.append(target)
+		elif bool(safety.get("protected", false)):
+			guarded_targets.append(target)
+		var occupant: ChessPiece = board.get_piece(target)
+		if mover != null and occupant != null and occupant.color != mover.color and (occupant.shell_left > 0 or occupant.def.egg_hardened):
+			shell_strike_targets.append(target)
+
+## The marks in the top-right corner of a destination square (see _mark_targets).
+func _draw_target_mark(square: Vector2i, font: Font) -> void:
+	var corner: Vector2 = projection.square_polygon(square)[1]
+	if square in dangerous_targets:
+		_draw_bang(font, corner + Vector2(-13.0, 15.0), 16)
+	elif square in protected_targets:
+		_draw_shield_icon(corner + Vector2(-18.0, 9.0), 1.0, PROTECTED_MARK, 1.0, false)
+		_draw_bang(font, corner + Vector2(-10.0, 16.0), 15)
+	elif square in shell_risk_targets:
+		_draw_shield_icon(corner + Vector2(-18.0, 9.0), 1.0, SHELL_MARK, 1.0, true)
+		_draw_bang(font, corner + Vector2(-10.0, 16.0), 15)
+	elif square in guarded_targets:
+		_draw_shield_icon(corner + Vector2(-8.0, 8.0), 0.7, PROTECTED_MARK, 0.5, false)
+	if square in shell_strike_targets:
+		var left_corner: Vector2 = projection.square_polygon(square)[0]
+		_draw_shield_icon(left_corner + Vector2(9.0, 9.0), 0.9, SHELL_MARK, 1.0, true)
+
+func _draw_bang(font: Font, anchor: Vector2, font_size: int) -> void:
+	_overlay.draw_string_outline(font, anchor, "!", HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, 3, Color("#2a0710"))
+	_overlay.draw_string(font, anchor, "!", HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, DANGER_MARK)
+
+## A small heater shield. Amber: another of your pieces covers the square. Ice blue
+## and cracked: a shell takes the blow and breaks.
+func _draw_shield_icon(centre: Vector2, scale_value: float, fill: Color, alpha: float, cracked: bool) -> void:
+	var w: float = 6.5 * scale_value
+	var h: float = 8.0 * scale_value
 	var shield: PackedVector2Array = PackedVector2Array([
 		centre + Vector2(-w, -h), centre + Vector2(w, -h), centre + Vector2(w, h * 0.15),
 		centre + Vector2(0.0, h), centre + Vector2(-w, h * 0.15),
@@ -399,10 +464,19 @@ func _draw_protected_mark(square: Vector2i) -> void:
 	var outline: PackedVector2Array = PackedVector2Array()
 	for point: Vector2 in shield:
 		outline.append(centre + (point - centre) * 1.3)
-	_overlay.draw_colored_polygon(outline, Color("#2a1806"))
-	_overlay.draw_colored_polygon(shield, PROTECTED_MARK)
-	_overlay.draw_line(centre + Vector2(0.0, -h + 2.0), centre + Vector2(0.0, h - 2.5), Color("#fff1c4"), 1.5)
-	_overlay.draw_line(centre + Vector2(-w + 2.0, -h * 0.25), centre + Vector2(w - 2.0, -h * 0.25), Color("#fff1c4"), 1.5)
+	_overlay.draw_colored_polygon(outline, Color(Color("#1a1420"), alpha))
+	_overlay.draw_colored_polygon(shield, Color(fill, alpha))
+	var line: float = maxf(1.0, 1.5 * scale_value)
+	if cracked:
+		var crack: PackedVector2Array = PackedVector2Array([
+			centre + Vector2(-w * 0.2, -h), centre + Vector2(w * 0.25, -h * 0.35),
+			centre + Vector2(-w * 0.3, h * 0.1), centre + Vector2(w * 0.15, h * 0.6), centre + Vector2(0.0, h),
+		])
+		_overlay.draw_polyline(crack, Color(Color("#1a1420"), alpha), line + 0.5)
+	else:
+		var shine: Color = Color(Color("#fff1c4"), alpha)
+		_overlay.draw_line(centre + Vector2(0.0, -h + 2.0 * scale_value), centre + Vector2(0.0, h - 2.5 * scale_value), shine, line)
+		_overlay.draw_line(centre + Vector2(-w + 2.0 * scale_value, -h * 0.25), centre + Vector2(w - 2.0 * scale_value, -h * 0.25), shine, line)
 
 ## Pieces with a shell (Stone Giant) show how many hits it still absorbs: a row of
 ## pips over the head, filled for each layer left, hollow for each one broken.
@@ -495,8 +569,7 @@ func set_input_enabled(enabled: bool) -> void:
 		item_targeting = false
 		selected_square = NO_SQUARE
 		legal_targets.clear()
-		dangerous_targets.clear()
-		protected_targets.clear()
+		_clear_marks()
 		_redraw()
 
 func begin_item_targeting() -> void:
@@ -504,8 +577,7 @@ func begin_item_targeting() -> void:
 	item_targeting = true
 	selected_square = NO_SQUARE
 	legal_targets.clear()
-	dangerous_targets.clear()
-	protected_targets.clear()
+	_clear_marks()
 	refresh()
 
 func cancel_item_targeting() -> void:
@@ -515,13 +587,13 @@ func clear_selection() -> void:
 	clear_inspection(false)
 	selected_square = NO_SQUARE
 	legal_targets.clear()
-	dangerous_targets.clear()
-	protected_targets.clear()
+	_clear_marks()
 	refresh()
 
 func set_selection_state(square: Vector2i, targets: Array[Vector2i], dangers: Array[Vector2i] = []) -> void:
 	selected_square = square
 	legal_targets = targets.duplicate()
+	_clear_marks()
 	dangerous_targets = dangers.duplicate()
 	refresh()
 
@@ -655,17 +727,13 @@ func _draw_overlay() -> void:
 		for file: int in range(board.board_size):
 			var square: Vector2i = Vector2i(file, rank)
 			var immobilized: bool = board.get_piece(square) != null and board.is_piece_immobilized(square)
-			if not immobilized and square in protected_targets:
-				_draw_protected_mark(square)
-				continue
-			if not immobilized and square not in dangerous_targets:
+			if not immobilized:
+				_draw_target_mark(square, font)
 				continue
 			var polygon: PackedVector2Array = projection.square_polygon(square)
 			var anchor: Vector2 = polygon[1] + Vector2(-13.0, 15.0)
-			var text: String = "◆" if immobilized else "!"
-			var color: Color = Color("#6ef0f2") if immobilized else Color("#ff5a52")
-			_overlay.draw_string_outline(font, anchor, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16, 3, Color("#2a0710"))
-			_overlay.draw_string(font, anchor, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16, color)
+			_overlay.draw_string_outline(font, anchor, "◆", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16, 3, Color("#2a0710"))
+			_overlay.draw_string(font, anchor, "◆", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16, Color("#6ef0f2"))
 
 # --- pieces -----------------------------------------------------------------
 
@@ -810,6 +878,7 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 	_clear_echoes()
 	var destroyed: Array[Dictionary] = []
 	var broken_rocks: Array[Vector2i] = []
+	_eggs_by_victim = {}
 	for event: BattleEvent in events:
 		match event.event_type:
 			BattleCommandProcessor.EVENT_PIECE_MOVED:
@@ -842,6 +911,7 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 				# The egg appears once the bird has fallen.
 				var egg_square: Vector2i = event.payload.get("position", NO_SQUARE)
 				_hidden_squares[egg_square] = true
+				_eggs_by_victim[int(event.payload.get("victim_instance_id", -1))] = egg_square
 				_pending_rings.append(egg_square)
 			BattleCommandProcessor.EVENT_PROMOTED:
 				_pending_promotion = event.payload.get("position", NO_SQUARE)
@@ -1048,6 +1118,7 @@ func _present_strike(move_data: Dictionary, capture_data: Dictionary, speed: flo
 	if presentation_kind_for(attacker_def) == &"bent_ray":
 		corner = _bent_corner_square(attacker_def, from, to)
 	_strike.mimic_texture = _texture_for(int(move_data.get("color", player_color)), str(capture_data.get("piece_def_id", "")))
+	_strike.egg_square = _eggs_by_victim.get(int(capture_data.get("instance_id", -1)), NO_SQUARE)
 	_strike.play(attack_id, attacker_texture, victim_texture, from, to, strike_type, attacker_def.weight_class, victim_def.weight_class, speed, victim_square, corner, StringName(victim_def.id))
 	return true
 
@@ -1189,6 +1260,7 @@ func _play_echo_strike(move_data: Dictionary, entry: Dictionary, speed: float) -
 	echo.setup(self)
 	echo.finished.connect(_on_echo_finished)
 	_echo_strikes.append(echo)
+	echo.egg_square = _eggs_by_victim.get(int(entry.get("instance_id", -1)), NO_SQUARE)
 	echo.play(attack[0], attacker_texture, victim_texture, from, to, attack[1], attacker_def.weight_class, victim_def.weight_class, speed, victim_square, NO_SQUARE, StringName(victim_def.id))
 	echo.align_impact(_strike)
 
