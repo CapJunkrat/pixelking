@@ -10,6 +10,10 @@ extends Node
 ## (1/18 of a cell) and are scaled here by `_unit`.
 
 signal finished
+## The blow lands (after the wind-up, before the hit-stop).
+signal impacted
+## The victim breaks apart (for the Powder Keg: the moment it explodes).
+signal victim_split
 
 enum Phase { IDLE, PLAYING, AFTERGLOW }
 
@@ -131,6 +135,8 @@ var _power: float = 1.0
 var _victim_weight: int = PieceDef.WeightClass.MEDIUM
 var _attacker_height: float = 0.0
 var _speed: float = 1.0
+## Extra slow motion on top of the playback speed (1 = normal).
+var time_scale: float = 1.0
 var _to_square: Vector2i = Vector2i(-1, -1)
 
 var _cell: float = 36.0
@@ -181,6 +187,11 @@ var _ghosts: Array[Sprite2D] = []
 var _trail: Array[Pose] = []
 var _bodies: Array[Body] = []
 var _pose: Pose = Pose.new()
+## The victim survives (a shell absorbed the blow): the attacker springs back to its
+## own square right after the hit instead of standing on the victim.
+var _bounce: bool = false
+var _contact: Vector3 = Vector3.ZERO
+const BOUNCE_SECONDS := 0.38
 
 func setup(view: BattleBoardView) -> void:
 	_view = view
@@ -260,6 +271,9 @@ func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: 
 	_done_time = _settle_time + 0.22 if attacker_id == &"pawn" else float(_attack["done"])
 	_end_time = _impact_time + 2.0 if _underdog else float(_attack["end"])
 	_apply_dynamic_timing()
+	_bounce = NewPieceStrikes.victim_survives(_reaction)
+	if _bounce:
+		_end_time = minf(_end_time, _impact_time + BOUNCE_SECONDS + 0.45)
 	_t = 0.0
 	_hs = 0.0
 	_rt = -1.0
@@ -403,7 +417,7 @@ func _redraw() -> void:
 	_view.air_canvas().queue_redraw()
 
 func _step(dt: float) -> void:
-	var scaled: float = dt * _speed
+	var scaled: float = dt * _speed * time_scale
 	if _hs > 0.0:
 		_hs -= scaled
 	else:
@@ -420,7 +434,12 @@ func _step(dt: float) -> void:
 		_shake = float(_attack["shake"])
 		_punch = 1.0
 		_flash = 1.0
+		_contact = Vector3(_pose.x, _pose.y, _pose.z)
+		# A shooter never left its square: nothing to spring back from.
+		if _bounce and Vector2(_contact.x - _a.x, _contact.z - _a.z).length() < _cell * 0.3:
+			_bounce = false
 		_on_impact()
+		impacted.emit()
 	if _impacted:
 		_rt += scaled
 		_reaction_tick()
@@ -428,6 +447,7 @@ func _step(dt: float) -> void:
 			_split = true
 			_victim.visible = false
 			_on_split()
+			victim_split.emit()
 	if _hs <= 0.0:
 		_physics(scaled)
 	_decay(dt)
@@ -533,7 +553,22 @@ func _compute_pose(u: float) -> Pose:
 		&"queen": _pose_queen(u, o)
 		&"king": _pose_king(u, o)
 		_: _special_pose(u, o)
+	if _bounce and _impacted and u >= _impact_time:
+		_bounce_pose(u, o)
 	return o
+
+## Knocked back off a shell: from the point of contact back home with a small hop.
+func _bounce_pose(u: float, o: Pose) -> void:
+	var q: float = clampf((u - _impact_time) / BOUNCE_SECONDS, 0.0, 1.0)
+	var s: float = q * q * (3.0 - 2.0 * q)
+	o.x = lerpf(_contact.x, _a.x, s)
+	o.z = lerpf(_contact.z, _a.z, s)
+	o.y = lerpf(_contact.y, 0.0, s) + sin(q * PI) * _cell * 0.45
+	o.rot = -0.3 * _face * sin(q * PI)
+	o.sx = 1.0
+	o.sy = 1.0
+	o.trail = false
+	o.white = 0.0
 
 func _pose_knight(u: float, o: Pose) -> void:
 	var high: float = _cell * 1.9

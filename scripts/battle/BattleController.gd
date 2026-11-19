@@ -180,9 +180,8 @@ func _play_event_sounds(events: Array[BattleEvent], speed: float) -> void:
 			BattleCommandProcessor.EVENT_PIECE_CAPTURED:
 				sound = &"capture"
 				delay = hit_delay
-			BattleCommandProcessor.EVENT_PIECE_DESTROYED, BattleCommandProcessor.EVENT_KING_EXECUTION:
-				sound = &"explode"
-				delay = hit_delay
+			# Blasts, the execution and the closing jingle are voiced by the board view,
+			# in time with their animations.
 			BattleCommandProcessor.EVENT_ROCK_BROKEN:
 				sound = &"rock"
 				delay = hit_delay
@@ -197,10 +196,6 @@ func _play_event_sounds(events: Array[BattleEvent], speed: float) -> void:
 				sound = &"item"
 			BattleCommandProcessor.EVENT_ACTION_REJECTED:
 				sound = &"error"
-			BattleCommandProcessor.EVENT_BATTLE_ENDED:
-				var won: bool = int(event.payload.get("winner", -1)) == GameState.player_color
-				sound = &"victory" if won else &"defeat"
-				delay = 0.7 / maxf(0.25, speed)
 		if sound.is_empty() or played.has(sound):
 			continue
 		played[sound] = true

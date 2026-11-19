@@ -274,6 +274,8 @@ const LOCALES := {
 			"INTERACTION_CANNOT_LEAVE": "Cannot leave yet.",
 			"INTERACTION_UNAVAILABLE": "That choice is unavailable.",
 			"LOG_HINT": "Tap a piece to see what it does. Hold it for full details.",
+			"BATTLE_BANNER_DEFEAT": "DEFEAT",
+			"BATTLE_BANNER_VICTORY": "VICTORY",
 			"LOG_PIECE_SHIELDED": "Shielded: safe for %d more turn(s)",
 			"LOG_KING_SHIELDED": "Opening shield: safe for %d more turn(s)",
 			"LOG_MOVED": "%s → %s",

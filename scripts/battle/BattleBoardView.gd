@@ -38,6 +38,8 @@ const INSPECT_RING := Color(0.8, 0.62, 1.0, 0.95)
 ## Speed multipliers applied when the player turns on short battle animations.
 const SHORT_STRIKE_SPEED := 2.2
 const SHORT_MOVE_SPEED := 1.5
+## The execution blow plays a little faster than a normal King strike.
+const EXECUTION_STRIKE_SPEED := 1.35
 const STONE_SHADER: Shader = preload("res://assets/shaders/stone_piece.gdshader")
 const PETRIFY_SECONDS := 0.8
 const CRACK_SECONDS := 0.4
@@ -72,6 +74,23 @@ var _pending_check: Dictionary = {}
 var _pending_bursts: Array[Vector2i] = []
 var _last_speed: float = 1.0
 var _pending_rings: Array[Vector2i] = []
+## Pieces a blast or splash removes. The board has already lost them, so stand-ins
+## keep them on screen until the explosion reaches them: [{square, sprite, def_id}].
+var _doomed: Array[Dictionary] = []
+var _doom_origin: Vector2i = NO_SQUARE
+## &"impact" or &"split": which moment of the running strike sets off the blast.
+var _doom_trigger: StringName = &""
+## The lone King's fall, played after the move that left it alone (EVENT_KING_EXECUTION).
+var _pending_execution: Dictionary = {}
+## "Victory" / "Defeat" over the board once the deciding move has played out.
+var _pending_banner: Dictionary = {}
+var _execution_running: bool = false
+## After the execution the winning King stays where it struck (the battle is over).
+var _finale_hidden: Dictionary = {}
+var _finale_nodes: Array[Node] = []
+var _pillar_square: Vector2i = NO_SQUARE
+var _pillar_strength: float = 0.0
+var _banner: Control = null
 var _board_canvas: Node2D = null
 var _ground_canvas: Node2D = null
 var _air_canvas: Node2D = null
@@ -111,6 +130,7 @@ func _ready() -> void:
 	_air_canvas.name = "AirFx"
 	_air_canvas.z_index = 10
 	_air_canvas.draw.connect(_draw_gazes)
+	_air_canvas.draw.connect(_draw_pillar)
 	add_child(_air_canvas)
 	_overlay = Control.new()
 	_overlay.name = "MarkerOverlay"
@@ -123,6 +143,8 @@ func _ready() -> void:
 	add_child(_strike)
 	_strike.setup(self)
 	_strike.finished.connect(_on_strike_finished)
+	_strike.impacted.connect(_on_strike_moment.bind(&"impact"))
+	_strike.victim_split.connect(_on_strike_moment.bind(&"split"))
 	resized.connect(_on_resized)
 	_update_projection()
 
@@ -274,6 +296,10 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	if not click.pressed:
 		_hold_square = NO_SQUARE
+		return
+	if _execution_running:
+		accept_event()
+		_skip_execution()
 		return
 	_hold_square = piece_square_at(click.position)
 	_hold_point = click.position
@@ -720,6 +746,10 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 	_pending_check = {}
 	_pending_bursts = []
 	_pending_rings = []
+	_pending_execution = {}
+	_pending_banner = {}
+	_clear_finale()
+	var destroyed: Array[Dictionary] = []
 	for event: BattleEvent in events:
 		match event.event_type:
 			BattleCommandProcessor.EVENT_PIECE_MOVED:
@@ -729,9 +759,14 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 			BattleCommandProcessor.EVENT_CASTLED, BattleCommandProcessor.EVENT_KING_SWAPPED:
 				castled = true
 			BattleCommandProcessor.EVENT_KING_EXECUTION:
-				# The lone King falls in place (a burst on its square); no King moves.
-				_pending_bursts.append(event.payload.get("to", NO_SQUARE))
-			BattleCommandProcessor.EVENT_PIECE_DESTROYED, BattleCommandProcessor.EVENT_ROCK_BROKEN:
+				# Played after the move: the winning King blinks over and strikes it down.
+				_pending_execution = event.payload
+			BattleCommandProcessor.EVENT_BATTLE_ENDED:
+				if not bool(event.payload.get("draw", false)) and int(event.payload.get("winner", -1)) >= 0:
+					_pending_banner = {"won": int(event.payload.get("winner", -1)) == player_color}
+			BattleCommandProcessor.EVENT_PIECE_DESTROYED:
+				destroyed.append(event.payload)
+			BattleCommandProcessor.EVENT_ROCK_BROKEN:
 				_pending_bursts.append(event.payload.get("position", NO_SQUARE))
 			BattleCommandProcessor.EVENT_SHELL_BROKEN:
 				if shell_event == null:
@@ -749,19 +784,24 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 	if board == null:
 		return
 	_last_speed = speed
+	_spawn_doomed(destroyed, move_event, capture_event)
+	if not _pending_execution.is_empty():
+		_hold_doomed_king(_pending_execution)
 	if move_event == null:
-		_play_followups()
+		_finish_without_move()
 		return
 	var data: Dictionary = move_event.payload
 	var from: Vector2i = data.get("from", NO_SQUARE)
 	var to: Vector2i = data.get("to", NO_SQUARE)
 	if not board.in_bounds(from) or not board.in_bounds(to):
-		_play_followups()
+		_finish_without_move()
 		return
 	var short: bool = _short_animations()
 	var captured: bool = capture_event != null
 	var piece_id: String = str(data.get("piece_def_id", "queen"))
 	if captured and _present_strike(data, capture_event.payload, speed * (SHORT_STRIKE_SPEED if short else 1.0)):
+		# A Powder Keg goes off when it bursts; any other blast when the blow lands.
+		_doom_trigger = &"split" if NewPieceStrikes.victim_reaction(StringName(str(capture_event.payload.get("piece_def_id", "")))) == &"keg" else &"impact"
 		return
 	# A shell that absorbed the blow: the strike plays, the victim stays, the attacker bounces back.
 	if not captured and shell_event != null:
@@ -771,13 +811,14 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 			var shell_data: Dictionary = {"position": shelled_square, "piece_def_id": shelled.def.id, "color": shelled.color}
 			if _present_strike(data, shell_data, speed * (SHORT_STRIKE_SPEED if short else 1.0)):
 				_hidden_squares[shelled_square] = true
+				_doom_trigger = &"impact"
 				return
 		_pending_rings.append(shelled_square)
 	if short:
 		speed *= SHORT_MOVE_SPEED
 	var proxy: Sprite2D = _make_piece_sprite(_texture_for(int(data.get("color", player_color)), piece_id))
 	if proxy == null:
-		_play_followups()
+		_finish_without_move()
 		return
 	var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
 	var profile: PieceMotionProfile = definition.motion_profile if definition != null and definition.motion_profile != null else PieceMotionProfileDatabase.get_profile(&"queen")
@@ -839,8 +880,11 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 		var fade: Tween = create_tween().bind_node(self)
 		_presentation_tweens.append(fade)
 		fade.tween_interval(duration * 0.8)
+		fade.tween_callback(_detonate_doomed)
 		fade.tween_property(victim, "modulate:a", 0.0, maxf(duration * 0.2, 0.01))
 		fade.tween_callback(_finish_tween.bind(fade))
+	elif not _doomed.is_empty():
+		tween.tween_callback(_detonate_doomed)
 	if castled:
 		_present_castling_partner(from, to, duration, speed)
 	# Landing: a squash and a little dust, heavier pieces kick up more.
@@ -988,7 +1032,7 @@ func _travel(progress: float, sprite: Sprite2D, start: Vector3, finish: Vector3,
 	if not is_instance_valid(sprite):
 		return
 	var world: Vector3 = start.lerp(finish, progress)
-	world.y = arc_height * 4.0 * progress * (1.0 - progress)
+	world.y = lerpf(start.y, finish.y, progress) + arc_height * 4.0 * progress * (1.0 - progress)
 	_place_sprite(sprite, world)
 	_ground_canvas.queue_redraw()
 
@@ -1030,7 +1074,23 @@ func _bent_corner_square(definition: PieceDef, from: Vector2i, to: Vector2i) -> 
 func is_presenting() -> bool:
 	return not _presentation_tweens.is_empty() or (_strike != null and _strike.is_playing())
 
+## A tap during the execution jumps straight to the banner.
+func _skip_execution() -> void:
+	_execution_running = false
+	if _finale_nodes.is_empty():
+		_finale_hidden.clear()
+	for tween: Tween in _presentation_tweens:
+		if tween != null and tween.is_valid():
+			tween.kill()
+	_presentation_tweens.clear()
+	_pillar_square = NO_SQUARE
+	_air_canvas.queue_redraw()
+	if _strike != null:
+		_strike.stop()
+	_end_presentation()
+
 func skip_presentations() -> void:
+	_pending_execution = {}
 	for tween: Tween in _presentation_tweens:
 		if tween != null and tween.is_valid():
 			tween.kill()
@@ -1045,12 +1105,375 @@ func _finish_tween(tween: Tween) -> void:
 		_end_presentation()
 
 func _end_presentation() -> void:
+	_detonate_doomed()
+	if not _presentation_tweens.is_empty():
+		return
 	for node: Node in _presentation_nodes:
 		if is_instance_valid(node):
 			node.queue_free()
 	_presentation_nodes.clear()
-	_hidden_squares.clear()
+	_hidden_squares = _finale_hidden.duplicate()
+	_execution_running = false
+	_strike.time_scale = 1.0
 	refresh()
+	for node: Node in _finale_nodes:
+		if is_instance_valid(node):
+			(node as CanvasItem).visible = true
 	_ground_canvas.queue_redraw()
 	_play_followups()
+	# The battle's last word: the execution, then the banner, then the result screen.
+	if not _pending_execution.is_empty():
+		var execution: Dictionary = _pending_execution
+		_pending_execution = {}
+		_start_execution(execution)
+		return
+	if not _pending_banner.is_empty():
+		var banner: Dictionary = _pending_banner
+		_pending_banner = {}
+		_show_banner(bool(banner.get("won", true)))
+		return
 	presentations_completed.emit()
+
+## A move-less action (an item) or a move that could not be animated.
+func _finish_without_move() -> void:
+	if not _doomed.is_empty():
+		_doom_origin = _doomed[0]["square"]
+		_detonate_doomed()
+		return
+	if not _pending_execution.is_empty() or not _pending_banner.is_empty():
+		_end_presentation()
+		return
+	_play_followups()
+
+# --- blasts: pieces caught by an explosion or splash ----------------------------
+
+## Stand-ins for the pieces a blast will remove, so they stay on the board until the
+## explosion reaches them. The attacker blown up with a Powder Keg is left to the strike.
+func _spawn_doomed(destroyed: Array[Dictionary], move_event: BattleEvent, capture_event: BattleEvent) -> void:
+	_doomed = []
+	_doom_trigger = &""
+	_doom_origin = NO_SQUARE
+	if capture_event != null:
+		_doom_origin = capture_event.payload.get("position", NO_SQUARE)
+	var landing: Vector2i = move_event.payload.get("to", NO_SQUARE) if move_event != null else NO_SQUARE
+	for entry: Dictionary in destroyed:
+		var square: Vector2i = entry.get("position", NO_SQUARE)
+		if not board.in_bounds(square):
+			continue
+		if square == landing and capture_event != null:
+			_pending_bursts.append(square)
+			continue
+		var sprite: Sprite2D = _make_piece_sprite(_texture_for(int(entry.get("color", player_color)), str(entry.get("piece_def_id", ""))))
+		if sprite == null:
+			_pending_bursts.append(square)
+			continue
+		_place_sprite(sprite, projection.square_world(square))
+		_piece_layer.add_child(sprite)
+		_presentation_nodes.append(sprite)
+		_doomed.append({"square": square, "sprite": sprite, "def_id": str(entry.get("piece_def_id", ""))})
+	if _doom_origin == NO_SQUARE and not _doomed.is_empty():
+		_doom_origin = _doomed[0]["square"]
+
+func _sfx(sound: StringName, volume_db: float = 0.0) -> void:
+	var audio: Node = get_node_or_null("/root/AudioManager")
+	if audio != null:
+		audio.call("play_sfx", sound, volume_db)
+
+func _on_strike_moment(moment: StringName) -> void:
+	if not _doomed.is_empty() and moment == _doom_trigger:
+		_detonate_doomed()
+	if moment == &"impact" and _execution_running and not _short_animations():
+		_slow_motion()
+
+## The blast reaches the doomed pieces one after another, nearest first: each one
+## flashes, is thrown clear of the blast and fades in a puff of smoke.
+func _detonate_doomed() -> void:
+	if _doomed.is_empty():
+		return
+	var doomed: Array[Dictionary] = _doomed
+	_doomed = []
+	var origin: Vector2i = _doom_origin
+	doomed.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return Vector2(a["square"] - origin).length() < Vector2(b["square"] - origin).length())
+	var speed: float = maxf(_last_speed * (SHORT_STRIKE_SPEED if _short_animations() else 1.0), 0.1)
+	for index: int in range(doomed.size()):
+		var entry: Dictionary = doomed[index]
+		var sprite: Sprite2D = entry["sprite"]
+		var square: Vector2i = entry["square"]
+		if not is_instance_valid(sprite):
+			continue
+		var away: Vector2 = Vector2(square - origin)
+		if away.length() < 0.1:
+			away = Vector2(randf_range(-1.0, 1.0), -1.0)
+		away = away.normalized()
+		var start: Vector3 = projection.square_world(square)
+		var finish: Vector3 = start + Vector3(away.x, 0.0, -away.y) * projection.cell * 1.3
+		var flight: float = 0.5 / speed
+		var tween: Tween = create_tween().bind_node(self)
+		_presentation_tweens.append(tween)
+		tween.tween_interval((0.04 + 0.09 * index) / speed)
+		tween.tween_callback(_blast_hit.bind(square, entry["def_id"] == "powder_keg"))
+		tween.tween_property(sprite, "modulate", Color(2.2, 1.5, 0.9, 1.0), 0.05 / speed)
+		tween.tween_method(_travel.bind(sprite, start, finish, projection.cell * 0.9), 0.0, 1.0, flight)
+		tween.parallel().tween_property(sprite, "rotation", (1.0 if away.x >= 0.0 else -1.0) * 2.4, flight)
+		tween.parallel().tween_property(sprite, "modulate", Color(0.35, 0.3, 0.3, 0.0), flight).set_ease(Tween.EASE_IN)
+		tween.tween_callback(_finish_tween.bind(tween))
+
+func _blast_hit(square: Vector2i, keg: bool) -> void:
+	if _strike == null:
+		return
+	_sfx(&"explode", -3.0 if not keg else 0.0)
+	var fx: StrikeFx = _strike.fx
+	var at: Vector3 = projection.square_world(square)
+	fx.puff(at + Vector3(0.0, fx.unit * 4.0, 0.0), 14 if keg else 8, 1.4 if keg else 1.0)
+	fx.spark_burst(at + Vector3(0.0, projection.cell * 0.3, 0.0), 16 if keg else 10, Vector2.ZERO, 0.0, 1.0, Color(1.0, 0.59, 0.24))
+	if keg:
+		fx.ring(at.x, at.z, projection.cell * 1.6, 0.5, Color(1.0, 0.59, 0.24))
+
+# --- the end of a battle: execution and banner --------------------------------
+
+## The lone King's fall: it trembles, the winning King dissolves into light and
+## reappears beside it, then strikes it down (slow motion on the blow).
+func _start_execution(execution: Dictionary) -> void:
+	var winner_square: Vector2i = execution.get("from", NO_SQUARE)
+	var loser_square: Vector2i = execution.get("to", NO_SQUARE)
+	if not board.in_bounds(winner_square) or not board.in_bounds(loser_square):
+		_end_presentation()
+		return
+	_execution_running = true
+	var short: bool = _short_animations()
+	var speed: float = maxf(_last_speed, 0.1) * (2.2 if short else 1.0)
+	var winner_color: int = int(execution.get("color", player_color))
+	var loser_color: int = int(execution.get("victim_color", GameRules.opposite(winner_color)))
+	var killer_id: String = str(execution.get("piece_def_id", "king"))
+	var victim_id: String = str(execution.get("victim_def_id", "king"))
+	var approach: Vector2i = execution_approach(board, loser_square, winner_square)
+	_hidden_squares[winner_square] = true
+	_finale_hidden[winner_square] = true
+	refresh()
+	var king: Sprite2D = _make_piece_sprite(_texture_for(winner_color, killer_id))
+	var doomed_king: Sprite2D = _make_piece_sprite(_texture_for(loser_color, victim_id))
+	if king == null or doomed_king == null:
+		_end_presentation()
+		return
+	var home: Vector3 = projection.square_world(winner_square)
+	var beside: Vector3 = projection.square_world(approach)
+	_place_sprite(king, home)
+	_place_sprite(doomed_king, projection.square_world(loser_square))
+	for sprite: Sprite2D in [king, doomed_king]:
+		_piece_layer.add_child(sprite)
+		_presentation_nodes.append(sprite)
+	_hidden_squares[loser_square] = true
+	var tween: Tween = create_tween().bind_node(self)
+	_presentation_tweens.append(tween)
+	# 1. A beat of silence; the doomed King trembles.
+	var doomed_rest: Vector2 = doomed_king.position
+	tween.tween_method(_tremble.bind(doomed_king, doomed_rest), 0.0, 1.0, 0.4 / speed)
+	# 2. The winner crouches and dissolves into golden motes...
+	tween.tween_method(_stretch.bind(king), Vector2.ONE, Vector2(1.16, 0.8), 0.15 / speed)
+	tween.parallel().tween_method(_tremble.bind(doomed_king, doomed_rest), 0.0, 1.0, 0.15 / speed)
+	tween.tween_callback(_motes.bind(winner_square))
+	tween.tween_property(king, "modulate", Color(2.4, 2.0, 0.9, 0.0), 0.2 / speed)
+	tween.parallel().tween_method(_stretch.bind(king), Vector2(1.16, 0.8), Vector2(0.4, 1.5), 0.2 / speed)
+	tween.parallel().tween_method(_tremble.bind(doomed_king, doomed_rest), 0.0, 1.0, 0.2 / speed)
+	# ...and drops out of a pillar of light beside the doomed King.
+	tween.tween_callback(_begin_pillar.bind(approach))
+	tween.tween_callback(_stretch.bind(Vector2.ONE, king))
+	tween.tween_method(_set_pillar, 0.0, 1.0, 0.08 / speed)
+	tween.tween_method(_travel.bind(king, beside + Vector3(0.0, projection.cell * 1.2, 0.0), beside, 0.0), 0.0, 1.0, 0.16 / speed)
+	tween.parallel().tween_property(king, "modulate", Color(1.6, 1.4, 0.9, 1.0), 0.16 / speed)
+	tween.parallel().tween_method(_tremble.bind(doomed_king, doomed_rest), 0.0, 1.0, 0.16 / speed)
+	tween.tween_callback(_land.bind(beside, PieceDef.WeightClass.HEAVY))
+	tween.tween_property(king, "modulate", Color.WHITE, 0.12 / speed)
+	tween.parallel().tween_method(_set_pillar, 1.0, 0.0, 0.25 / speed)
+	# 3. The blow: the King's own strike from beside the victim.
+	tween.tween_callback(_execution_strike.bind(execution, approach, loser_square, winner_color, loser_color, speed, king, doomed_king))
+	tween.tween_callback(_finish_tween.bind(tween))
+
+## The board has already lost the lone King; keep it standing until its execution.
+func _hold_doomed_king(execution: Dictionary) -> void:
+	var square: Vector2i = execution.get("to", NO_SQUARE)
+	if not board.in_bounds(square):
+		return
+	var color: int = int(execution.get("victim_color", GameRules.opposite(int(execution.get("color", player_color)))))
+	var sprite: Sprite2D = _make_piece_sprite(_texture_for(color, str(execution.get("victim_def_id", "king"))))
+	if sprite == null:
+		return
+	_place_sprite(sprite, projection.square_world(square))
+	_piece_layer.add_child(sprite)
+	_presentation_nodes.append(sprite)
+
+func _execution_strike(execution: Dictionary, approach: Vector2i, loser_square: Vector2i, winner_color: int, loser_color: int, speed: float, king: Sprite2D, doomed_king: Sprite2D) -> void:
+	var move_data: Dictionary = {"from": approach, "to": loser_square, "target": loser_square, "piece_def_id": str(execution.get("piece_def_id", "king")), "color": winner_color}
+	var capture_data: Dictionary = {"position": loser_square, "piece_def_id": str(execution.get("victim_def_id", "king")), "color": loser_color}
+	_finale_king(str(execution.get("piece_def_id", "king")), winner_color, loser_square)
+	if _present_strike(move_data, capture_data, speed * EXECUTION_STRIKE_SPEED):
+		for sprite: Sprite2D in [king, doomed_king]:
+			if is_instance_valid(sprite):
+				sprite.visible = false
+		return
+	# No strike animation for this King: a plain blow and burst.
+	_blast_hit(loser_square, false)
+	if is_instance_valid(doomed_king):
+		doomed_king.visible = false
+
+## Where the winning King appears: the empty square next to the doomed King that is
+## closest to where it stood (any neighbour if all are taken).
+static func execution_approach(state: BoardState, loser_square: Vector2i, winner_square: Vector2i) -> Vector2i:
+	var best: Vector2i = NO_SQUARE
+	var best_distance: float = INF
+	var fallback: Vector2i = NO_SQUARE
+	var fallback_distance: float = INF
+	for offset: Vector2i in BoardState.NEIGHBORS:
+		var square: Vector2i = loser_square + offset
+		if not state.on_board(square):
+			continue
+		var distance: float = Vector2(square - winner_square).length()
+		if distance < fallback_distance and not state.is_rock(square):
+			fallback = square
+			fallback_distance = distance
+		if state.get_piece(square) == null and not state.is_rock(square) and distance < best_distance:
+			best = square
+			best_distance = distance
+	if best != NO_SQUARE:
+		return best
+	return fallback if fallback != NO_SQUARE else winner_square
+
+## A new move after the end (only in tests and replays): forget the last finale.
+func _clear_finale() -> void:
+	for node: Node in _finale_nodes:
+		if is_instance_valid(node):
+			node.get_parent().remove_child(node)
+			node.queue_free()
+	_finale_nodes.clear()
+	_finale_hidden.clear()
+	if _banner != null and is_instance_valid(_banner):
+		_banner.queue_free()
+	_banner = null
+
+## The winning King keeps its final place until the battle screen closes.
+func _finale_king(piece_id: String, color: int, square: Vector2i) -> void:
+	for node: Node in _finale_nodes:
+		if is_instance_valid(node):
+			node.queue_free()
+	_finale_nodes.clear()
+	var sprite: Sprite2D = _make_piece_sprite(_texture_for(color, piece_id))
+	if sprite == null:
+		return
+	sprite.name = "FinaleKing"
+	_place_sprite(sprite, projection.square_world(square))
+	sprite.visible = false
+	_piece_layer.add_child(sprite)
+	_finale_nodes.append(sprite)
+	_finale_hidden[square] = true
+
+func _tremble(progress: float, sprite: Sprite2D, rest: Vector2) -> void:
+	if not is_instance_valid(sprite):
+		return
+	var reach: float = projection.cell * 0.05 * (0.6 + 0.4 * progress)
+	sprite.position = rest + Vector2(sin(Time.get_ticks_msec() * 0.07) * reach, 0.0)
+
+func _motes(square: Vector2i) -> void:
+	if _strike == null:
+		return
+	var at: Vector3 = projection.square_world(square)
+	_strike.fx.spark_burst(at + Vector3(0.0, projection.cell * 0.4, 0.0), 22, Vector2.ZERO, 0.0, 0.8, Color(1.0, 0.85, 0.45))
+	_strike.fx.ring(at.x, at.z, projection.cell * 0.7, 0.35, Color(1.0, 0.85, 0.45))
+
+func _begin_pillar(square: Vector2i) -> void:
+	_pillar_square = square
+	_pillar_strength = 0.0
+	if _strike != null:
+		var at: Vector3 = projection.square_world(square)
+		_strike.fx.ring(at.x, at.z, projection.cell * 0.9, 0.4, Color(1.0, 0.9, 0.6))
+
+func _set_pillar(value: float) -> void:
+	_pillar_strength = value
+	if value <= 0.0:
+		_pillar_square = NO_SQUARE
+	_air_canvas.queue_redraw()
+
+func _draw_pillar() -> void:
+	if _pillar_square == NO_SQUARE or _pillar_strength <= 0.0:
+		return
+	var at: Vector3 = projection.square_world(_pillar_square)
+	var foot: Vector2 = projection.project(at + Vector3(0.0, 0.0, standing_offset()))
+	var width: float = projection.cell * 0.55 * projection.square_scale(_pillar_square) * _pillar_strength
+	var height: float = projection.cell * 5.0
+	var bands: int = 8
+	for band: int in range(bands):
+		var q: float = float(band) / bands
+		var rect: Rect2 = Rect2(foot.x - width * 0.5, foot.y - height * (1.0 - q), width, height / bands + 1.0)
+		_air_canvas.draw_rect(rect, Color(1.0, 0.92, 0.65, 0.75 * _pillar_strength * q))
+	_air_canvas.draw_rect(Rect2(foot.x - width * 0.15, foot.y - height, width * 0.3, height), Color(1.0, 1.0, 0.9, 0.6 * _pillar_strength))
+
+## The killing blow plays in slow motion for a moment.
+func _slow_motion() -> void:
+	_strike.time_scale = 0.3
+	var timer: SceneTreeTimer = get_tree().create_timer(0.6)
+	timer.timeout.connect(func() -> void:
+		if _strike != null:
+			_strike.time_scale = 1.0)
+
+## "Victory" (gold) or "Defeat" (dim) slams down over the board, then the battle ends.
+func _show_banner(won: bool) -> void:
+	var short: bool = _short_animations()
+	if _banner != null and is_instance_valid(_banner):
+		_banner.queue_free()
+	_banner = Control.new()
+	_banner.name = "EndBanner"
+	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_banner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_banner)
+	var band: ColorRect = ColorRect.new()
+	band.color = Color(0.08, 0.05, 0.02, 0.72) if won else Color(0.06, 0.03, 0.06, 0.78)
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.size = Vector2(size.x, 92.0)
+	band.position = Vector2(0.0, size.y * 0.42 - 46.0)
+	_banner.add_child(band)
+	for edge_y: float in [0.0, 90.0]:
+		var edge: ColorRect = ColorRect.new()
+		edge.color = Color("#f5c860") if won else Color("#8a6a74")
+		edge.size = Vector2(size.x, 2.0)
+		edge.position = Vector2(0.0, edge_y)
+		edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		band.add_child(edge)
+	var label: Label = Label.new()
+	label.text = _banner_text("BATTLE_BANNER_VICTORY" if won else "BATTLE_BANNER_DEFEAT")
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.size = band.size
+	label.add_theme_font_size_override("font_size", 52)
+	label.add_theme_color_override("font_color", Color("#ffd876") if won else Color("#c9a0a8"))
+	label.add_theme_color_override("font_outline_color", Color("#3a2304") if won else Color("#1a0d12"))
+	label.add_theme_constant_override("outline_size", 10)
+	label.pivot_offset = band.size * 0.5
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.add_child(label)
+	band.pivot_offset = band.size * 0.5
+	var rest_y: float = band.position.y
+	band.position.y = -band.size.y
+	var speed: float = 2.0 if short else 1.0
+	var tween: Tween = create_tween().bind_node(self)
+	_presentation_tweens.append(tween)
+	tween.tween_property(band, "position:y", rest_y, 0.28 / speed).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_callback(_banner_landed.bind(won))
+	tween.tween_property(label, "scale", Vector2(1.14, 1.14), 0.08 / speed)
+	tween.tween_property(label, "scale", Vector2.ONE, 0.14 / speed)
+	tween.tween_interval(0.7 / speed)
+	tween.tween_callback(_finish_tween.bind(tween))
+
+func _banner_landed(won: bool) -> void:
+	_sfx(&"victory" if won else &"defeat")
+	if _strike == null:
+		return
+	var centre: Vector3 = projection.square_world(Vector2i(board.board_size / 2, board.board_size / 2))
+	if won:
+		for color: Color in [Color("#f5c860"), Color("#fff2c4"), Color("#4fd1c5")]:
+			_strike.fx.spark_burst(centre + Vector3(0.0, projection.cell * 2.0, 0.0), 18, Vector2.ZERO, 0.0, 1.4, color)
+	else:
+		_strike.fx.puff(centre + Vector3(0.0, projection.cell, 0.0), 10, 1.2)
+
+func _banner_text(key: String) -> String:
+	var localization: Node = get_node_or_null("/root/Localization")
+	return str(localization.call("text", key)) if localization != null else key

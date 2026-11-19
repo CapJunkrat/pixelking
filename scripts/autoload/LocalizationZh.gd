@@ -245,6 +245,8 @@ const STRINGS := {
 	"MAP_ACT": "第 %d 幕",
 	"INTERACTION_UNAVAILABLE": "这个选项现在不可用。",
 	"LOG_HINT": "点击棋子查看它的能力，长按查看完整说明。",
+	"BATTLE_BANNER_DEFEAT": "失败",
+	"BATTLE_BANNER_VICTORY": "胜利",
 	"LOG_PIECE_SHIELDED": "护罩：%d 回合内无法击杀",
 	"LOG_KING_SHIELDED": "开局护罩：%d 回合内无法击杀",
 	"LOG_MOVED": "%s → %s",

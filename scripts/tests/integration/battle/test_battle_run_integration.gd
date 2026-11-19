@@ -34,7 +34,11 @@ func _run() -> void:
 	var processor: BattleCommandProcessor = game_state.get("command_processor") as BattleCommandProcessor
 	var forced_defeat: BattleCommandResult = processor.force_finish(GameRules.PieceColor.BLACK, false, &"test_defeat")
 	game_state.call("_publish_command_result", forced_defeat)
-	await process_frame
+	# The "Defeat" banner plays out before the result screen.
+	var guard: int = 0
+	while not bool(flow.get("_result_presented")) and guard < 900:
+		guard += 1
+		await process_frame
 	var defeat_exit: Button = flow.get("exit_button") as Button
 	_expect(manager.current_run.failed_battles == 1, "defeat increments the Run failure counter")
 	_expect(manager.current_run.retries_left == 0, "defeat spends the run's single retry")

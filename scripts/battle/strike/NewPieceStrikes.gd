@@ -865,7 +865,8 @@ func split_time() -> float:
 		&"skewer": return _weight3([0.28, 0.36, 0.45])
 		&"inferno": return _weight3([0.45, 0.6, 0.75])
 		&"mimic": return _weight3([0.75, 0.9, 1.05])
-		&"keg": return 0.1
+		# The keg flashes and swells before it goes off.
+		&"keg": return 0.5
 		&"ember": return 0.3
 		&"glass": return 0.08
 		&"rebirth": return 0.25
@@ -919,6 +920,12 @@ func victim_state(material: ShaderMaterial) -> Dictionary:
 		&"mimic":
 			d._set_tint(material, Color(0.55, 0.54, 0.58), clampf(q * 1.6, 0.0, 1.0))
 			state["jitter"] = 0.0
+		&"keg":
+			var blink: float = 0.5 + 0.5 * sin(rt * (22.0 + 70.0 * q))
+			d._set_tint(material, Color(1.0, 0.32, 0.18).lerp(Color(1.0, 0.95, 0.8), q), (0.3 + 0.55 * q) * blink)
+			var swell: float = 1.0 + 0.32 * _ease_in(q)
+			state["stretch"] = Vector2(swell, swell)
+			state["jitter"] = roundf(randf_range(-1.0, 1.0) * (0.5 + 1.5 * q))
 		&"ember", &"rebirth":
 			d._set_tint(material, ORANGE, (0.7 if d._reaction == &"ember" else 0.8) * q)
 			state["jitter"] = roundf(randf_range(-1.0, 1.0) * q)

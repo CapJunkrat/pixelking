@@ -215,7 +215,8 @@ func _check_core_extras(view: BattleBoardView, layer: Node2D, battle: Node, game
 		guard += 1
 		await process_frame
 	await process_frame
-	_expect(attacks == ([&"rook"] as Array[StringName]), "the last capture plays, and no King runs across the board afterwards")
+	_expect(attacks == ([&"rook", &"king"] as Array[StringName]), "the last capture plays, then the winning King blinks over and strikes the lone King")
+	_expect(BattleBoardView.execution_approach(board_for_execution(), Vector2i(4, 7), Vector2i(4, 0)) == Vector2i(4, 6), "the King appears on the free square next to its victim, nearest to where it stood")
 
 	# En passant: the victim stands beside the pawn, not on the destination square.
 	view.present_events([
@@ -309,3 +310,12 @@ func _fail(message: String) -> void:
 func _finish() -> void:
 	print("[PASS] Strike presentation test (%s)" % _part() if not failed else "[FAIL] Strike presentation test (%s)" % _part())
 	quit(1 if failed else 0)
+
+
+func board_for_execution() -> BoardState:
+	var board: BoardState = BoardState.new(8, false)
+	board.clear_for_setup()
+	board.place_piece_for_setup(Vector2i(4, 0), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.WHITE))
+	board.place_piece_for_setup(Vector2i(3, 6), ChessPiece.new(PieceDefDatabase.get_def("pawn"), GameRules.PieceColor.WHITE))
+	board.finalize_setup(GameRules.PieceColor.WHITE)
+	return board
