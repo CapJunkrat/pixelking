@@ -14,6 +14,8 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 		gold_amount += gold_amount / 2
 	# Gold is always paid for a win; the choice is only between the extras below.
 	run_state.gold += gold_amount
+	if elite:
+		return _elite_offer(run_state, rng, reward_service, gold_amount, table)
 	var options: Array[Dictionary] = []
 	var eligible_recipes: Array[FusionRecipeDef] = fusion_service.eligible_recipes(run_state)
 	if not eligible_recipes.is_empty():
@@ -49,3 +51,28 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 	pending["gold_awarded"] = gold_amount
 	run_state.pending_choice = pending
 	return OK
+
+const ELITE_DESCRIPTION := "Choose one Epic piece to join your army."
+const ELITE_CHOICES := 3
+
+## An elite win (or a cleared act) offers three different Epic pieces; pick one.
+func _elite_offer(run_state: RunState, rng: RunRngService, reward_service: RunRewardService, gold_amount: int, table: BattleRewardTableDefType) -> Error:
+	var pool: Array[String] = epic_pool()
+	var options: Array[Dictionary] = []
+	while options.size() < ELITE_CHOICES and not pool.is_empty():
+		var piece_id: String = pool[rng.pick_index(&"reward_rng", pool.size())]
+		pool.erase(piece_id)
+		options.append(RunChoiceBuilder.option("piece_%s" % piece_id, "Recruit %s" % reward_service.definition_label(piece_id), "piece", {"piece_def_id": piece_id}))
+	var pending: Dictionary = RunChoiceBuilder.pending("battle_reward", table.title, "+%d Gold earned. %s" % [gold_amount, ELITE_DESCRIPTION], options, false)
+	pending["gold_awarded"] = gold_amount
+	run_state.pending_choice = pending
+	return OK
+
+## Every Epic piece a player can recruit (not a growth form such as Squire Lv4).
+static func epic_pool() -> Array[String]:
+	var result: Array[String] = []
+	for definition: PieceDef in PieceDefDatabase.opening_draft_defs():
+		if definition.rarity == PieceDef.Rarity.EPIC and not definition.is_king and definition.id not in result:
+			result.append(definition.id)
+	result.sort()
+	return result

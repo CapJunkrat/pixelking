@@ -160,7 +160,7 @@ func _test_crystal_mage() -> void:
 	mage.capture_count = 2
 	board.make_move(Vector2i(3, 3), Vector2i(3, 5))
 	expect(mage.def.id == "archmage", "the third capture in the Run turns the Crystal Mage into an Archmage")
-	expect(Vector2i(4, 7) in _moves(board, Vector2i(3, 5), W) and Vector2i(7, 1) in _moves(board, Vector2i(3, 5), W), "the Archmage moves like a Queen and a Knight")
+	expect(Vector2i(3, 7) in _moves(board, Vector2i(3, 5), W) and Vector2i(7, 1) in _moves(board, Vector2i(3, 5), W) and Vector2i(4, 7) not in _moves(board, Vector2i(3, 5), W), "the Archmage moves like a Queen, without Knight leaps")
 
 func _test_revival() -> void:
 	var board: BoardState = _board({Vector2i(2, 0): [&"ember_bird", W], Vector2i(7, 1): [&"pawn", W], Vector2i(2, 4): [&"rook", B], Vector2i(4, 0): [&"king", W], Vector2i(7, 7): [&"king", B]}, B)

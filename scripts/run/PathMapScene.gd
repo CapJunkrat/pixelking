@@ -106,12 +106,15 @@ func _on_node_selected(node_id: StringName) -> void:
 	if is_inside_tree() and run_manager.current_run != null and run_manager.current_run.current_node_id == node_id:
 		_open_node(node_id)
 
-## Battles go straight to the pre-battle preview and events straight into the event
-## (its own scene says what it is); other nodes show their details first.
+## Every node opens straight away: battles in the pre-battle preview, events, shops
+## and rest sites in their own scene (which says what it is). Other nodes show their
+## details first.
+const DIRECT_NODE_TYPES: Array[StringName] = [&"event", &"shop", &"rest"]
+
 func _open_node(node_id: StringName) -> void:
 	var node: MapNodeState = run_manager.current_run.map_state.get_node(node_id)
 	var definition: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id) if node != null else null
-	if definition != null and (definition.is_battle or node.node_type_id == &"event"):
+	if definition != null and (definition.is_battle or node.node_type_id in DIRECT_NODE_TYPES):
 		presented_node_id = node_id
 		_on_action_pressed()
 		return

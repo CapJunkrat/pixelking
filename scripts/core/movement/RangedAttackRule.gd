@@ -7,7 +7,8 @@ extends MovementRule
 ## - an enemy standing next to the shooter (diagonals too) stops it from shooting;
 ## - a King with one of its own pieces next to it cannot be targeted (bodyguard);
 ## - pieces that are immune to ranged attacks (Gargoyle) cannot be targeted;
-## - rocks stop every shot; heavy shots (`breaks_rocks`) can target a rock and break it.
+## - rocks stop every shot (unless `over_rocks`); heavy shots (`breaks_rocks`) can
+##   target a rock and break it.
 
 const ACTION := &"ranged"
 
@@ -21,6 +22,11 @@ const ACTION := &"ranged"
 ## Boomerang: one throw along a line hits every enemy on it up to `max_distance`,
 ## passing over every piece, turning back at the first rock.
 @export var pierce: bool = false
+## Arcing shots that also fly over rocks (Sky Archer).
+@export var over_rocks: bool = false
+## A beam that may also hit the squares next to the shooter (Archmage). Such a
+## shooter keeps firing with an enemy beside it.
+@export var hits_adjacent: bool = false
 
 func rule_id() -> StringName:
 	return &"ranged_attack"
@@ -54,9 +60,9 @@ static func can_target(board: BoardState, square: Vector2i, occupant: ChessPiece
 
 func _collect(board: BoardState, pos: Vector2i, piece: ChessPiece, attacks_only: bool) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
-	if is_engaged(board, pos, piece.color):
+	if not hits_adjacent and is_engaged(board, pos, piece.color):
 		return result
-	var minimum: int = maxi(2, min_distance)
+	var minimum: int = _minimum()
 	for direction: Vector2i in directions:
 		for distance: int in range(1, max_distance + 1):
 			var target: Vector2i = pos + direction * distance
@@ -65,6 +71,8 @@ func _collect(board: BoardState, pos: Vector2i, piece: ChessPiece, attacks_only:
 			if board.is_rock(target):
 				if breaks_rocks and not attacks_only and distance >= minimum:
 					result.append(target)
+				if over_rocks:
+					continue
 				break
 			var occupant: ChessPiece = board.get_piece(target)
 			if distance >= minimum:
@@ -97,6 +105,9 @@ func victims(board: BoardState, from: Vector2i, to: Vector2i, piece: ChessPiece)
 		if not board.on_board(square) or board.is_rock(square):
 			break
 		var occupant: ChessPiece = board.get_piece(square)
-		if distance >= maxi(2, min_distance) and occupant != null and occupant.color != piece.color and can_target(board, square, occupant):
+		if distance >= _minimum() and occupant != null and occupant.color != piece.color and can_target(board, square, occupant):
 			result.append(square)
 	return result
+
+func _minimum() -> int:
+	return maxi(1, min_distance) if hits_adjacent else maxi(2, min_distance)

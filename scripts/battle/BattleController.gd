@@ -40,6 +40,7 @@ func _ready() -> void:
 	add_child(piece_info)
 	board_view.piece_info_requested.connect(_on_piece_info_requested)
 	board_view.focus_changed.connect(_on_board_focus_changed)
+	board_view.shielded_target_tapped.connect(_on_shielded_target_tapped)
 	GameState.battle_events_emitted.connect(_on_battle_events_emitted)
 	board_view.setup(GameState.board, GameState.player_color)
 	_refresh_board()
@@ -159,6 +160,11 @@ func _on_board_focus_changed(square: Vector2i) -> void:
 	else:
 		battle_log.show_piece(piece, piece.color != GameState.player_color)
 		_sfx(&"select", -4.0)
+
+## Attacking a shielded piece does nothing; say why instead of staying silent.
+func _on_shielded_target_tapped(_square: Vector2i) -> void:
+	_sfx(&"error", -2.0)
+	battle_log.flash_shield_note()
 
 ## Sounds for what just happened on the board, timed to the animation: the move at
 ## once, the hit when the strike lands, the jingle once the battle is decided.

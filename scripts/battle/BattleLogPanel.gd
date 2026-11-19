@@ -12,6 +12,7 @@ const MUTED := Color("#9aa8bf")
 const GOLD_SOFT := Color("#f5d58f")
 const TEAL := Color("#4fd1c5")
 const ENEMY := Color("#e07a6a")
+const SHIELD := Color("#a9d6ff")
 const PANEL := Color(0.05, 0.09, 0.16, 0.86)
 const LINE := Color("#2b4166")
 
@@ -81,7 +82,29 @@ func show_piece(piece: ChessPiece, enemy: bool) -> void:
 			traits.append(_text(key))
 	if not traits.is_empty():
 		text.append("[color=#%s]%s[/color]" % [GOLD_SOFT.to_html(false), " · ".join(traits)])
+	var shield_note: String = _shield_note(piece)
+	if not shield_note.is_empty():
+		# On the name line: it is why this piece cannot be taken right now.
+		text[0] += "  [color=#%s]%s[/color]" % [SHIELD.to_html(false), shield_note]
 	log_label.text = "\n".join(text)
+
+## "Shielded: cannot be captured for 2 more turns", or "" when unshielded.
+func _shield_note(piece: ChessPiece) -> String:
+	var game_state: Node = get_node_or_null("/root/GameState")
+	var board: BoardState = game_state.get("board") as BoardState if game_state != null else null
+	if board == null or not piece.is_shielded(board.turn_serial):
+		return ""
+	var turns: int = maxi(1, ceili((piece.shield_until_serial - board.turn_serial) / 2.0))
+	return _text("LOG_KING_SHIELDED" if piece.def.is_king else "LOG_PIECE_SHIELDED") % turns
+
+## The shield line blinks after a blocked attack, so the player sees the reason.
+func flash_shield_note() -> void:
+	if log_label == null:
+		return
+	var tween: Tween = create_tween()
+	for step: int in range(2):
+		tween.tween_property(log_label, "modulate", Color(1.6, 1.6, 2.0), 0.08)
+		tween.tween_property(log_label, "modulate", Color.WHITE, 0.12)
 
 ## Back to the battle's recent moves.
 func clear_piece() -> void:

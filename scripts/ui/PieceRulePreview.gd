@@ -98,6 +98,8 @@ static func ability_keys(definition: PieceDef) -> Array[String]:
 			abilities.append("CODEX_TRAIT_RANGED")
 		if shot != null and shot.pierce and "CODEX_TRAIT_BOOMERANG" not in abilities:
 			abilities.append("CODEX_TRAIT_BOOMERANG")
+		if shot != null and shot.hits_adjacent and "CODEX_TRAIT_BEAM" not in abilities:
+			abilities.append("CODEX_TRAIT_BEAM")
 		if shot != null and shot.breaks_rocks and "CODEX_TRAIT_ROCKBREAKER" not in abilities:
 			abilities.append("CODEX_TRAIT_ROCKBREAKER")
 	if definition.immune_to_ranged:

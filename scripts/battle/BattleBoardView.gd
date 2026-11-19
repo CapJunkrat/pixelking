@@ -13,6 +13,8 @@ signal piece_info_requested(square: Vector2i)
 ## The piece the player is looking at changed: their selected piece, an inspected
 ## enemy, or NO_SQUARE when none.
 signal focus_changed(square: Vector2i)
+## The player tried to attack a piece that a shield protects (the opening King shield...).
+signal shielded_target_tapped(square: Vector2i)
 
 const NO_SQUARE := Vector2i(-1, -1)
 const SELECTED_TINT := Color(0.88, 0.71, 0.36, 0.55)
@@ -29,6 +31,8 @@ const GUARD_RING := Color(1.0, 0.86, 0.45, 0.9)
 ## a ring on your pieces it threatens.
 const INSPECT_TINT := Color(0.62, 0.42, 0.95, 0.5)
 const INSPECT_DOT := Color(0.74, 0.55, 1.0, 0.85)
+const SHELL_PIP := Color("#c9c3b6")
+const SHELL_PIP_SHINE := Color("#f4efe4")
 const INSPECT_THREAT := Color(0.66, 0.36, 0.98, 0.5)
 const INSPECT_RING := Color(0.8, 0.62, 1.0, 0.95)
 ## Speed multipliers applied when the player turns on short battle animations.
@@ -315,6 +319,9 @@ func _on_square_pressed(board_position: Vector2i) -> void:
 		move_requested.emit(selected_square, board_position)
 		return
 	var piece: ChessPiece = board.get_piece(board_position)
+	if piece != null and piece.color != player_color and selected_square != NO_SQUARE and piece.is_shielded(board.turn_serial):
+		_pulse_shield(board_position)
+		shielded_target_tapped.emit(board_position)
 	var was_inspected: bool = board_position == inspected_square
 	clear_inspection(false)
 	if piece != null and piece.color != player_color and not was_inspected:
@@ -337,6 +344,41 @@ func _on_square_pressed(board_position: Vector2i) -> void:
 		dangerous_targets.clear()
 	refresh()
 	focus_changed.emit(selected_square)
+
+## Pieces with a shell (Stone Giant) show how many hits it still absorbs: a row of
+## pips over the head, filled for each layer left, hollow for each one broken.
+func _draw_shell_pips() -> void:
+	var piece_pixels: float = projection.cell * BoardPainter.PIECE_HEIGHT_CELLS
+	var stand: float = standing_offset()
+	for rank: int in range(board.board_size):
+		for file: int in range(board.board_size):
+			var square: Vector2i = Vector2i(file, rank)
+			var piece: ChessPiece = board.get_piece(square)
+			if piece == null or piece.def.shell_hits <= 0 or _hidden_squares.has(square):
+				continue
+			var world: Vector3 = projection.square_world(square)
+			var top: Vector2 = projection.project(Vector3(world.x, projection.height_for_pixels(piece_pixels * 1.04), world.z + stand))
+			var size: float = maxf(6.0, projection.cell * 0.2 * projection.square_scale(square))
+			var gap: float = size * 0.5
+			var total: int = piece.def.shell_hits
+			var width: float = total * size + (total - 1) * gap
+			var left: float = top.x - width * 0.5
+			for index: int in range(total):
+				var rect: Rect2 = Rect2(Vector2(left + index * (size + gap), top.y - size), Vector2(size, size))
+				_overlay.draw_rect(rect.grow(1.0), Color("#1a1420"))
+				if index < piece.shell_left:
+					_overlay.draw_rect(rect, SHELL_PIP)
+					_overlay.draw_rect(Rect2(rect.position, Vector2(size, size * 0.35)), SHELL_PIP_SHINE)
+				else:
+					_overlay.draw_rect(rect, Color(SHELL_PIP, 0.18))
+
+## A shield flashes when the player tries to attack through it.
+func _pulse_shield(square: Vector2i) -> void:
+	if _strike == null or projection == null:
+		return
+	var at: Vector3 = projection.square_world(square)
+	_strike.fx.ring(at.x, at.z, projection.cell * 0.75, 0.4, Color(0.67, 0.84, 1.0))
+	_strike.fx.ring(at.x, at.z, projection.cell * 0.45, 0.3, Color(0.85, 0.94, 1.0))
 
 ## Shows where the enemy piece on `square` can move and what it can capture.
 func inspect(square: Vector2i) -> void:
@@ -524,6 +566,7 @@ func _draw_overlay() -> void:
 				dome.append(base + Vector2(cos(angle) * radius, sin(angle) * radius * 3.0 + projection.cell * 0.08))
 			_overlay.draw_polyline(dome, Color(0.67, 0.84, 1.0, 0.75), 2.0)
 			_overlay.draw_colored_polygon(dome, Color(0.67, 0.84, 1.0, 0.12))
+	_draw_shell_pips()
 	for target: Vector2i in legal_targets:
 		if _is_shot(target):
 			_draw_crosshair(target)

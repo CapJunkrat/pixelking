@@ -22,6 +22,21 @@ func test_battle_reward_generation_remains_deterministic() -> void:
 	for option: Variant in first_run.pending_choice.get("options", []) as Array:
 		assert(str(((option as Dictionary).get("payload", {}) as Dictionary).get("kind", "")) != "gold")
 
+func test_elite_reward_offers_three_epic_pieces() -> void:
+	var run_state: RunState = _base_run(424242)
+	var generator: BattleRewardOfferGenerator = BattleRewardOfferGenerator.new()
+	assert(generator.generate(run_state, _rng(run_state.run_seed), FusionService.new(), RunRewardService.new(), true) == OK)
+	var options: Array = run_state.pending_choice.get("options", []) as Array
+	assert(options.size() == 3)
+	var seen: Array[String] = []
+	for option_value: Variant in options:
+		var payload: Dictionary = (option_value as Dictionary).get("payload", {}) as Dictionary
+		var piece_id: String = str(payload.get("piece_def_id", ""))
+		assert(str(payload.get("kind", "")) == "piece")
+		assert(PieceDefDatabase.get_def(piece_id).rarity == PieceDef.Rarity.EPIC, "elite rewards are Epic pieces")
+		assert(piece_id not in seen, "three different pieces")
+		seen.append(piece_id)
+
 func test_shop_and_event_use_catalog_order_and_values() -> void:
 	var shop_run: RunState = _base_run(998877)
 	shop_run.gold = 100
@@ -32,10 +47,13 @@ func test_shop_and_event_use_catalog_order_and_values() -> void:
 	assert(shop_generator.generate(shop_run, shop_rng, FusionService.new(), reward_service) == OK)
 	assert(str(shop_run.pending_choice.get("title", "")) == RunContentDatabase.shop_pool().title)
 	var shop_options: Array = shop_run.pending_choice.get("options", []) as Array
-	assert(shop_options.size() == 4)
-	var retry_option: Dictionary = shop_options[3] as Dictionary
-	assert(str((retry_option.get("payload", {}) as Dictionary).get("kind", "")) == "restore_retry")
-	assert(not bool(retry_option.get("enabled", true)), "a full retry cannot be bought again")
+	assert(shop_options.size() == 6, "the shop always lays out six wares")
+	var kinds: Array[String] = []
+	for option_value: Variant in shop_options:
+		kinds.append(str(((option_value as Dictionary).get("payload", {}) as Dictionary).get("kind", "")))
+	assert(kinds.count("piece") >= 2 and kinds.count("item") >= 1)
+	# Retries are full on a fresh Run, so a second item takes the retry's place.
+	assert("restore_retry" not in kinds and kinds.count("item") == 2, "full retries swap the retry for a second item")
 	var shop_piece: Dictionary = (shop_options[1] as Dictionary).get("payload", {}) as Dictionary
 	var multiplier: float = RarityOdds.SHOP_PRICE_MULTIPLIER[RarityOdds.rarity_of(str(shop_piece.get("piece_def_id", "")))]
 	assert(int(shop_piece.get("price", -1)) == roundi(RunContentDatabase.shop_pool().piece_price * multiplier), "rarer shop pieces cost more")

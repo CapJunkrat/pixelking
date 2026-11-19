@@ -139,7 +139,8 @@ func status_lines(board: BoardState, square: Vector2i) -> Array[String]:
 		lines.append(_t("PIECE_INFO_FROZEN") % _turns_left(piece.frozen_until_serial - serial))
 	elif board.is_piece_immobilized(square):
 		lines.append(_t("PIECE_INFO_PINNED"))
-	if piece.def.is_ranged() and RangedAttackRule.is_engaged(board, square, piece.color):
+	var shot: RangedAttackRule = piece.def.movement_rule(&"ranged_attack") as RangedAttackRule
+	if shot != null and not shot.hits_adjacent and RangedAttackRule.is_engaged(board, square, piece.color):
 		lines.append(_t("PIECE_INFO_ENGAGED"))
 	if piece.def.is_king and board.is_king_guarded(square):
 		lines.append(_t("PIECE_INFO_GUARDED"))
