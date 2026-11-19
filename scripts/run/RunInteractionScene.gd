@@ -15,6 +15,8 @@ const PANEL := Color("#12203a")
 const PANEL_2 := Color("#172a48")
 const LINE := Color("#2b4166")
 ## Which map icon heads each kind of interaction.
+const RARITY_KEYS: Array[String] = ["RARITY_COMMON", "RARITY_RARE", "RARITY_EPIC", "RARITY_LEGENDARY", "RARITY_MYTHIC"]
+const RARITY_COLORS: Array[Color] = [Color("#b8c0cc"), Color("#5aa8ff"), Color("#b77cff"), Color("#f5c860"), Color("#ff6a5a")]
 const HEADER_ICON := {"shop": &"shop", "event": &"event", "rest": &"rest", "battle_reward": &"normal_battle", "run_summary": &"boss", "roster_overflow": &"normal_battle", "fusion_confirmation": &"shop"}
 
 @onready var title_label: Label = $SafeArea/Layout/Title
@@ -171,6 +173,12 @@ func _card(option: Dictionary) -> Button:
 	var tags: VBoxContainer = VBoxContainer.new()
 	tags.alignment = BoxContainer.ALIGNMENT_CENTER
 	tags.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Recruits show how rare they are.
+	if kind == "piece":
+		var piece_def: PieceDef = PieceDefDatabase.get_def(str(payload.get("piece_def_id", "")))
+		if piece_def != null:
+			var rarity: int = clampi(piece_def.rarity, 0, RARITY_COLORS.size() - 1)
+			tags.add_child(_chip(_localized(RARITY_KEYS[rarity]), RARITY_COLORS[rarity]))
 	var price: int = int(payload.get("price", payload.get("cost", 0)))
 	if price > 0:
 		var afford: bool = run_manager.current_run.gold >= price

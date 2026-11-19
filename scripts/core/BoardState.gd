@@ -282,6 +282,21 @@ func is_move_dangerous(from: Vector2i, to: Vector2i) -> bool:
 	var landing: Vector2i = result.get("landing", to)
 	return simulation.is_in_check(piece.color) or simulation.is_square_attacked(landing, GameRules.opposite(piece.color))
 
+## A dangerous move whose landing square another of the mover's pieces defends, so
+## a capture there can be answered (an exchange rather than a lost piece).
+func is_move_protected(from: Vector2i, to: Vector2i) -> bool:
+	var piece: ChessPiece = get_piece(from)
+	if piece == null or to not in get_executable_moves_for_color(from, piece.color):
+		return false
+	var simulation: BoardState = clone()
+	var result: Dictionary = simulation._apply_move(from, to, "queen", true)
+	if not bool(result.get("success", false)):
+		return false
+	var landing: Vector2i = result.get("landing", to)
+	if simulation.is_in_check(piece.color) or not simulation.is_square_attacked(landing, GameRules.opposite(piece.color)):
+		return false
+	return simulation.is_square_attacked(landing, piece.color)
+
 ## Strict chess-legal moves remain available for check/checkmate analysis.
 func get_legal_moves(pos: Vector2i) -> Array[Vector2i]:
 	return get_legal_moves_for_color(pos, turn)

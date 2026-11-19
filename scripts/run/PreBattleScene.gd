@@ -21,11 +21,10 @@ const PATTERN_SIZE := 7
 const LINEUP_SLOTS := 6
 ## The area under the enemy icons: your reserve and items, or the explanation of
 ## what you tapped. Fixed, so the board never moves when an explanation opens.
-const INFO_HEIGHT := 104.0
+const INFO_HEIGHT := 84.0
 const RESERVE_SLOT_HEIGHT := 54.0
 const ITEM_SLOT_HEIGHT := 44.0
 ## A touch that moves less than this is a tap (it closes the explanation).
-const TAP_SLOP := 12.0
 const TIP_ID := "prebattle_arrange"
 
 @onready var run_manager: AppRunManager = get_node("/root/RunManager") as AppRunManager
@@ -35,7 +34,6 @@ var board_view: DeploymentBoardView = null
 var tier_label: Label = null
 var layer_label: Label = null
 var limit_label: Label = null
-var foe_box: HFlowContainer = null
 var pattern_panel: PanelContainer = null
 ## Holds the enemy piece explanation; shown instead of the line-up while one is chosen.
 var pattern_scroll: ScrollContainer = null
@@ -56,8 +54,6 @@ var focus_id: String = ""
 ## ranks. 0 while no piece is picked up.
 var arrange_selected: int = 0
 var _starting: bool = false
-var _tap_from: Vector2 = Vector2.INF
-var _tap_scroll: int = 0
 
 func _ready() -> void:
 	_build()
@@ -130,48 +126,23 @@ func _build() -> void:
 	board_view.square_pressed.connect(_on_square_pressed)
 	layout.add_child(board_view)
 
-	# No page scroll: the enemy explanation takes the line-up's place while it is open,
-	# and only the explanation itself scrolls when it is long.
-	var details: VBoxContainer = VBoxContainer.new()
-	details.name = "Details"
-	details.add_theme_constant_override("separation", 6)
-	layout.add_child(details)
-
-	var foes_row: HBoxContainer = HBoxContainer.new()
-	foes_row.add_theme_constant_override("separation", 6)
-	foe_box = HFlowContainer.new()
-	foe_box.name = "EnemyPieces"
-	foe_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	foe_box.add_theme_constant_override("h_separation", 4)
-	foe_box.add_theme_constant_override("v_separation", 4)
-	foes_row.add_child(foe_box)
-	details.add_child(foes_row)
-	var divider: ColorRect = ColorRect.new()
-	divider.name = "Divider"
-	divider.color = LINE
-	divider.custom_minimum_size = Vector2(0, 1)
-	details.add_child(divider)
-
-	var info_area: VBoxContainer = VBoxContainer.new()
-	info_area.name = "InfoArea"
-	info_area.custom_minimum_size = Vector2(0, INFO_HEIGHT)
-	info_area.add_theme_constant_override("separation", 6)
-	details.add_child(info_area)
+	# Under the board: the details of the tapped piece (or item), filling the space
+	# down to the reserve. It scrolls when the text is long. The reserve and the item
+	# bar below it are always shown.
+	board_view.size_flags_stretch_ratio = 3.0
 	pattern_scroll = ScrollContainer.new()
 	pattern_scroll.name = "PatternScroll"
 	pattern_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	pattern_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	pattern_scroll.visible = false
+	pattern_scroll.size_flags_stretch_ratio = 1.0
+	pattern_scroll.custom_minimum_size = Vector2(0, INFO_HEIGHT)
 	pattern_panel = PanelContainer.new()
 	pattern_panel.name = "PiecePattern"
 	pattern_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pattern_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	pattern_panel.add_theme_stylebox_override("panel", _box(Color("#1d1a2b"), ENEMY, 6))
-	pattern_panel.visible = false
-	# A tap on the explanation closes it; a drag scrolls it.
-	pattern_panel.gui_input.connect(_on_pattern_input)
+	pattern_panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	pattern_scroll.add_child(pattern_panel)
-	info_area.add_child(pattern_scroll)
+	layout.add_child(pattern_scroll)
 	DragScroll.enable(pattern_scroll)
 
 	lineup_box = VBoxContainer.new()
@@ -183,11 +154,11 @@ func _build() -> void:
 	bench_row.name = "ReserveRow"
 	bench_row.add_theme_constant_override("separation", 5)
 	lineup_box.add_child(bench_row)
-	info_area.add_child(lineup_box)
+	layout.add_child(lineup_box)
 	item_strip = HBoxContainer.new()
 	item_strip.name = "ItemStrip"
 	item_strip.add_theme_constant_override("separation", 5)
-	info_area.add_child(item_strip)
+	layout.add_child(item_strip)
 
 	status_label = _label("", 12, ENEMY)
 	status_label.name = "StatusLabel"
@@ -262,7 +233,6 @@ func _render() -> void:
 	if node != null and run.map_state != null:
 		layer_label.text = "%s · %s" % [_text("MAP_ACT") % (run.act_index + 1), _text("MAP_PROGRESS") % [node.layer_index + 1, run.map_state.total_layers]]
 	_render_board()
-	_render_foes()
 	_render_pattern()
 	limit_label.visible = encounter != null and encounter.turn_limit > 0
 	if limit_label.visible:
@@ -293,120 +263,98 @@ func _render_board() -> void:
 	board_view.hints = _threat_hints() if arrange_selected <= 0 else {}
 	board_view.show_position(deployment.board_size, pieces, focus_square)
 
-func _render_foes() -> void:
-	for child: Node in foe_box.get_children():
-		child.queue_free()
-	var counts: Dictionary = {}
-	var order: Array[String] = []
-	for placement: Dictionary in run_manager.current_run.deployment_state.enemy_placements:
-		var id: String = str(placement.get("piece_def_id", ""))
-		if not counts.has(id):
-			order.append(id)
-		counts[id] = int(counts.get(id, 0)) + 1
-	for id: String in order:
-		var chip: Button = Button.new()
-		chip.name = "Enemy_%s" % id
-		chip.icon = _icon(_texture(&"black", id))
-		chip.custom_minimum_size = Vector2(38, 38)
-		chip.add_theme_constant_override("icon_max_width", 26)
-		chip.tooltip_text = _piece_name(id)
-		# Icons only: the name is in the explanation.
-		chip.expand_icon = true
-		chip.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		chip.toggle_mode = true
-		chip.button_pressed = id == focus_id
-		var selected: bool = id == focus_id
-		chip.add_theme_stylebox_override("normal", _box(Color("#2a1e2a") if selected else PANEL_2, ENEMY if selected else Color(ENEMY, 0.4), 5))
-		chip.add_theme_stylebox_override("pressed", _box(Color("#2a1e2a"), ENEMY, 5))
-		chip.add_theme_stylebox_override("hover", _box(PANEL_2.lightened(0.08), GOLD_SOFT, 5))
-		chip.pressed.connect(_focus.bind(id))
-		foe_box.add_child(chip)
-
 func _render_pattern() -> void:
 	for child: Node in pattern_panel.get_children():
+		pattern_panel.remove_child(child)
 		child.queue_free()
-	# The explanation takes the whole info area (reserve and items) while it is open;
-	# the area keeps its height, so the board above stays where it is.
-	pattern_panel.visible = not focus_id.is_empty()
-	pattern_scroll.visible = pattern_panel.visible
-	lineup_box.visible = not pattern_panel.visible
-	item_strip.visible = not pattern_panel.visible
-	if focus_id.is_empty():
-		return
 	pattern_scroll.scroll_vertical = 0
+	if focus_id.is_empty():
+		# Until something is tapped: what this space is for.
+		pattern_panel.add_theme_stylebox_override("panel", _box(Color(PANEL, 0.6), LINE, 6))
+		var hint: Label = _label(_text("PREBATTLE_DETAILS_HINT"), 12, MUTED)
+		hint.name = "DetailsHint"
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		hint.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		pattern_panel.add_child(hint)
+		return
 	if focus_id.begins_with("item:"):
+		pattern_panel.add_theme_stylebox_override("panel", _box(Color("#1a1626"), GOLD, 6))
 		_render_item_card(StringName(focus_id.trim_prefix("item:")))
 		return
-	var definition: PieceDef = PieceDefDatabase.get_def(focus_id)
+	var own: PieceInstanceState = null
+	var piece_id: String = focus_id
+	if focus_id.begins_with("own:"):
+		own = run_manager.current_run.get_piece_state(int(focus_id.trim_prefix("own:")))
+		if own == null:
+			focus_id = ""
+			_render_pattern()
+			return
+		piece_id = String(own.piece_def_id)
+	var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
+	if definition == null:
+		return
+	var enemy: bool = own == null
+	pattern_panel.add_theme_stylebox_override("panel", _box(Color("#1d1a2b") if enemy else Color("#12283a"), ENEMY if enemy else TEAL, 6))
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
+	row.mouse_filter = Control.MOUSE_FILTER_PASS
+	var side: VBoxContainer = VBoxContainer.new()
+	side.add_theme_constant_override("separation", 4)
+	side.mouse_filter = Control.MOUSE_FILTER_PASS
+	var picture: TextureRect = TextureRect.new()
+	picture.texture = _texture(&"black" if enemy else &"white", piece_id)
+	picture.custom_minimum_size = Vector2(36, 36)
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	picture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	side.add_child(picture)
 	var grid: GridContainer = GridContainer.new()
 	grid.columns = PATTERN_SIZE
-	grid.add_theme_constant_override("h_separation", 2)
-	grid.add_theme_constant_override("v_separation", 2)
-	var pattern: Dictionary = PieceRulePreview.pattern(focus_id, PATTERN_SIZE)
+	grid.add_theme_constant_override("h_separation", 1)
+	grid.add_theme_constant_override("v_separation", 1)
+	var pattern: Dictionary = PieceRulePreview.pattern(piece_id, PATTERN_SIZE)
 	var half: int = PATTERN_SIZE / 2
 	# Enemy pieces advance down the board, so their pattern is shown mirrored.
-	for y: int in range(-half, half + 1):
+	for row_index: int in range(PATTERN_SIZE):
+		var y: int = (row_index - half) if enemy else (half - row_index)
 		for x: int in range(-half, half + 1):
 			var cell: ColorRect = ColorRect.new()
-			cell.custom_minimum_size = Vector2(9, 9)
+			cell.custom_minimum_size = Vector2(6, 6)
 			var kind: String = str(pattern.get(Vector2i(x, y), ""))
 			cell.color = GOLD if x == 0 and y == 0 else PATTERN_COLORS.get(kind, Color("#2a3550"))
 			grid.add_child(cell)
-	row.add_child(grid)
+	side.add_child(grid)
+	row.add_child(side)
 	var text: RichTextLabel = RichTextLabel.new()
 	text.bbcode_enabled = true
 	text.fit_content = true
 	text.scroll_active = false
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.add_theme_font_size_override("normal_font_size", 11)
-	var lines: Array[String] = [_text(PieceRulePreview.move_key(definition))]
+	text.add_theme_font_size_override("bold_font_size", 12)
+	var accent: String = (ENEMY if enemy else GOLD_SOFT).to_html(false)
+	var owner: String = _text("LOG_ENEMY_TAG") if enemy else _text("LOG_YOURS_TAG")
+	var lines: Array[String] = ["[b][color=#%s]%s[/color][/b]  [color=#9aa8bf]%s · %s[/color]" % [accent, _piece_name(piece_id), owner, _text("PREBATTLE_VALUE") % definition.base_value]]
+	lines.append(_text(PieceRulePreview.move_key(definition)))
 	lines.append(_text(PieceRulePreview.attack_key(definition)))
 	for key: String in PieceRulePreview.ability_keys(definition):
 		if key != "CODEX_TRAIT_NONE":
 			lines.append("[color=#f5d58f]%s[/color]" % _text(key))
+	if own != null and own.capture_count > 0:
+		lines.append("[color=#4fd1c5]%s[/color]" % (_text("PREBATTLE_CAPTURES") % own.capture_count))
 	text.text = "\n".join(lines)
 	text.mouse_filter = Control.MOUSE_FILTER_PASS
 	row.add_child(text)
-	pattern_panel.add_child(_card_column("%s · %s" % [_piece_name(focus_id), _text("PREBATTLE_VALUE") % definition.base_value], row))
-
-## An explanation: its title with a quiet "tap to close" beside it, then `body`.
-## A tap anywhere on the card closes it (no button).
-func _card_column(title: String, body: Control) -> VBoxContainer:
-	var column: VBoxContainer = VBoxContainer.new()
-	column.add_theme_constant_override("separation", 3)
-	var head: HBoxContainer = HBoxContainer.new()
-	var name_label: Label = _label(title, 12, GOLD_SOFT)
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_label.clip_text = true
-	head.add_child(name_label)
-	var hint: Label = _label(_text("PREBATTLE_TAP_TO_CLOSE"), 10, Color(MUTED, 0.75))
-	hint.name = "CloseHint"
-	head.add_child(hint)
-	column.add_child(head)
-	column.add_child(body)
-	return column
-
-## Closes the explanation on a tap; leaves drags to the scroll.
-func _on_pattern_input(event: InputEvent) -> void:
-	var button: InputEventMouseButton = event as InputEventMouseButton
-	if button == null or button.button_index != MOUSE_BUTTON_LEFT:
-		return
-	if button.pressed:
-		_tap_from = button.global_position
-		_tap_scroll = pattern_scroll.scroll_vertical
-		return
-	var was_tap: bool = _tap_from != Vector2.INF and button.global_position.distance_to(_tap_from) <= TAP_SLOP and absi(pattern_scroll.scroll_vertical - _tap_scroll) <= 2
-	_tap_from = Vector2.INF
-	if was_tap and not focus_id.is_empty():
-		_focus.call_deferred(focus_id)
+	pattern_panel.add_child(row)
 
 ## Where every enemy piece of the chosen kind can move (blue) or capture (red) from
 ## where it stands now, rocks and all.
 func _threat_hints() -> Dictionary:
 	var hints: Dictionary = {}
-	if focus_id.is_empty() or focus_id.begins_with("item:"):
+	if focus_id.is_empty() or focus_id.begins_with("item:") or focus_id.begins_with("own:"):
 		return hints
 	var board: BoardState = _preview_board()
 	if board == null:
@@ -497,7 +445,8 @@ func _render_item_card(item_id: StringName) -> void:
 	text.text = "%s\n[color=#9aa8bf]%s[/color]" % [_text(String(item.description_key)), usage]
 	text.mouse_filter = Control.MOUSE_FILTER_PASS
 	row.add_child(text)
-	pattern_panel.add_child(_card_column(_text(String(item.display_name_key)), row))
+	text.text = "[b][color=#f5d58f]%s[/color][/b]\n%s" % [_text(String(item.display_name_key)), text.text]
+	pattern_panel.add_child(row)
 
 func _render_lineup() -> void:
 	for child: Node in bench_row.get_children():
@@ -576,7 +525,6 @@ func _slot(piece: PieceInstanceState, active: bool) -> Button:
 func _focus(id: String) -> void:
 	focus_id = "" if focus_id == id else id
 	_render_board()
-	_render_foes()
 	_render_pattern()
 	_render_items()
 
@@ -604,6 +552,7 @@ func _arrange_at(square: Vector2i) -> bool:
 		if own <= 0:
 			return false
 		arrange_selected = own
+		_show_own(own)
 		_render_board()
 		_render_lineup()
 		return true
@@ -637,8 +586,14 @@ func _bench_held() -> void:
 	arrange_selected = 0
 	_toggle_piece(held, false)
 
+## Shows one of your pieces in the details area.
+func _show_own(instance_id: int) -> void:
+	focus_id = "own:%d" % instance_id
+	_render_pattern()
+
 ## A reserve piece: swapped with the piece in hand onto its square, or sent into the line.
 func _on_reserve_pressed(instance_id: int) -> void:
+	_show_own(instance_id)
 	if not _holding_benchable():
 		_toggle_piece(instance_id, true)
 		return

@@ -50,47 +50,49 @@ func _run() -> void:
 	for placement: Dictionary in deployment.enemy_placements:
 		_expect(DeploymentState.is_enemy_zone(DeploymentState.position_from_value(placement.get("position", {})), 8), "enemies start in the top-right corner")
 
-	var details: Node = preview.get_node("SafeArea/Layout/Details")
-	_expect(not details is ScrollContainer and preview.find_children("*", "ScrollContainer", true, false).size() == 1, "the page itself does not scroll")
+	var details: Node = preview.get_node("SafeArea/Layout")
+	_expect(preview.find_children("*", "ScrollContainer", true, false).size() == 1, "only the details area scrolls, not the page")
 	_expect(preview.get_node_or_null("SafeArea/Layout/TitleLabel") == null, "the redundant title and description are gone")
-	var chips: HFlowContainer = details.find_child("EnemyPieces", true, false) as HFlowContainer
-	_expect(chips != null and chips.get_child_count() > 0, "enemy pieces are listed")
-	_expect((chips.get_child(0) as Button).text.is_empty(), "enemy pieces show only icons, with no name or count")
+	_expect(preview.find_child("EnemyPieces", true, false) == null, "the row of enemy icons is gone: tap the pieces on the board instead")
 	_expect(preview.find_child("LineBadge", true, false) != null and preview.count_label.text == "%d/%d" % [manager.current_run.active_piece_ids.size() - 1, manager.current_run.max_active_pieces()], "the head shows how many pieces are on the board")
 	_expect(preview.status_label.visible == false, "no instruction text is shown")
-	var chip_icon: Texture2D = (chips.get_child(0) as Button).icon
-	_expect(chip_icon is AtlasTexture, "enemy icons are cropped to the figure so all fill their box alike")
 	_expect(details.find_child("ActiveRow", true, false) == null and preview.find_child("ArrangeRow", true, false) == null, "no battle-line row, tip or reset button")
 	var pattern: PanelContainer = details.find_child("PiecePattern", true, false) as PanelContainer
 	var lineup: Control = details.find_child("Lineup", true, false) as Control
-	_expect(not pattern.visible and lineup.visible, "no piece is explained until one is chosen")
+	var strip: HBoxContainer = details.find_child("ItemStrip", true, false) as HBoxContainer
+	_expect(pattern.visible and pattern.find_child("DetailsHint", true, false) != null, "the details area invites a tap on a piece until one is chosen")
+	_expect(lineup.visible and strip.visible, "the reserve and the item bar are always shown")
 	var board_rect: Rect2 = board.get_global_rect()
-	(chips.get_child(0) as Button).pressed.emit()
+	var enemy_square: Vector2i = DeploymentState.position_from_value(deployment.enemy_placements[0].get("position", {}))
+	board.square_pressed.emit(enemy_square)
 	await process_frame
 	await process_frame
-	_expect(pattern.visible and not lineup.visible, "tapping an enemy piece shows how it moves in place of the line-up")
-	_expect(board.get_global_rect() == board_rect, "opening an explanation does not move the board")
-	_expect(pattern.find_child("ClosePattern", true, false) == null and pattern.find_child("CloseHint", true, false) != null, "no close button, only a quiet hint")
+	_expect(preview.focus_id == str(deployment.enemy_placements[0].get("piece_def_id", "")) and pattern.find_child("DetailsHint", true, false) == null, "tapping an enemy on the board shows its details")
+	_expect(lineup.visible and strip.visible, "the reserve and items stay while a piece is explained")
+	_expect(board.get_global_rect() == board_rect, "showing details does not move the board")
 	_expect(not board.hints.is_empty(), "the chosen enemy's reach is marked on the board")
-	await _tap(preview, Vector2(40, 600))
-	_expect(not pattern.visible and lineup.visible, "closing the explanation brings the line-up back")
-	_expect(board.hints.is_empty(), "closing it clears the marks")
+	board.square_pressed.emit(Vector2i(0, 5))
 	await process_frame
+	await process_frame
+	_expect(preview.focus_id.is_empty() and pattern.find_child("DetailsHint", true, false) != null, "a tap on an empty square goes back to the hint")
+	_expect(board.hints.is_empty(), "closing it clears the marks")
 	_expect(board.get_global_rect() == board_rect, "closing it does not move the board either")
-	(chips.get_child(0) as Button).pressed.emit()
+	board.square_pressed.emit(Vector2i(2, 0))
+	await process_frame
+	_expect(preview.focus_id == "own:%d" % king_id, "tapping your own piece shows its details too")
+	board.square_pressed.emit(Vector2i(2, 0))
 	await process_frame
 	board.square_pressed.emit(Vector2i(0, 5))
 	await process_frame
-	_expect(not pattern.visible, "a tap on an empty square closes the explanation too")
 	manager.current_run.challenger_slots.append(&"holy_water")
 	preview._render_items()
-	var strip: HBoxContainer = details.find_child("ItemStrip", true, false) as HBoxContainer
-	_expect(strip != null and strip.get_child_count() == 6, "your six item slots are shown before the battle")
+	_expect(strip.get_child_count() == 6, "your six item slots are shown before the battle")
 	(strip.get_node("Item_holy_water") as Button).pressed.emit()
 	await process_frame
-	_expect(pattern.visible and preview.focus_id == "item:holy_water", "tapping an item explains it")
-	await _tap(preview, Vector2(40, 600))
-	_expect(preview.focus_id.is_empty(), "tapping the explanation closes it")
+	_expect(preview.focus_id == "item:holy_water", "tapping an item explains it")
+	board.square_pressed.emit(Vector2i(0, 5))
+	await process_frame
+	_expect(preview.focus_id.is_empty(), "a tap on the board closes the item explanation")
 	manager.current_run.challenger_slots.erase(&"holy_water")
 
 	# Bench a piece from the board and bring it back: the board is the battle line.

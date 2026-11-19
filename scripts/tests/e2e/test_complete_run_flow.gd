@@ -20,7 +20,8 @@ func _run() -> void:
 	_expect(manager.ensure_run_map() == OK, "route map is generated")
 	var guard: int = 0
 	var acts_seen: Array[int] = []
-	while str(manager.current_run.pending_choice.get("type", "")) != "run_summary" and guard < 60:
+	var unlock_title_seen: bool = false
+	while manager.current_run.act_index < RunState.ACT_COUNT and guard < 80:
 		guard += 1
 		# The map screen does this on every visit; after a Boss it starts the next act.
 		if manager.current_run.phase == RunPhase.MAP:
@@ -39,17 +40,20 @@ func _run() -> void:
 			_expect(manager.confirm_deployment() == OK, "battle deployment is confirmed")
 			_expect(manager.start_current_battle() == OK, "confirmed battle starts")
 			_expect(manager.apply_battle_outcome(true) == OK, "battle victory commits")
+			if str(manager.current_run.pending_choice.get("title_key", "")) == "ENDLESS_UNLOCKED_TITLE":
+				unlock_title_seen = true
+				_expect(manager.endless_unlocked(), "beating the last Boss unlocks endless mode at once")
 		else:
 			_expect(manager.begin_current_run_interaction() == OK, "non-battle interaction is staged")
 		_resolve_pending(manager)
-	_expect(acts_seen == ([0, 1, 2] as Array[int]), "the run goes through three acts, each on its own map")
+	_expect(acts_seen.slice(0, 3) == ([0, 1, 2] as Array[int]), "the run goes through three acts, each on its own map")
 	_expect(int(manager.current_run.run_statistics.get("acts_cleared", 0)) == 3, "all three acts are cleared")
-	_expect(str(manager.current_run.pending_choice.get("type", "")) == "run_summary", "the third Boss's defeat reaches the run summary")
-	_expect(bool(manager.current_run.run_statistics.get("run_won", false)), "summary records a won run")
-	_expect(manager.resume_scene_path() == RunContentService.INTERACTION_SCENE, "summary is resumable")
-	_expect(manager.finish_run_summary() == OK, "summary finalization commits meta progression")
-	_expect(manager.current_run == null, "finished run clears active save")
+	_expect(unlock_title_seen, "the third Boss's reward announces that endless mode is unlocked")
+	_expect(bool(manager.current_run.run_statistics.get("run_won", false)), "the run records the won journey")
+	_expect(manager.current_run.mode == RunState.MODE_ENDLESS, "the journey continues in endless mode")
+	_expect(manager.current_run.act_index == RunState.ACT_COUNT and manager.current_run.map_state != null, "Act 4 begins on a new map with the same army")
 	_expect(manager.endless_unlocked(), "standard victory unlocks endless mode")
+	manager.abandon_run()
 	manager.queue_free()
 	_cleanup()
 	_finish()

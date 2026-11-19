@@ -32,6 +32,7 @@ const GUARD_RING := Color(1.0, 0.86, 0.45, 0.9)
 const INSPECT_TINT := Color(0.62, 0.42, 0.95, 0.5)
 const INSPECT_DOT := Color(0.74, 0.55, 1.0, 0.85)
 const SHELL_PIP := Color("#c9c3b6")
+const PROTECTED_MARK := Color("#f0a93a")
 const SHELL_PIP_SHINE := Color("#f4efe4")
 const INSPECT_THREAT := Color(0.66, 0.36, 0.98, 0.5)
 const INSPECT_RING := Color(0.8, 0.62, 1.0, 0.95)
@@ -53,6 +54,9 @@ const LONG_PRESS_SLOP := 14.0
 var selected_square: Vector2i = NO_SQUARE
 var legal_targets: Array[Vector2i] = []
 var dangerous_targets: Array[Vector2i] = []
+## Squares where the moved piece can be taken but another of yours defends it (an
+## exchange, not a loss). Marked with an amber shield instead of the red "!".
+var protected_targets: Array[Vector2i] = []
 ## An enemy piece tapped to see its reach (NO_SQUARE when none), with the empty squares
 ## it can move to and the squares of your pieces it can capture.
 var inspected_square: Vector2i = NO_SQUARE
@@ -357,6 +361,7 @@ func _on_square_pressed(board_position: Vector2i) -> void:
 		selected_square = NO_SQUARE
 		legal_targets.clear()
 		dangerous_targets.clear()
+		protected_targets.clear()
 		inspect(board_position)
 		focus_changed.emit(board_position)
 		return
@@ -364,15 +369,40 @@ func _on_square_pressed(board_position: Vector2i) -> void:
 		selected_square = board_position
 		legal_targets = board.get_executable_moves(board_position)
 		dangerous_targets.clear()
+		protected_targets.clear()
+		protected_targets.clear()
 		for target: Vector2i in legal_targets:
 			if board.is_move_dangerous(board_position, target):
-				dangerous_targets.append(target)
+				if board.is_move_protected(board_position, target):
+					protected_targets.append(target)
+				else:
+					dangerous_targets.append(target)
 	else:
 		selected_square = NO_SQUARE
 		legal_targets.clear()
 		dangerous_targets.clear()
+		protected_targets.clear()
 	refresh()
 	focus_changed.emit(selected_square)
+
+## An amber shield in the corner of a square: the piece can be taken there, but
+## another of your pieces guards the square and can strike back.
+func _draw_protected_mark(square: Vector2i) -> void:
+	var polygon: PackedVector2Array = projection.square_polygon(square)
+	var centre: Vector2 = polygon[1] + Vector2(-9.0, 9.0)
+	var w: float = 6.5
+	var h: float = 8.0
+	var shield: PackedVector2Array = PackedVector2Array([
+		centre + Vector2(-w, -h), centre + Vector2(w, -h), centre + Vector2(w, h * 0.15),
+		centre + Vector2(0.0, h), centre + Vector2(-w, h * 0.15),
+	])
+	var outline: PackedVector2Array = PackedVector2Array()
+	for point: Vector2 in shield:
+		outline.append(centre + (point - centre) * 1.3)
+	_overlay.draw_colored_polygon(outline, Color("#2a1806"))
+	_overlay.draw_colored_polygon(shield, PROTECTED_MARK)
+	_overlay.draw_line(centre + Vector2(0.0, -h + 2.0), centre + Vector2(0.0, h - 2.5), Color("#fff1c4"), 1.5)
+	_overlay.draw_line(centre + Vector2(-w + 2.0, -h * 0.25), centre + Vector2(w - 2.0, -h * 0.25), Color("#fff1c4"), 1.5)
 
 ## Pieces with a shell (Stone Giant) show how many hits it still absorbs: a row of
 ## pips over the head, filled for each layer left, hollow for each one broken.
@@ -466,6 +496,7 @@ func set_input_enabled(enabled: bool) -> void:
 		selected_square = NO_SQUARE
 		legal_targets.clear()
 		dangerous_targets.clear()
+		protected_targets.clear()
 		_redraw()
 
 func begin_item_targeting() -> void:
@@ -474,6 +505,7 @@ func begin_item_targeting() -> void:
 	selected_square = NO_SQUARE
 	legal_targets.clear()
 	dangerous_targets.clear()
+	protected_targets.clear()
 	refresh()
 
 func cancel_item_targeting() -> void:
@@ -484,6 +516,7 @@ func clear_selection() -> void:
 	selected_square = NO_SQUARE
 	legal_targets.clear()
 	dangerous_targets.clear()
+	protected_targets.clear()
 	refresh()
 
 func set_selection_state(square: Vector2i, targets: Array[Vector2i], dangers: Array[Vector2i] = []) -> void:
@@ -622,6 +655,9 @@ func _draw_overlay() -> void:
 		for file: int in range(board.board_size):
 			var square: Vector2i = Vector2i(file, rank)
 			var immobilized: bool = board.get_piece(square) != null and board.is_piece_immobilized(square)
+			if not immobilized and square in protected_targets:
+				_draw_protected_mark(square)
+				continue
 			if not immobilized and square not in dangerous_targets:
 				continue
 			var polygon: PackedVector2Array = projection.square_polygon(square)

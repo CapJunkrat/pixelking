@@ -494,7 +494,13 @@ func apply_battle_outcome(player_won: bool, growth: Dictionary = {}) -> Error:
 	error = flow_state_machine.transition_to_derived_phase(battle_run)
 	if error != OK:
 		return error
-	return _commit_transaction(battle_run, battle_rng)
+	error = _commit_transaction(battle_run, battle_rng)
+	# Beating the last Boss opens endless mode for good, at once (not only when a
+	# summary screen is closed).
+	if error == OK and bool(current_run.run_statistics.get("endless_unlocked_now", false)):
+		current_run.run_statistics.erase("endless_unlocked_now")
+		meta_progress_service.unlock_endless()
+	return error
 
 ## Growth the pieces earned in the battle just played (BoardState.growth).
 func _battle_growth() -> Dictionary:
