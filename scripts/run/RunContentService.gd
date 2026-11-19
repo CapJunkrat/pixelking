@@ -177,9 +177,27 @@ func leave(run_state: RunState, progress: MapProgressService) -> Error:
 	return _resolve_interaction_node(run_state, progress, {"outcome": "left_%s" % pending_type})
 
 func _submit_shop(run_state: RunState, progress: MapProgressService, pending: Dictionary, choice_id: String, payload: Dictionary) -> Error:
+	match str(payload.get("kind", "")):
+		"shop_replace_cancel":
+			run_state.pending_choice = RunRosterChoiceService._shop_offers(pending).duplicate(true)
+			return OK
+		"shop_replace_confirm":
+			if run_state.gold < int(payload.get("price", 0)):
+				return ERR_UNAVAILABLE
+			roster_choice_service.stage_shop_replace_pick(run_state, pending, payload)
+			return OK
+		"shop_replace_pick":
+			var buy_error: Error = roster_choice_service.buy_replacing(run_state, payload)
+			if buy_error != OK:
+				return buy_error
+			return _resolve_interaction_node(run_state, progress, {"outcome": "purchase", "choice": str(payload.get("source_choice", choice_id))})
 	var price: int = int(payload.get("price", 0))
 	if run_state.gold < price:
 		return ERR_UNAVAILABLE
+	# No room for the recruit: buying it means letting one of your pieces go first.
+	if str(payload.get("kind", "")) == "piece" and not run_state.has_room_for_piece():
+		roster_choice_service.stage_shop_replace_confirm(run_state, pending, choice_id, payload)
+		return OK
 	if str(payload.get("kind", "")) == "fusion":
 		return fusion_interaction_service.stage(run_state, pending, choice_id, payload)
 	var reward_error: Error = reward_service.apply(run_state, payload)

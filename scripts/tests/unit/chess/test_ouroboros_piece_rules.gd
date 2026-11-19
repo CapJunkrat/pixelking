@@ -77,11 +77,15 @@ func _test_bent_rays() -> void:
 func _test_gorgon() -> void:
 	var board: BoardState = _piece_board(&"gorgon")
 	board.set_piece(Vector2i(3, 5), _piece(&"pawn", GameRules.PieceColor.BLACK))
-	expect(Vector2i(3, 4) in MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3)) and Vector2i(3, 5) not in MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3)), "Gorgon moves on Queen rays but cannot capture")
-	expect(MoveGenerator.get_attack_squares(board, Vector2i(3, 3)).is_empty(), "Gorgon creates no attack squares")
+	expect(Vector2i(3, 4) in MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3)) and Vector2i(3, 5) not in MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3)), "Gorgon moves on Queen rays but cannot capture at a distance")
+	board.set_piece(Vector2i(2, 2), _piece(&"pawn", GameRules.PieceColor.BLACK))
+	expect(Vector2i(2, 2) in MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3)), "Gorgon captures an adjacent enemy")
+	expect(Vector2i(2, 2) in MoveGenerator.get_attack_squares(board, Vector2i(3, 3)) and Vector2i(3, 5) not in MoveGenerator.get_attack_squares(board, Vector2i(3, 3)), "Gorgon attacks only the squares next to it")
+	board.set_piece(Vector2i(2, 2), null)
 	board.set_piece(Vector2i(4, 3), _piece(&"rook", GameRules.PieceColor.WHITE))
 	board.set_piece(Vector2i(2, 3), _piece(&"rook", GameRules.PieceColor.BLACK))
-	expect(MoveGenerator.generate_pseudo_legal(board, Vector2i(4, 3)).is_empty() and MoveGenerator.generate_pseudo_legal(board, Vector2i(2, 3)).is_empty(), "Gorgon freezes adjacent allies and enemies")
+	expect(not MoveGenerator.generate_pseudo_legal(board, Vector2i(4, 3)).is_empty(), "Gorgon never freezes its own side")
+	expect(MoveGenerator.generate_pseudo_legal(board, Vector2i(2, 3)).is_empty(), "Gorgon freezes adjacent enemies")
 	board.set_piece(Vector2i(4, 4), _piece(&"gorgon", GameRules.PieceColor.BLACK))
 	expect(not MoveGenerator.generate_pseudo_legal(board, Vector2i(4, 4)).is_empty(), "Gorgons are immune to Gorgon freezing")
 

@@ -20,7 +20,7 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 		_add_piece(options, offered_pieces, stock, run_state, rng, reward_service, pool)
 	var relic: StringName = reward_service.unowned_relic(run_state, rng, &"shop_rng")
 	if not relic.is_empty():
-		options.append(RunChoiceBuilder.option("buy_relic", "%s — %d Gold" % [RunContentDatabase.relic_label(relic), pool.relic_price], "relic", {"relic_id": String(relic), "price": pool.relic_price}, run_state.gold >= pool.relic_price and run_state.challenger_slots.size() < 6))
+		options.append(RunChoiceBuilder.option("buy_relic", "%s — %d Gold" % [RunContentDatabase.relic_label(relic), pool.relic_price], "relic", {"relic_id": String(relic), "price": pool.relic_price}, run_state.gold >= pool.relic_price and run_state.has_challenger_room()))
 	else:
 		_add_piece(options, offered_pieces, stock, run_state, rng, reward_service, pool)
 	var offered_items: Array[StringName] = []
@@ -38,7 +38,8 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 	run_state.pending_choice = RunChoiceBuilder.pending("shop", pool.title, pool.description, options, true)
 	return OK
 
-## A recruit not already on the shelf; rarer pieces cost more.
+## A recruit not already on the shelf; rarer pieces cost more. It stays buyable with
+## the party full: buying it then asks which piece to let go.
 func _add_piece(options: Array[Dictionary], offered: Array[String], stock: Array, run_state: RunState, rng: RunRngService, reward_service: RunRewardService, pool: ShopPoolDefType) -> void:
 	var piece_id: String = ""
 	for attempt: int in range(8):
@@ -49,7 +50,7 @@ func _add_piece(options: Array[Dictionary], offered: Array[String], stock: Array
 		return
 	offered.append(piece_id)
 	var piece_price: int = roundi(pool.piece_price * RarityOdds.SHOP_PRICE_MULTIPLIER[RarityOdds.rarity_of(piece_id)])
-	options.append(RunChoiceBuilder.option("buy_piece_%d" % offered.size(), "%s — %d Gold" % [reward_service.definition_label(piece_id), piece_price], "piece", {"piece_def_id": piece_id, "price": piece_price}, run_state.gold >= piece_price and run_state.has_room_for_piece()))
+	options.append(RunChoiceBuilder.option("buy_piece_%d" % offered.size(), "%s — %d Gold" % [reward_service.definition_label(piece_id), piece_price], "piece", {"piece_def_id": piece_id, "price": piece_price}, run_state.gold >= piece_price))
 
 ## A consumable not already on the shelf (sold out of room: shown but not buyable).
 func _add_item(options: Array[Dictionary], offered: Array[StringName], run_state: RunState, rng: RunRngService, pool: ShopPoolDefType) -> void:
@@ -58,4 +59,4 @@ func _add_item(options: Array[Dictionary], offered: Array[StringName], run_state
 		consumables.erase(item)
 	var item_id: StringName = consumables[rng.pick_index(&"shop_rng", consumables.size())] if not consumables.is_empty() else pool.consumable_id
 	offered.append(item_id)
-	options.append(RunChoiceBuilder.option("buy_item_%d" % offered.size(), "%s — %d Gold" % [RunContentDatabase.item_label(item_id), pool.consumable_price], "item", {"item_id": String(item_id), "price": pool.consumable_price}, run_state.gold >= pool.consumable_price and run_state.challenger_slots.size() < 6))
+	options.append(RunChoiceBuilder.option("buy_item_%d" % offered.size(), "%s — %d Gold" % [RunContentDatabase.item_label(item_id), pool.consumable_price], "item", {"item_id": String(item_id), "price": pool.consumable_price}, run_state.gold >= pool.consumable_price and run_state.has_challenger_room()))

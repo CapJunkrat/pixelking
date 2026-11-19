@@ -11,13 +11,13 @@ func apply(run_state: RunState, payload: Dictionary) -> Error:
 			return OK if run_state.allocate_piece(piece_id, false) != null else ERR_UNAVAILABLE
 		"relic":
 			var relic_id: StringName = StringName(str(payload.get("relic_id", "")))
-			if not RunContentDatabase.is_relic(relic_id) or relic_id in run_state.challenger_slots or run_state.challenger_slots.size() >= 6:
+			if not RunContentDatabase.is_relic(relic_id) or relic_id in run_state.challenger_slots or not run_state.has_challenger_room():
 				return ERR_UNAVAILABLE
 			run_state.challenger_slots.append(relic_id)
 		"item":
 			var item_id: StringName = StringName(str(payload.get("item_id", "")))
 			var item_definition: ChallengerItemDef = ChallengerItemDatabase.get_def(item_id)
-			if item_definition == null or not item_definition.is_consumable() or run_state.challenger_slots.size() >= 6:
+			if item_definition == null or not item_definition.is_consumable() or not run_state.has_challenger_room():
 				return ERR_UNAVAILABLE
 			run_state.challenger_slots.append(item_id)
 		"restore_retry":

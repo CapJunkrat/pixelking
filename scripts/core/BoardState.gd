@@ -229,7 +229,8 @@ func is_piece_immobilized(pos: Vector2i) -> bool:
 		Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1),
 	]:
 		var neighbor: ChessPiece = get_piece(pos + offset)
-		if neighbor != null and neighbor.def.immobilizes_adjacent:
+		# A Gorgon turns only enemies to stone, never its own side.
+		if neighbor != null and neighbor.color != piece.color and neighbor.def.immobilizes_adjacent:
 			return true
 	return false
 
@@ -559,8 +560,9 @@ func _resolve_death(victim: ChessPiece, pos: Vector2i, cause: StringName, result
 		"cause": String(cause),
 		"was_king": victim.def.is_king,
 	})
-	if victim.revives_left > 0 and not victim.def.is_king:
-		victim.revives_left -= 1
+	if victim.revives_left != 0 and not victim.def.is_king:
+		if victim.revives_left > 0:
+			victim.revives_left -= 1
 		_lay_egg(victim, serial, result)
 	if victim.def.shields_allies_when_captured:
 		for offset: Vector2i in NEIGHBORS:

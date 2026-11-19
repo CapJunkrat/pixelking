@@ -24,7 +24,7 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 	var progress: float = RarityOdds.run_progress(run_state) + (RarityOdds.ELITE_BONUS if elite else 0.0)
 	var piece_id: String = RarityOdds.pick(table.recruit_piece_ids, rng, &"reward_rng", progress)
 	var item_roll_matches: bool = (
-		run_state.challenger_slots.size() < 6
+		run_state.has_challenger_room()
 		and rng.randi_range(&"reward_rng", 0, table.consumable_roll_sides - 1) == table.consumable_roll_hit
 	)
 	if item_roll_matches:
@@ -38,7 +38,7 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 	while options.size() < 3 and tries < 12:
 		tries += 1
 		var relic: StringName = reward_service.unowned_relic(run_state, rng, &"reward_rng")
-		if not relic.is_empty() and relic not in offered_relics and run_state.challenger_slots.size() < 6:
+		if not relic.is_empty() and relic not in offered_relics and run_state.has_challenger_room():
 			offered_relics.append(relic)
 			options.append(RunChoiceBuilder.option("relic_%s" % relic, RunContentDatabase.relic_label(relic), "relic", {"relic_id": String(relic)}))
 			continue

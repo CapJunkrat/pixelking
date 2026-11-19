@@ -86,7 +86,7 @@ func _run() -> void:
 	await process_frame
 	manager.current_run.challenger_slots.append(&"holy_water")
 	preview._render_items()
-	_expect(strip.get_child_count() == 6, "your six item slots are shown before the battle")
+	_expect(strip.get_child_count() == 5, "your five item slots are shown before the battle")
 	(strip.get_node("Item_holy_water") as Button).pressed.emit()
 	await process_frame
 	_expect(preview.focus_id == "item:holy_water", "tapping an item explains it")

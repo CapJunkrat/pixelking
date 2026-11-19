@@ -14,6 +14,7 @@ var capture_count: int = 0
 var learned_def_ids: Array[String] = []
 ## Per-battle state.
 var shell_left: int = 0
+## Eggs it may still lay this battle (-1 = no limit).
 var revives_left: int = 0
 ## For an egg: the piece that hatches from it, and the turn serial it hatches on.
 var hatch_piece: ChessPiece = null
@@ -49,7 +50,7 @@ static func create_with_instance_id(p_def: PieceDef, p_color: int, persistent_id
 
 func reset_battle_state() -> void:
 	shell_left = def.shell_hits if def != null else 0
-	revives_left = 1 if def != null and def.revive_after_turns > 0 else 0
+	revives_left = def.revive_limit if def != null and def.revive_after_turns > 0 else 0
 	shield_until_serial = 0
 	used_abilities = {}
 

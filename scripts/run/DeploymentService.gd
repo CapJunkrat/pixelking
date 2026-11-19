@@ -23,8 +23,13 @@ func ensure_deployment(run_state: RunState) -> Error:
 			run_state.run_stage(),
 			run_state.act_index == 0 and current.layer_index < EncounterGenerator.EARLY_LAYERS,
 			run_state.current_encounter_seed,
-			EncounterGenerator.player_strength(run_state))
-	elif encounter.is_boss and run_state.act_index >= RunState.ACT_COUNT:
+			EncounterGenerator.player_strength(run_state),
+			run_state.act_index)
+	if encounter.is_boss:
+		# From Act 2 on, a Boss brings rarer pieces instead of a wall of pawns.
+		deployment.enemy_placements = EncounterGenerator.upgrade_boss_pawns(
+			deployment.enemy_placements, run_state.act_index, run_state.current_encounter_seed)
+	if encounter.is_boss and run_state.act_index >= RunState.ACT_COUNT:
 		# Endless: each act past the third brings the Boss more reinforcements.
 		deployment.enemy_placements = EncounterGenerator.reinforce(
 			deployment.enemy_placements,

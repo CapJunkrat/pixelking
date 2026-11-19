@@ -83,8 +83,10 @@ enum WeightClass {
 @export var immune_to_ranged: bool = false
 ## Hits absorbed before this piece is really captured. Restored every battle.
 @export var shell_hits: int = 0
-## Revives this many of its owner's turns after being captured, once per battle (0 = never).
+## Revives this many of its owner's turns after being captured (0 = never).
 @export var revive_after_turns: int = 0
+## How many times per battle it may come back as an egg (-1 = every time).
+@export var revive_limit: int = 1
 ## When captured (with a revive left) it leaves this egg piece on the owner's free
 ## square nearest its bottom-left corner; the egg hatches back into it.
 @export var egg_def_id: String = ""

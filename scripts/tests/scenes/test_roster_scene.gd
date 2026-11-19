@@ -27,7 +27,7 @@ func _run() -> void:
 	var reserve_grid: GridContainer = roster_scene.reserve_grid
 	_expect(line_grid.get_child_count() == 6, "the battle line shows the King plus five places")
 	_expect(reserve_grid.get_child_count() == 5, "the reserve shows five places")
-	_expect(roster_scene.item_row.get_child_count() == 6, "the six item slots are shown")
+	_expect(roster_scene.item_row.get_child_count() == 5, "the five item slots are shown")
 	_expect(roster_scene.detail_scroll.has_node("DragScroll"), "the explanation card scrolls by dragging its text")
 	var king_tile: Button = line_grid.get_child(0) as Button
 	_expect(int(king_tile.get_meta("instance_id", 0)) == manager.current_run.active_piece_ids[0], "the King is first on the battle line")

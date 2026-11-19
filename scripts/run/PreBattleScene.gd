@@ -18,7 +18,6 @@ const LINE := Color("#2b4166")
 const TIER_COLORS := {&"normal_battle": Color("#e0b45c"), &"elite_battle": Color("#c58cff"), &"boss": Color("#ff8a4c")}
 const PATTERN_COLORS := {"move": Color("#3fb6d8"), "attack": Color("#e07a6a"), "both": Color("#b07ae0")}
 const PATTERN_SIZE := 7
-const LINEUP_SLOTS := 6
 ## The area under the enemy icons: your reserve and items, or the explanation of
 ## what you tapped. Fixed, so the board never moves when an explanation opens.
 const INFO_HEIGHT := 84.0
@@ -401,7 +400,7 @@ func _render_items() -> void:
 		item_strip.remove_child(child)
 		child.queue_free()
 	var slots: Array[StringName] = run_manager.current_run.challenger_slots
-	for index: int in range(6):
+	for index: int in range(maxi(RunState.MAX_CHALLENGER_SLOTS, slots.size())):
 		var slot: Button = Button.new()
 		slot.custom_minimum_size = Vector2(0, ITEM_SLOT_HEIGHT)
 		slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -455,7 +454,7 @@ func _render_lineup() -> void:
 	var run: RunState = run_manager.current_run
 	for instance_id: int in run.reserve_piece_ids:
 		bench_row.add_child(_slot(run.get_piece_state(instance_id), false))
-	for index: int in range(bench_row.get_child_count(), LINEUP_SLOTS):
+	for index: int in range(bench_row.get_child_count(), RunState.MAX_RESERVE_PIECES):
 		bench_row.add_child(_empty_reserve_slot(index))
 	var on_board: int = _active_non_king()
 	var full: bool = on_board >= run.max_active_pieces()

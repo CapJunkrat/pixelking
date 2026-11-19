@@ -1,14 +1,14 @@
 class_name ChallengerTray
 extends Control
 
-## Your six relic and item slots under the board, as one slim panel. Relics (always
+## Your five relic and item slots under the board, as one slim panel. Relics (always
 ## on) wear a gold frame and a gold corner gem; items (one use) a teal frame that
 ## glows while one can be used now. The line above the slots names the last one
 ## tapped and says what it does.
 
 signal item_requested(slot_index: int)
 
-const SLOT_COUNT := 6
+const SLOT_COUNT := RunState.MAX_CHALLENGER_SLOTS
 const GOLD := Color("#e0b45c")
 const GOLD_SOFT := Color("#f5d58f")
 const INK := Color("#f1e6cf")
@@ -62,24 +62,27 @@ func _build() -> void:
 	slot_row.add_theme_constant_override("separation", 6)
 	column.add_child(slot_row)
 	for index: int in range(SLOT_COUNT):
-		var slot: Button = Button.new()
-		slot.name = "ChallengerSlot%d" % index
-		slot.custom_minimum_size = Vector2(0, SLOT_HEIGHT)
-		slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		slot.focus_mode = Control.FOCUS_NONE
-		slot.expand_icon = true
-		slot.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		slot.add_theme_constant_override("icon_max_width", 30)
-		slot.pressed.connect(_on_slot_pressed.bind(index))
-		var gem: Control = Control.new()
-		gem.name = "Gem"
-		gem.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		gem.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		gem.draw.connect(_draw_gem.bind(gem, index))
-		slot.add_child(gem)
-		slot_row.add_child(slot)
-		challenger_slots.append(slot)
+		_add_slot(index)
 	_style_slots()
+
+func _add_slot(index: int) -> void:
+	var slot: Button = Button.new()
+	slot.name = "ChallengerSlot%d" % index
+	slot.custom_minimum_size = Vector2(0, SLOT_HEIGHT)
+	slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slot.focus_mode = Control.FOCUS_NONE
+	slot.expand_icon = true
+	slot.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	slot.add_theme_constant_override("icon_max_width", 30)
+	slot.pressed.connect(_on_slot_pressed.bind(index))
+	var gem: Control = Control.new()
+	gem.name = "Gem"
+	gem.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	gem.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	gem.draw.connect(_draw_gem.bind(gem, index))
+	slot.add_child(gem)
+	slot_row.add_child(slot)
+	challenger_slots.append(slot)
 
 func slots() -> Array[Button]:
 	return challenger_slots
@@ -88,6 +91,9 @@ func refresh(items: Array[ChallengerItemDef], usable_slots: Array[bool] = []) ->
 	if challenger_slots.is_empty():
 		return
 	_items = items.duplicate()
+	# A run saved with six slots keeps its sixth item visible.
+	while challenger_slots.size() < items.size():
+		_add_slot(challenger_slots.size())
 	_usable = usable_slots.duplicate()
 	for index: int in range(challenger_slots.size()):
 		var slot: Button = challenger_slots[index]

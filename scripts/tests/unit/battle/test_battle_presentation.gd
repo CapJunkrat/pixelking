@@ -55,11 +55,11 @@ func _run() -> void:
 	for piece_id: String in strike_expectations:
 		var strike_def: PieceDef = PieceDefDatabase.get_def(piece_id)
 		_expect(strike_def.strike_type == strike_expectations[piece_id][0] and strike_def.weight_class == strike_expectations[piece_id][1], "%s carries its strike type and weight class" % piece_id)
-	_expect(PieceDefDatabase.get_def("gorgon").strike_type == PieceDef.StrikeType.NONE, "the gorgon never captures, so it has no strike")
+	_expect(PieceDefDatabase.get_def("gorgon").strike_type == PieceDef.StrikeType.VENOM, "the gorgon bites adjacent enemies with a venom strike")
 	var portal_pattern: Dictionary = PieceRulePreview.pattern("portal_mage", 5)
 	_expect(portal_pattern.get(Vector2i(2, 2)) == "move" and portal_pattern.get(Vector2i(1, 0)) == "both", "rule preview derives teleport and adjacent attacks from live MovementRules")
 	var gorgon_pattern: Dictionary = PieceRulePreview.pattern("gorgon", 5)
-	_expect("attack" not in gorgon_pattern.values() and "both" not in gorgon_pattern.values(), "rule preview shows Gorgon's non-capturing rays")
+	_expect(gorgon_pattern.get(Vector2i(1, 1)) == "both" and gorgon_pattern.get(Vector2i(2, 2)) == "move" and gorgon_pattern.get(Vector2i(0, 2)) == "move", "rule preview shows Gorgon's bite next to it and non-capturing rays beyond")
 	animator.queue_free()
 	log_panel.queue_free()
 	print("[PASS] Battle presentation test" if not failed else "[FAIL] Battle presentation test")

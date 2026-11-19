@@ -27,6 +27,8 @@ func _run() -> void:
 	_test_chameleon()
 	_test_crystal_mage()
 	_test_revival()
+	_test_revive_limits()
+	_test_squire_levels()
 	_test_courier()
 	_test_blast_catapult()
 	_test_kings()
@@ -158,9 +160,11 @@ func _test_crystal_mage() -> void:
 	var board: BoardState = _board({Vector2i(3, 3): [&"crystal_mage", W], Vector2i(3, 5): [&"pawn", B], Vector2i(0, 0): [&"king", W], Vector2i(7, 7): [&"king", B]})
 	var mage: ChessPiece = board.get_piece(Vector2i(3, 3))
 	mage.capture_count = 2
+	expect(mage.def.is_ranged(), "the Crystal Mage is a ranged piece")
 	board.make_move(Vector2i(3, 3), Vector2i(3, 5))
+	expect(board.get_piece(Vector2i(3, 3)) == mage and board.get_piece(Vector2i(3, 5)) == null, "the Crystal Mage shoots from where it stands")
 	expect(mage.def.id == "archmage", "the third capture in the Run turns the Crystal Mage into an Archmage")
-	expect(Vector2i(3, 7) in _moves(board, Vector2i(3, 5), W) and Vector2i(7, 1) in _moves(board, Vector2i(3, 5), W) and Vector2i(4, 7) not in _moves(board, Vector2i(3, 5), W), "the Archmage moves like a Queen, without Knight leaps")
+	expect(Vector2i(3, 7) in _moves(board, Vector2i(3, 3), W) and Vector2i(6, 6) in _moves(board, Vector2i(3, 3), W) and Vector2i(4, 5) not in _moves(board, Vector2i(3, 3), W), "the Archmage moves like a Queen, without Knight leaps")
 
 func _test_revival() -> void:
 	var board: BoardState = _board({Vector2i(2, 0): [&"ember_bird", W], Vector2i(7, 1): [&"pawn", W], Vector2i(2, 4): [&"rook", B], Vector2i(4, 0): [&"king", W], Vector2i(7, 7): [&"king", B]}, B)
@@ -180,6 +184,44 @@ func _test_revival() -> void:
 	expect(board.get_piece(Vector2i(0, 0)) != null and board.get_piece(Vector2i(0, 0)).def.id == "ember_bird", "it hatches where its egg lay, in its owner's bottom-left corner")
 	_test_eggs()
 	expect(board.get_piece(Vector2i(0, 0)) != null and board.get_piece(Vector2i(0, 0)).def.id == "ember_bird", "its start square is taken, so it revives in the bottom-left corner")
+
+func _test_revive_limits() -> void:
+	var phoenix: ChessPiece = ChessPiece.new(PieceDefDatabase.get_def("flame_phoenix"), W)
+	var bird: ChessPiece = ChessPiece.new(PieceDefDatabase.get_def("ember_bird"), W)
+	expect(phoenix.def.revive_after_turns == 2 and bird.def.revive_after_turns == 2, "Phoenix and Ember Bird eggs both hatch after 2 turns")
+	expect(phoenix.revives_left < 0 and bird.revives_left == 1, "the Phoenix lays an egg every time, the Ember Bird only once")
+	var board: BoardState = _board({Vector2i(3, 3): [&"flame_phoenix", W], Vector2i(4, 0): [&"king", W], Vector2i(7, 7): [&"king", B], Vector2i(3, 6): [&"rook", B]}, B)
+	var reborn: ChessPiece = board.get_piece(Vector2i(3, 3))
+	for round_index: int in range(2):
+		var result: Dictionary = board.make_move(Vector2i(3, 6), reborn_square(board, reborn))
+		expect((result.get("eggs_laid", []) as Array).size() == 1, "the Phoenix leaves an egg on fall %d" % (round_index + 1))
+		# Put the Phoenix back on the board in front of the rook for the next fall.
+		board.set_piece(Vector2i(3, 6), null)
+		for x: int in range(8):
+			for y: int in range(8):
+				var piece: ChessPiece = board.get_piece(Vector2i(x, y))
+				if piece != null and piece.def.is_egg:
+					board.set_piece(Vector2i(x, y), null)
+		board.set_piece(Vector2i(3, 3), reborn)
+		var rook: ChessPiece = ChessPiece.new(PieceDefDatabase.get_def("rook"), B)
+		board.set_piece(Vector2i(3, 6), rook)
+		board.turn = B
+	expect(reborn.revives_left < 0, "the Phoenix never runs out of eggs")
+
+func reborn_square(board: BoardState, piece: ChessPiece) -> Vector2i:
+	for x: int in range(8):
+		for y: int in range(8):
+			if board.get_piece(Vector2i(x, y)) == piece:
+				return Vector2i(x, y)
+	return Vector2i(-1, -1)
+
+func _test_squire_levels() -> void:
+	var board: BoardState = _board({Vector2i(3, 3): [&"squire_lv2", W], Vector2i(4, 5): [&"pawn", B], Vector2i(0, 0): [&"king", W], Vector2i(7, 7): [&"king", B]})
+	var squire: ChessPiece = board.get_piece(Vector2i(3, 3))
+	squire.capture_count = 1
+	board.make_move(Vector2i(3, 3), Vector2i(4, 5))
+	expect(squire.def.id == "squire_lv3", "a Squire grows a level with every capture")
+	expect(PieceDefDatabase.get_def("squire").evolve_at_captures == 1 and PieceDefDatabase.get_def("squire_lv2").evolve_at_captures == 2 and PieceDefDatabase.get_def("squire_lv3").evolve_at_captures == 3, "Squire levels need 1, 2 and 3 captures in all")
 
 func _test_courier() -> void:
 	var board: BoardState = _board({Vector2i(2, 2): [&"swift_courier", W], Vector2i(0, 0): [&"king", W], Vector2i(7, 7): [&"king", B], Vector2i(6, 6): [&"pawn", B]})

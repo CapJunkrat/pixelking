@@ -119,7 +119,7 @@ func _render() -> void:
 	for option_value: Variant in pending.get("options", []) as Array:
 		if option_value is Dictionary:
 			choices.add_child(_card(option_value as Dictionary))
-	leave_button.visible = bool(pending.get("allow_leave", false)) or type in RunContentService.LEAVABLE_TYPES or type == "run_summary"
+	leave_button.visible = (bool(pending.get("allow_leave", false)) or type in RunContentService.LEAVABLE_TYPES or type == "run_summary") and not pending.has("shop_return")
 	leave_button.text = _localized("INTERACTION_FINISH_RUN") if type == "run_summary" else _localized("INTERACTION_WALK_AWAY" if type in ["event", "rest"] else "INTERACTION_LEAVE")
 
 ## One choice: a picture, what it is, what it does, and its price or risk.
@@ -206,6 +206,8 @@ func _card(option: Dictionary) -> Button:
 func _detail(kind: String, payload: Dictionary) -> String:
 	if payload.has("detail"):
 		return _c(str(payload["detail"]))
+	if payload.has("detail_key"):
+		return _localized(str(payload["detail_key"]))
 	match kind:
 		"piece":
 			var definition: PieceDef = PieceDefDatabase.get_def(str(payload.get("piece_def_id", "")))
@@ -225,8 +227,10 @@ func _detail(kind: String, payload: Dictionary) -> String:
 func _option_icon(kind: String, payload: Dictionary) -> Control:
 	var texture: Texture2D = null
 	match kind:
-		"piece", "train", "transform":
+		"piece", "train", "transform", "shop_replace_confirm":
 			texture = _piece_texture(str(payload.get("piece_def_id", "")))
+		"shop_replace_pick":
+			texture = _piece_texture(str(payload.get("replaced_def_id", "")))
 		"relic", "item":
 			var item: ChallengerItemDef = ChallengerItemDatabase.get_def(StringName(str(payload.get("relic_id", payload.get("item_id", "")))))
 			texture = item.icon if item != null else null
@@ -275,7 +279,9 @@ func _submit(choice_id: String) -> void:
 		status_label.text = _localized("INTERACTION_UNAVAILABLE")
 		_sfx(&"error")
 		return
-	_sfx(&"coins" if was_type == "shop" else &"confirm")
+	# Coins only when a purchase went through, not on the steps of a party-full purchase.
+	var purchased: bool = was_type == "shop" and (run_manager.current_run == null or run_manager.current_run.pending_choice.is_empty())
+	_sfx(&"coins" if purchased else &"confirm")
 	var outcome: String = ""
 	if run_manager.current_run != null and was_type in ["event", "rest"]:
 		outcome = str(run_manager.current_run.run_statistics.get("last_outcome", ""))

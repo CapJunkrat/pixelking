@@ -28,6 +28,19 @@ const POOLS := [
 	{"from": 0.3, "ids": ["assassin", "bowman", "catapult", "royal_guard", "martyr", "lantern_bearer", "squire", "tide_knight", "antelope", "echo", "ranger", "sun_moon_monk"]},
 	{"from": 0.6, "ids": ["queen", "falconer", "unicorn_cavalry", "centaur", "gryphon", "manticore", "gorgon", "portal_mage", "gargoyle", "chameleon", "crystal_mage", "ember_bird"]},
 ]
+## Legendary pieces that join enemy armies from Act 3 on.
+const LEGENDARY_ENEMIES: Array[String] = ["archmage", "stone_giant"]
+## Percent per rarity [common, rare, epic, legendary] of each enemy pick, by act
+## (Act 1, 2, 3; endless acts use the last row). Later acts field rarer pieces rather
+## than more pawns.
+const ACT_RARITY_ODDS: Array = [
+	[60, 30, 10, 0],
+	[25, 45, 25, 5],
+	[10, 35, 40, 15],
+	[5, 25, 45, 25],
+]
+## From Act 2 on, pawns only guard the King, and only one of them.
+const PAWN_FREE_FROM_ACT := 1
 ## An elite battle is led by one of these, whatever the layer.
 const ELITE_CAPTAINS: Array[String] = ["gorgon", "manticore", "gryphon", "centaur", "unicorn_cavalry", "portal_mage", "gargoyle"]
 
@@ -53,15 +66,25 @@ static func budget_at(tier: StringName, stage: float, early: bool, player_streng
 static func generate(tier: StringName, layer: int, total_layers: int, seed_value: int, player_strength: int) -> Array[Dictionary]:
 	return generate_at(tier, progress(layer, total_layers), layer < EARLY_LAYERS, seed_value, player_strength)
 
-static func generate_at(tier: StringName, stage: float, early: bool, seed_value: int, player_strength: int) -> Array[Dictionary]:
+## The act (0 = Act 1) a run stage falls in, for callers that do not pass one.
+static func act_of_stage(stage: float) -> int:
+	return maxi(0, floori(stage * float(RunState.ACT_COUNT) - 0.0001))
+
+static func generate_at(tier: StringName, stage: float, early: bool, seed_value: int, player_strength: int, act: int = -1) -> Array[Dictionary]:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed_value
+	if act < 0:
+		act = act_of_stage(stage)
 	var remaining: int = budget_at(tier, stage, early, player_strength)
 	var pool: Array[String] = []
 	for band: Dictionary in POOLS:
 		if stage >= float(band["from"]):
 			for id: String in band["ids"]:
 				pool.append(id)
+	if act >= 2:
+		pool.append_array(LEGENDARY_ENEMIES)
+	if act >= PAWN_FREE_FROM_ACT:
+		pool.erase("pawn")
 	var king_file: int = KING_FILES[rng.randi_range(0, KING_FILES.size() - 1)]
 	var army: Array[String] = []
 	if tier == &"elite":
@@ -70,21 +93,78 @@ static func generate_at(tier: StringName, stage: float, early: bool, seed_value:
 		remaining -= _value(captain)
 	# The King's guard: pawns directly in front of it, more as the army grows.
 	var guards: int = 1 if remaining < 10 else (2 if remaining < 18 else 3)
+	if act >= PAWN_FREE_FROM_ACT:
+		guards = 1
 	for _i: int in range(guards):
 		if remaining >= 1:
 			army.append("pawn")
 			remaining -= 1
 	while remaining > 0 and army.size() < MAX_PIECES:
-		var affordable: Array[String] = []
-		for id: String in pool:
-			if _value(id) <= remaining:
-				affordable.append(id)
-		if affordable.is_empty():
+		var pick: String = _pick_by_rarity(pool, act, remaining, rng)
+		if pick.is_empty():
 			break
-		var pick: String = affordable[rng.randi_range(0, affordable.size() - 1)]
 		army.append(pick)
 		remaining -= _value(pick)
 	return _place(army, king_file, guards)
+
+static func rarity_odds(act: int) -> Array:
+	return ACT_RARITY_ODDS[clampi(act, 0, ACT_RARITY_ODDS.size() - 1)]
+
+## Rolls a rarity by the act's odds, then an affordable piece of it from `pool`
+## (`budget` < 0: any price). A rarity with nothing affordable passes the roll to the
+## next cheaper one, then the next rarer one. Empty when nothing fits at all.
+static func _pick_by_rarity(pool: Array[String], act: int, budget: int, rng: RandomNumberGenerator) -> String:
+	var by_tier: Array = [[], [], [], []]
+	for id: String in pool:
+		if budget >= 0 and _value(id) > budget:
+			continue
+		var definition: PieceDef = PieceDefDatabase.get_def(id)
+		if definition == null:
+			continue
+		var tier_index: int = clampi(definition.rarity, 0, 3)
+		if id not in by_tier[tier_index]:
+			(by_tier[tier_index] as Array).append(id)
+	var odds: Array = rarity_odds(act)
+	var roll: int = rng.randi_range(1, 100)
+	var tier: int = 0
+	var cursor: int = 0
+	for index: int in range(odds.size()):
+		cursor += int(odds[index])
+		tier = index
+		if roll <= cursor:
+			break
+	for step: int in [0, -1, -2, -3, 1, 2, 3]:
+		var candidate: int = tier + step
+		if candidate >= 0 and candidate < by_tier.size() and not (by_tier[candidate] as Array).is_empty():
+			var bucket: Array = by_tier[candidate]
+			return str(bucket[rng.randi_range(0, bucket.size() - 1)])
+	return ""
+
+## Boss armies are fixed, but from Act 2 on all their pawns but the first are swapped
+## for pieces rolled by the act's rarity odds, on the same squares.
+static func upgrade_boss_pawns(placements: Array[Dictionary], act: int, seed_value: int) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var pool: Array[String] = []
+	for band: Dictionary in POOLS:
+		for id: String in band["ids"]:
+			if id != "pawn":
+				pool.append(id)
+	if act >= 2:
+		pool.append_array(LEGENDARY_ENEMIES)
+	var pawns_kept: int = 0
+	for placement: Dictionary in placements:
+		var copy: Dictionary = placement.duplicate(true)
+		if act >= PAWN_FREE_FROM_ACT and str(copy.get("piece_def_id", "")) == "pawn":
+			if pawns_kept == 0:
+				pawns_kept += 1
+			else:
+				var pick: String = _pick_by_rarity(pool, act, -1, rng)
+				if not pick.is_empty():
+					copy["piece_def_id"] = pick
+		result.append(copy)
+	return result
 
 static func _place(army: Array[String], king_file: int, guards: int) -> Array[Dictionary]:
 	var taken: Dictionary = {Vector2i(king_file, BACK_RANK): true}

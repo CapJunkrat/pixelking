@@ -148,7 +148,9 @@ func status_lines(board: BoardState, square: Vector2i) -> Array[String]:
 		lines.append(_t("PIECE_INFO_EGG") % board.egg_turns_left(piece))
 	if piece.shell_left > 0:
 		lines.append(_t("PIECE_INFO_SHELL") % piece.shell_left)
-	if piece.revives_left > 0:
+	if piece.revives_left < 0:
+		lines.append(_t("PIECE_INFO_REVIVES_ALWAYS"))
+	elif piece.revives_left > 0:
 		lines.append(_t("PIECE_INFO_REVIVES") % piece.revives_left)
 	if piece.def.evolve_at_captures > 0:
 		lines.append(_t("PIECE_INFO_GROWTH") % [piece.capture_count, piece.def.evolve_at_captures])

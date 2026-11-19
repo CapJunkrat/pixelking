@@ -7,6 +7,11 @@ const MODE_STANDARD := "standard"
 const MODE_ENDLESS := "endless"
 const MAX_ACTIVE_NON_KING_PIECES := 5
 const MAX_RESERVE_PIECES := 5
+## Relic and item slots. The War Banner only widens the battle line, never this.
+const MAX_CHALLENGER_SLOTS := 5
+## Runs saved while there were six slots may still hold six; they load, but take
+## nothing new until they are back under the limit.
+const LEGACY_MAX_CHALLENGER_SLOTS := 6
 ## Each run gets one free retry. A defeat with a retry left sends the player back to
 ## redeploy; a defeat with none left ends the run.
 const MAX_RETRIES := 1
@@ -111,6 +116,10 @@ func allocate_piece(piece_def_id: String, make_king: bool = false) -> PieceInsta
 func max_active_pieces() -> int:
 	return MAX_ACTIVE_NON_KING_PIECES + (1 if &"war_banner" in challenger_slots else 0)
 
+## Whether another relic or item fits in the slots.
+func has_challenger_room() -> bool:
+	return challenger_slots.size() < MAX_CHALLENGER_SLOTS
+
 ## Whether a new non-King piece fits, on the battle line or in reserve.
 func has_room_for_piece() -> bool:
 	return _active_non_king_count() < max_active_pieces() or reserve_piece_ids.size() < MAX_RESERVE_PIECES
@@ -152,7 +161,7 @@ func is_valid() -> bool:
 		return false
 	if failed_battles < 0 or retries_left < 0 or retries_left > MAX_RETRIES:
 		return false
-	if gold < 0 or challenger_slots.size() > 6:
+	if gold < 0 or challenger_slots.size() > LEGACY_MAX_CHALLENGER_SLOTS:
 		return false
 	for item_id: StringName in challenger_slots:
 		if ChallengerItemDatabase.get_def(item_id) == null:

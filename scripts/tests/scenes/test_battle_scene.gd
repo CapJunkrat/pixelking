@@ -36,7 +36,7 @@ func _run() -> void:
 	_expect(battle.get_node("SettingsOverlay") is BattleSettingsPanel, "battle settings are extracted into a static scene component")
 	_expect(battle.get_node_or_null("Margin/Layout/BackButton") == null, "persistent bottom return button is removed")
 	_expect(battle.get_node("Margin/Layout/ChallengerPanel") is ChallengerTray, "challenger tray is extracted into a static scene component")
-	_expect(battle.challenger_slots.size() == 6, "persistent and consumable objects share six challenger slots")
+	_expect(battle.challenger_slots.size() == 5, "persistent and consumable objects share five challenger slots")
 
 	var gear := battle.get_node("Margin/Layout/TopBar/SettingsButton") as Button
 	gear.pressed.emit()

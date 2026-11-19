@@ -19,7 +19,6 @@ const RARITY_KEYS := ["RARITY_COMMON", "RARITY_RARE", "RARITY_EPIC", "RARITY_LEG
 const COLUMNS := 6
 const LINE_SLOTS := 6
 const RESERVE_SLOTS := 5
-const ITEM_SLOTS := 6
 const TILE_HEIGHT := 52.0
 
 @onready var run_manager: AppRunManager = get_node("/root/RunManager") as AppRunManager
@@ -207,7 +206,7 @@ func _render() -> void:
 	line_count.text = "%d/%d" % [maxi(0, active.size() - 1), run.max_active_pieces()]
 	reserve_count.text = "%d/%d" % [reserve.size(), RunState.MAX_RESERVE_PIECES]
 	_clear(item_row)
-	for index: int in range(ITEM_SLOTS):
+	for index: int in range(maxi(RunState.MAX_CHALLENGER_SLOTS, run.challenger_slots.size())):
 		item_row.add_child(_item_tile(ChallengerItemDatabase.get_def(run.challenger_slots[index]) if index < run.challenger_slots.size() else null))
 	_render_detail()
 

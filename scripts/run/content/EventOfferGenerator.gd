@@ -99,7 +99,7 @@ func _resolve_effect(effect: Dictionary, run_state: RunState, rng: RunRngService
 			result["kind"] = "item"
 			result["item_id"] = String(items[rng.pick_index(&"event_rng", items.size())]) if not items.is_empty() else ""
 			result["reward_name"] = RunContentDatabase.item_label(StringName(str(result["item_id"])))
-			if run_state.challenger_slots.size() >= 6:
+			if not run_state.has_challenger_room():
 				result["blocked"] = "Your item slots are full."
 		"random_relic":
 			var relic: StringName = reward_service.unowned_relic(run_state, rng, &"event_rng")
@@ -111,7 +111,7 @@ func _resolve_effect(effect: Dictionary, run_state: RunState, rng: RunRngService
 				result["kind"] = "relic"
 				result["relic_id"] = String(relic)
 				result["reward_name"] = RunContentDatabase.relic_label(relic)
-				if run_state.challenger_slots.size() >= 6:
+				if not run_state.has_challenger_room():
 					result["blocked"] = "Your item slots are full."
 		"random_piece":
 			var pool: Array[String] = reward_service.piece_pool(str(effect.get("pool", "common")))
