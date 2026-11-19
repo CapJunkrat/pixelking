@@ -30,7 +30,7 @@ const LOCALES := {
 			"DRAFT_MOVE_EMBER_EGG": "EGG · cannot move · the Ember Bird hatches from it when the count reaches 0",
 			"PIECE_PHOENIX_EGG": "Phoenix Egg",
 			"PIECE_EMBER_EGG": "Ember Egg",
-			"CODEX_TRAIT_BEAM": "Beam attack: stays on its square",
+			"CODEX_TRAIT_BEAM": "Beam: kills without moving · works with an enemy next to it · cannot hit a King that has an ally next to it",
 			"PIECE_ASSASSIN": "Assassin",
 			"PIECE_ROYAL_GUARD": "Royal Guard",
 			"PIECE_CATAPULT": "Catapult",

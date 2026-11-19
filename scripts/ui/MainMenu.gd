@@ -118,7 +118,11 @@ func _build_codex_controls() -> void:
 	content.add_child(codex_progress_label)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.name = "CodexScroll"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# Only ever scrolls up and down: the cards share the width, so the page cannot
+	# slide sideways under a finger.
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	content.add_child(scroll)
 	codex_grid = GridContainer.new()
 	codex_grid.columns = 2
@@ -192,12 +196,17 @@ func _render_codex() -> void:
 
 func _make_codex_card(piece_id: String, revealed: bool) -> PanelContainer:
 	var card: PanelContainer = PanelContainer.new()
-	card.custom_minimum_size = Vector2(142, 252)
+	card.custom_minimum_size = Vector2(0, 252)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var card_style: StyleBoxFlat = StyleBoxFlat.new()
 	card_style.bg_color = Color(0.075, 0.08, 0.14, 0.98)
 	card_style.set_border_width_all(1)
 	card_style.border_color = Color(0.48, 0.39, 0.27, 1.0)
 	card_style.set_corner_radius_all(3)
+	card_style.content_margin_left = 6
+	card_style.content_margin_right = 6
+	card_style.content_margin_top = 6
+	card_style.content_margin_bottom = 6
 	card.add_theme_stylebox_override("panel", card_style)
 	var layout: VBoxContainer = VBoxContainer.new()
 	layout.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -220,6 +229,7 @@ func _make_codex_card(piece_id: String, revealed: bool) -> PanelContainer:
 		var name_label: Label = Label.new()
 		name_label.text = Localization.text(String(definition.display_name_key))
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		name_label.add_theme_font_size_override("font_size", 16)
 		layout.add_child(name_label)
 		var detail_label: Label = Label.new()

@@ -27,7 +27,7 @@ const STRINGS := {
 	"DRAFT_MOVE_EMBER_EGG": "蛋 · 不能移动 · 倒计时归零时孵化出余烬鸟",
 	"PIECE_PHOENIX_EGG": "凤凰蛋",
 	"PIECE_EMBER_EGG": "余烬鸟蛋",
-	"CODEX_TRAIT_BEAM": "射线攻击：原地不动",
+	"CODEX_TRAIT_BEAM": "射线：原地击杀 · 身边有敌人也能发射 · 不能击杀身边有友军的国王",
 	"PIECE_ASSASSIN": "刺客",
 	"PIECE_ROYAL_GUARD": "皇家卫兵",
 	"PIECE_CATAPULT": "投石车",
