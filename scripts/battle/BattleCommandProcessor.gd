@@ -23,6 +23,8 @@ const EVENT_PIECE_EVOLVED: StringName = &"piece_evolved"
 const EVENT_MOVE_LEARNED: StringName = &"move_learned"
 const EVENT_FORM_CHANGED: StringName = &"form_changed"
 const EVENT_PIECE_REVIVED: StringName = &"piece_revived"
+## A fallen Ember Bird / Flame Phoenix left an egg: {position, piece_def_id, color, turns_left}.
+const EVENT_EGG_LAID: StringName = &"egg_laid"
 const EVENT_LAST_STAND: StringName = &"last_stand"
 const EVENT_ROCK_BROKEN: StringName = &"rock_broken"
 const EVENT_TURN_ENDED_EARLY: StringName = &"turn_ended_early"
@@ -384,6 +386,8 @@ func _append_ability_events(events: Array[BattleEvent], action_id: int, action: 
 			events.append(_event(EVENT_PIECE_DESTROYED, action_id, entry))
 	for entry: Dictionary in move_result.get("shells", []):
 		events.append(_event(EVENT_SHELL_BROKEN, action_id, entry))
+	for entry: Dictionary in move_result.get("eggs_laid", []):
+		events.append(_event(EVENT_EGG_LAID, action_id, entry))
 	if move_result.has("rock_broken"):
 		events.append(_event(EVENT_ROCK_BROKEN, action_id, {"position": move_result["rock_broken"]}))
 	var shielded: Array = move_result.get("shielded", [])

@@ -23,6 +23,7 @@ strike_type = 18
 weight_class = 1
 movement_profile = SubResource("MovementProfile")
 motion_profile = ExtResource("4_motion")
+egg_def_id = "phoenix_egg"
 revive_after_turns = 1
 base_value = 13
 rarity = 4

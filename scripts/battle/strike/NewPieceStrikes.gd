@@ -64,6 +64,7 @@ const REACTIONS: Array[StringName] = [
 const VICTIM_REACTIONS := {
 	&"powder_keg": &"keg", &"ember_bird": &"ember", &"gargoyle": &"shell", &"crystal_mage": &"glass",
 	&"martyr": &"halo", &"stone_giant": &"chip", &"flame_phoenix": &"rebirth",
+	&"ember_egg": &"glass", &"phoenix_egg": &"shell",
 }
 
 var d: StrikeDirector = null
@@ -793,8 +794,10 @@ func impact() -> void:
 			fx.spark_burst(d._up(b, 9.0), 12, d._dir, 80.0, 0.7, GLASS[0])
 			fx.ring(b.x, b.z, cell * 0.6, 0.3, GLASS[0])
 		&"ranger":
-			d._slash_age = 0.0
-			fx.spark_burst(d._up(b, 9.0), 8, d._dir, 50.0, 0.6)
+			# A thud, not a cut: the boomerang knocks the victim over and flies on.
+			fx.spark_burst(d._up(b, 9.0), 10, d._dir, 50.0, 0.7, Color("#e8c890"))
+			fx.ring(b.x, b.z, cell * 0.7, 0.3, Color("#e8c890"))
+			fx.puff(d._up(b, 3.0), 6, 0.8)
 		&"sun_moon_monk":
 			fx.ring(b.x, b.z, cell * 1.2, 0.45, MOON)
 			fx.ring(b.x, b.z, cell * 0.6, 0.3, Color(0.9, 0.94, 1.0))
@@ -1246,14 +1249,15 @@ func _draw_attack_air(canvas: CanvasItem) -> void:
 				canvas.draw_rect(Rect2(at - Vector2(1.5, 0.5) * d._unit, Vector2(3.0, 1.0) * d._unit), Color(0.75, 0.95, 1.0, alpha))
 				_px(canvas, at, Color(1.0, 1.0, 1.0, alpha))
 		&"ranger":
-			var boomerang: Variant = _boomerang(u)
-			if boomerang != null:
+			# A spinning wooden boomerang with a faint wake, out along the line and back.
+			for echo: int in range(3, -1, -1):
+				var boomerang: Variant = _boomerang(u - echo * 0.025)
+				if boomerang == null:
+					continue
 				var at: Vector2 = _screen(boomerang as Vector3)
-				var spin: float = u * 40.0
-				canvas.draw_rect(Rect2(at - Vector2(2.5, 2.5) * d._unit, Vector2(5.0, 5.0) * d._unit), Color(0.9, 0.86, 0.75, 0.35))
-				for arm: float in [0.0, 1.6]:
-					for step: float in [0.0, 1.0, 2.0]:
-						_px(canvas, at + Vector2(cos(spin + arm), sin(spin + arm)) * step * d._unit, Color("#c8a070"))
+				var spin: float = (u - echo * 0.025) * 34.0
+				var alpha: float = 1.0 if echo == 0 else 0.22 / echo
+				_draw_boomerang(canvas, at, spin, alpha)
 		&"sun_moon_monk":
 			if u > 0.3 and u < 0.62:
 				var palm: Vector3 = Vector3(o.x + d._dir.x * _n(5.0), o.y + _ah(7.0), o.z + d._dir.y * _n(5.0))
@@ -1499,6 +1503,15 @@ func _shard(index: int, u: float) -> Vector3:
 	if u < start:
 		return home
 	return home.lerp(_vc(0.5), _ease_in((u - start) / 0.11))
+
+func _draw_boomerang(canvas: CanvasItem, at: Vector2, spin: float, alpha: float) -> void:
+	var arm: float = 6.0 * d._unit
+	var width: float = maxf(2.2 * d._unit, 1.5)
+	for side: float in [-1.0, 1.0]:
+		var direction: Vector2 = Vector2(cos(spin + side * 0.95), sin(spin + side * 0.95))
+		canvas.draw_line(at, at + direction * arm, Color(0.24, 0.13, 0.05, alpha), width + 2.0)
+		canvas.draw_line(at, at + direction * arm, Color(0.8, 0.58, 0.32, alpha), width)
+		canvas.draw_line(at, at + direction * arm * 0.7, Color(0.95, 0.8, 0.55, alpha), maxf(width * 0.4, 1.0))
 
 func _boomerang(u: float) -> Variant:
 	if u < 0.38 or u > 1.12:

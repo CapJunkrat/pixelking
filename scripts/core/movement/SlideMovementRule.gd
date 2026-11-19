@@ -11,6 +11,10 @@ extends MovementRule
 @export var relative_to_color: bool = false
 ## Captures from this rule hit from a distance: the piece stays on its square.
 @export var ranged: bool = false
+## The first rock on a ray can be smashed: the piece moves onto its square (Stone Giant).
+@export var smashes_rocks: bool = false
+
+const SMASH := &"smash"
 
 func rule_id() -> StringName:
 	return &"slide"
@@ -32,6 +36,10 @@ func _collect(board: BoardState, pos: Vector2i, piece: ChessPiece, attacks_only:
 			direction.y = -direction.y
 		for distance: int in range(1, max_distance + 1):
 			var target: Vector2i = pos + direction * distance
+			if smashes_rocks and not attacks_only and board.is_rock(target):
+				if distance >= minimum:
+					result.append(target)
+				break
 			if not board.in_bounds(target):
 				break
 			var occupant: ChessPiece = board.get_piece(target)
@@ -46,6 +54,8 @@ func _collect(board: BoardState, pos: Vector2i, piece: ChessPiece, attacks_only:
 	return result
 
 func action_kind(board: BoardState, from: Vector2i, to: Vector2i, piece: ChessPiece) -> StringName:
+	if smashes_rocks and board.is_rock(to) and to in get_moves(board, from, piece):
+		return SMASH
 	if not ranged:
 		return &""
 	var target: ChessPiece = board.get_piece(to)

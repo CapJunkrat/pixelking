@@ -15,6 +15,7 @@ allow_empty_destinations = true
 jump_over_occupied = false
 relative_to_color = false
 ranged = false
+smashes_rocks = true
 
 [sub_resource type="Resource" id="MovementProfile"]
 script = ExtResource("2_profile")

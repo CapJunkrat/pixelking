@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="PieceDef" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/PieceDef.gd" id="1_piece"]
+[ext_resource type="Script" path="res://scripts/core/movement/MovementProfile.gd" id="2_profile"]
+[ext_resource type="Resource" path="res://resources/content/motion_profiles/queen.tres" id="4_motion"]
+
+[sub_resource type="Resource" id="MovementProfile"]
+script = ExtResource("2_profile")
+rules = Array[Resource]([])
+
+[resource]
+script = ExtResource("1_piece")
+id = "phoenix_egg"
+display_name_key = &"PIECE_PHOENIX_EGG"
+strike_type = 0
+weight_class = 0
+movement_profile = SubResource("MovementProfile")
+motion_profile = ExtResource("4_motion")
+is_egg = true
+egg_hardened = true
+base_value = 3
+rarity = 4
+available_in_opening_draft = false
+opening_draft_weight = 0

@@ -380,6 +380,9 @@ func _draw_shell_pips() -> void:
 		for file: int in range(board.board_size):
 			var square: Vector2i = Vector2i(file, rank)
 			var piece: ChessPiece = board.get_piece(square)
+			if piece != null and piece.def.is_egg and not _hidden_squares.has(square):
+				_draw_egg_count(square, piece, piece_pixels, stand)
+				continue
 			if piece == null or piece.def.shell_hits <= 0 or _hidden_squares.has(square):
 				continue
 			var world: Vector3 = projection.square_world(square)
@@ -397,6 +400,22 @@ func _draw_shell_pips() -> void:
 					_overlay.draw_rect(Rect2(rect.position, Vector2(size, size * 0.35)), SHELL_PIP_SHINE)
 				else:
 					_overlay.draw_rect(rect, Color(SHELL_PIP, 0.18))
+
+## Turns until an egg hatches, in a small round badge over it.
+func _draw_egg_count(square: Vector2i, egg: ChessPiece, piece_pixels: float, stand: float) -> void:
+	var font: Font = get_theme_default_font()
+	if font == null:
+		return
+	var world: Vector3 = projection.square_world(square)
+	var top: Vector2 = projection.project(Vector3(world.x, projection.height_for_pixels(piece_pixels * 0.78), world.z + stand))
+	var radius: float = maxf(7.0, projection.cell * 0.24 * projection.square_scale(square))
+	var hard: bool = egg.def.egg_hardened
+	_overlay.draw_circle(top, radius + 1.5, Color("#1a1018"))
+	_overlay.draw_circle(top, radius, Color("#f5c860") if hard else Color("#ff8a3c"))
+	var text: String = str(board.egg_turns_left(egg))
+	var font_size: int = int(radius * 1.5)
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+	_overlay.draw_string(font, top + Vector2(-width * 0.5, font_size * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, Color("#2a1206"))
 
 ## A shield flashes when the player tries to attack through it.
 func _pulse_shield(square: Vector2i) -> void:
@@ -750,6 +769,7 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 	_pending_banner = {}
 	_clear_finale()
 	var destroyed: Array[Dictionary] = []
+	var broken_rocks: Array[Vector2i] = []
 	for event: BattleEvent in events:
 		match event.event_type:
 			BattleCommandProcessor.EVENT_PIECE_MOVED:
@@ -768,6 +788,7 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 				destroyed.append(event.payload)
 			BattleCommandProcessor.EVENT_ROCK_BROKEN:
 				_pending_bursts.append(event.payload.get("position", NO_SQUARE))
+				broken_rocks.append(event.payload.get("position", NO_SQUARE))
 			BattleCommandProcessor.EVENT_SHELL_BROKEN:
 				if shell_event == null:
 					shell_event = event
@@ -777,6 +798,11 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 				_pending_rings.append(event.payload.get("position", NO_SQUARE))
 			BattleCommandProcessor.EVENT_PIECE_REVIVED, BattleCommandProcessor.EVENT_PIECE_EVOLVED, BattleCommandProcessor.EVENT_FORM_CHANGED, BattleCommandProcessor.EVENT_MOVE_LEARNED:
 				_pending_rings.append(event.payload.get("position", NO_SQUARE))
+			BattleCommandProcessor.EVENT_EGG_LAID:
+				# The egg appears once the bird has fallen.
+				var egg_square: Vector2i = event.payload.get("position", NO_SQUARE)
+				_hidden_squares[egg_square] = true
+				_pending_rings.append(egg_square)
 			BattleCommandProcessor.EVENT_PROMOTED:
 				_pending_promotion = event.payload.get("position", NO_SQUARE)
 			BattleCommandProcessor.EVENT_CHECK_DECLARED:
@@ -785,6 +811,14 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 		return
 	_last_speed = speed
 	_spawn_doomed(destroyed, move_event, capture_event)
+	# A broken rock stays until the move lands (it bursts with the follow-up effects).
+	for square: Vector2i in broken_rocks:
+		if board.on_board(square):
+			var rock: Sprite2D = _make_piece_sprite(RockArt.texture())
+			if rock != null:
+				_place_sprite(rock, projection.square_world(square))
+				_piece_layer.add_child(rock)
+				_presentation_nodes.append(rock)
 	if not _pending_execution.is_empty():
 		_hold_doomed_king(_pending_execution)
 	if move_event == null:

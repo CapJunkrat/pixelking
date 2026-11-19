@@ -2216,13 +2216,21 @@ func _draw_special_air(canvas: CanvasItem) -> void:
 			if points.size() >= 2:
 				canvas.draw_polyline(points, Color("#9be36a"), thin)
 		&"archmage":
-			if u < 0.58 or _impacted:
+			# A beam from the staff: it shoots out, holds while the victim lifts, then fades.
+			if u < 0.58:
+				return
+			var fade: float = 1.0 - clampf((_rt - 0.25) / 0.3, 0.0, 1.0) if _impacted else 1.0
+			if fade <= 0.0:
 				return
 			var q: float = _ease_in(clampf((u - 0.6) / 0.16, 0.0, 1.0))
 			var staff: Vector2 = _proj.project(Vector3(_pose.x + _face * 5.0 * _unit, _pose.y + _attacker_at(1.0), _pose.z + _stand))
-			var orb: Vector2 = staff.lerp(_victim_centre(), q)
-			canvas.draw_circle(orb, 4.0 * _unit, Color(0.47, 0.78, 1.0, 0.35))
-			canvas.draw_rect(Rect2(orb - Vector2(1.0, 1.0) * _unit, Vector2(2.0, 2.0) * _unit), Color("#e8fbff"))
+			var tip: Vector2 = staff.lerp(_victim_centre(), q)
+			var flicker: float = 0.85 + 0.15 * sin(u * 70.0)
+			canvas.draw_line(staff, tip, Color(0.47, 0.78, 1.0, 0.28 * fade), 9.0 * _unit)
+			canvas.draw_line(staff, tip, Color(ARCANE_COLOR, 0.75 * fade * flicker), 4.0 * _unit)
+			canvas.draw_line(staff, tip, Color(0.92, 0.99, 1.0, fade), 1.6 * _unit)
+			canvas.draw_circle(staff, 3.5 * _unit, Color(0.92, 0.99, 1.0, 0.8 * fade))
+			canvas.draw_circle(tip, 5.0 * _unit * (0.6 + 0.4 * flicker), Color(0.47, 0.78, 1.0, 0.45 * fade))
 		&"portal_mage":
 			if u > 0.1 and u < 0.75:
 				var hand: Vector2 = _proj.project(Vector3(_pose.x, _pose.y + _attacker_at(0.85), _pose.z + _stand))

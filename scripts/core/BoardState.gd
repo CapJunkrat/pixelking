@@ -25,6 +25,8 @@ var turn_serial: int = 0
 var last_moved_def_id: Dictionary = {}
 ## Captured pieces waiting to come back: {"piece": ChessPiece, "ready_serial": int}.
 var pending_revivals: Array = []
+## Each blow on a hard egg delays its hatching by two of its owner's turns.
+const EGG_DELAY_SERIALS := 4
 ## During a bonus action only this piece may act (0 = any piece).
 var bonus_instance_id: int = 0
 ## Actions already taken by the side to move in this turn.
@@ -143,7 +145,7 @@ func has_non_king_piece(color: int) -> bool:
 	for x in range(board_size):
 		for y in range(board_size):
 			var piece := get_piece(Vector2i(x, y))
-			if piece != null and piece.color == color and not piece.def.is_king:
+			if piece != null and piece.color == color and not piece.def.is_king and not piece.def.is_egg:
 				return true
 	return false
 
@@ -152,7 +154,7 @@ func has_only_king(color: int) -> bool:
 	for x in range(board_size):
 		for y in range(board_size):
 			var piece := get_piece(Vector2i(x, y))
-			if piece == null or piece.color != color:
+			if piece == null or piece.color != color or piece.def.is_egg:
 				continue
 			if not piece.def.is_king:
 				return false
@@ -355,6 +357,7 @@ func _empty_capture_fields(result: Dictionary) -> void:
 	result["evolved_into"] = ""
 	result["learned"] = ""
 	result["form_changed"] = ""
+	result["eggs_laid"] = []
 
 func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: bool) -> Dictionary:
 	var piece: ChessPiece = get_piece(from)
@@ -389,9 +392,13 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 		target_piece.has_moved = true
 		result["swapped_with_king"] = true
 	else:
-		if not kind.is_empty() and kind != &"ranged":
+		if not kind.is_empty() and kind != &"ranged" and kind != SlideMovementRule.SMASH:
 			piece.used_abilities[kind] = true
 		var victim_died: bool = false
+		if kind == SlideMovementRule.SMASH:
+			# The rock shatters and the piece steps onto its square.
+			break_rock(to)
+			result["rock_broken"] = to
 		if kind == RangedAttackRule.ACTION:
 			landing = from
 			result["ranged"] = true
@@ -402,10 +409,8 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 			_kill(Vector2i(to.x, from.y), &"capture", result, serial)
 			victim_died = true
 		elif target_piece != null and target_piece.color != moving_color:
-			if target_piece.shell_left > 0:
-				# The shell takes the blow; the attacker bounces back to its square.
-				target_piece.shell_left -= 1
-				result["shells"].append({"position": to, "instance_id": target_piece.instance_id, "left": target_piece.shell_left})
+			if _absorbs_blow(target_piece, to, result):
+				# The shell (or a hard egg) takes the blow; the attacker bounces back.
 				landing = from
 			else:
 				result["captured"] = true
@@ -482,9 +487,7 @@ func _resolve_shot(shooter: ChessPiece, from: Vector2i, to: Vector2i, result: Di
 		var victim: ChessPiece = get_piece(square)
 		if victim == null or victim.color == shooter.color:
 			continue
-		if victim.shell_left > 0:
-			victim.shell_left -= 1
-			result["shells"].append({"position": square, "instance_id": victim.instance_id, "left": victim.shell_left})
+		if _absorbs_blow(victim, square, result):
 			continue
 		any_died = true
 		if square == to:
@@ -502,11 +505,21 @@ func _hit(pos: Vector2i, cause: StringName, result: Dictionary, serial: int) -> 
 	var occupant: ChessPiece = get_piece(pos)
 	if occupant == null or occupant.def.is_king:
 		return
-	if occupant.shell_left > 0:
-		occupant.shell_left -= 1
-		result["shells"].append({"position": pos, "instance_id": occupant.instance_id, "left": occupant.shell_left})
+	if _absorbs_blow(occupant, pos, result):
 		return
 	_kill(pos, cause, result, serial)
+
+## A shell layer takes the blow, or a hard egg shrugs it off and hatches 2 turns later.
+func _absorbs_blow(victim: ChessPiece, pos: Vector2i, result: Dictionary) -> bool:
+	if victim.shell_left > 0:
+		victim.shell_left -= 1
+		result["shells"].append({"position": pos, "instance_id": victim.instance_id, "left": victim.shell_left})
+		return true
+	if victim.def.egg_hardened:
+		victim.hatch_serial += EGG_DELAY_SERIALS
+		result["shells"].append({"position": pos, "instance_id": victim.instance_id, "left": 0, "egg_delayed": true, "turns_left": egg_turns_left(victim)})
+		return true
+	return false
 
 func _kill(pos: Vector2i, cause: StringName, result: Dictionary, serial: int) -> void:
 	var victim: ChessPiece = get_piece(pos)
@@ -533,7 +546,7 @@ func _resolve_death(victim: ChessPiece, pos: Vector2i, cause: StringName, result
 	})
 	if victim.revives_left > 0 and not victim.def.is_king:
 		victim.revives_left -= 1
-		pending_revivals.append({"piece": victim, "ready_serial": serial + 2 * victim.def.revive_after_turns + 1})
+		_lay_egg(victim, serial, result)
 	if victim.def.shields_allies_when_captured:
 		for offset: Vector2i in NEIGHBORS:
 			var ally: ChessPiece = get_piece(pos + offset)
@@ -572,10 +585,55 @@ func _record_capture(piece: ChessPiece, result: Dictionary) -> void:
 		"learned": piece.learned_def_ids.duplicate(),
 	}
 
-## Brings back pieces whose wait is over, at the start of `color`'s turn. Returns
-## [{"position", "piece_def_id", "instance_id", "color"}] for every revived piece.
+## A fallen reviving piece leaves an egg on its side's free square nearest the
+## owner's bottom-left corner. With no free square left it is gone for good.
+func _lay_egg(victim: ChessPiece, serial: int, result: Dictionary) -> void:
+	var egg_def: PieceDef = PieceDefDatabase.get_def(victim.def.egg_def_id)
+	var square: Vector2i = egg_square(victim.color)
+	if egg_def == null or square.x < 0:
+		return
+	var egg: ChessPiece = ChessPiece.new(egg_def, victim.color)
+	egg.hatch_piece = victim
+	egg.hatch_serial = serial + 2 * victim.def.revive_after_turns + 1
+	egg.has_moved = true
+	set_piece(square, egg)
+	result["eggs_laid"].append({"position": square, "piece_def_id": egg_def.id, "instance_id": egg.instance_id, "color": victim.color, "turns_left": egg_turns_left(egg, serial + 1)})
+
+## The free square closest to `color`'s own bottom-left corner (White: a1, Black: h8).
+func egg_square(color: int) -> Vector2i:
+	var corner: Vector2i = Vector2i(0, 0) if color == GameRules.PieceColor.WHITE else Vector2i(board_size - 1, board_size - 1)
+	var best: Vector2i = Vector2i(-1, -1)
+	var best_distance: int = 1 << 30
+	for row: int in range(board_size):
+		for column: int in range(board_size):
+			var square: Vector2i = corner + Vector2i(column, row) * (1 if color == GameRules.PieceColor.WHITE else -1)
+			if not in_bounds(square) or get_piece(square) != null:
+				continue
+			var offset: Vector2i = square - corner
+			var distance: int = offset.x * offset.x + offset.y * offset.y
+			if distance < best_distance:
+				best = square
+				best_distance = distance
+	return best
+
+## Owner turns until an egg hatches (counted from `serial`, now by default).
+func egg_turns_left(egg: ChessPiece, serial: int = -1) -> int:
+	var now: int = turn_serial if serial < 0 else serial
+	return maxi(1, ceili((egg.hatch_serial - now) / 2.0))
+
+## Brings back pieces whose wait is over, at the start of `color`'s turn: eggs hatch
+## where they lie. Returns [{"position", "piece_def_id", "instance_id", "color"}].
 func process_revivals(color: int) -> Array[Dictionary]:
 	var revived: Array[Dictionary] = []
+	for x: int in range(board_size):
+		for y: int in range(board_size):
+			var egg: ChessPiece = grid[x][y]
+			if egg == null or not egg.def.is_egg or egg.color != color or egg.hatch_piece == null or turn_serial < egg.hatch_serial:
+				continue
+			var piece: ChessPiece = egg.hatch_piece
+			set_piece(Vector2i(x, y), piece)
+			piece.has_moved = true
+			revived.append({"position": Vector2i(x, y), "piece_def_id": piece.def.id, "instance_id": piece.instance_id, "color": color, "hatched": true})
 	var waiting: Array = []
 	for entry: Dictionary in pending_revivals:
 		var piece: ChessPiece = entry.get("piece") as ChessPiece

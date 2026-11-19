@@ -15,6 +15,9 @@ var learned_def_ids: Array[String] = []
 ## Per-battle state.
 var shell_left: int = 0
 var revives_left: int = 0
+## For an egg: the piece that hatches from it, and the turn serial it hatches on.
+var hatch_piece: ChessPiece = null
+var hatch_serial: int = 0
 ## Cannot be captured while BoardState.turn_serial is below this value.
 var shield_until_serial: int = 0
 ## Cannot move while BoardState.turn_serial is below this value (Freeze Charm).
@@ -58,6 +61,8 @@ func clone_for_simulation() -> ChessPiece:
 	copy.learned_def_ids = learned_def_ids.duplicate()
 	copy.shell_left = shell_left
 	copy.revives_left = revives_left
+	copy.hatch_piece = hatch_piece.clone_for_simulation() if hatch_piece != null else null
+	copy.hatch_serial = hatch_serial
 	copy.shield_until_serial = shield_until_serial
 	copy.frozen_until_serial = frozen_until_serial
 	copy.origin = origin

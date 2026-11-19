@@ -28,6 +28,7 @@ strike_type = 12
 weight_class = 1
 movement_profile = SubResource("MovementProfile")
 motion_profile = ExtResource("4_motion")
+egg_def_id = "ember_egg"
 revive_after_turns = 2
 base_value = 8
 rarity = 2

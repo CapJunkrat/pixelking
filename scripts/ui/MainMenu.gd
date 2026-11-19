@@ -180,7 +180,11 @@ func _render_codex() -> void:
 	for child: Node in codex_grid.get_children():
 		child.queue_free()
 	var discovered: Array[String] = run_manager.discovered_piece_ids()
-	var all_ids: Array[String] = PieceDefDatabase.all_ids()
+	var all_ids: Array[String] = []
+	for piece_id: String in PieceDefDatabase.all_ids():
+		var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
+		if definition != null and not definition.is_egg:
+			all_ids.append(piece_id)
 	var shown_count: int = all_ids.size() if GameState.debug_mode else discovered.size()
 	codex_progress_label.text = Localization.text("CODEX_DEBUG_COMPLETE") if GameState.debug_mode else Localization.text("CODEX_PROGRESS") % [shown_count, all_ids.size()]
 	for piece_id: String in all_ids:

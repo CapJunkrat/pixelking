@@ -177,6 +177,8 @@ func _test_revival() -> void:
 	processor.execute(MoveAction.new(Vector2i(4, 1), Vector2i(4, 0), W))
 	var revived: BattleCommandResult = processor.execute(MoveAction.new(Vector2i(7, 6), Vector2i(7, 7), B))
 	expect(_has(revived.events, BattleCommandProcessor.EVENT_PIECE_REVIVED), "Ember Bird revives after missing two of its owner's turns")
+	expect(board.get_piece(Vector2i(0, 0)) != null and board.get_piece(Vector2i(0, 0)).def.id == "ember_bird", "it hatches where its egg lay, in its owner's bottom-left corner")
+	_test_eggs()
 	expect(board.get_piece(Vector2i(0, 0)) != null and board.get_piece(Vector2i(0, 0)).def.id == "ember_bird", "its start square is taken, so it revives in the bottom-left corner")
 
 func _test_courier() -> void:
@@ -274,3 +276,43 @@ func _has(events: Array[BattleEvent], event_type: StringName) -> bool:
 		if event.event_type == event_type:
 			return true
 	return false
+
+func _test_eggs() -> void:
+	# The egg goes to the free square nearest the owner's bottom-left corner.
+	var crowded: BoardState = _board({Vector2i(3, 3): [&"ember_bird", W], Vector2i(0, 0): [&"rook", W], Vector2i(1, 0): [&"pawn", W], Vector2i(3, 6): [&"rook", B], Vector2i(4, 0): [&"king", W], Vector2i(7, 7): [&"king", B]}, B)
+	var result: Dictionary = crowded.make_move(Vector2i(3, 6), Vector2i(3, 3))
+	var egg: ChessPiece = crowded.get_piece(Vector2i(0, 1))
+	expect(egg != null and egg.def.id == "ember_egg" and egg.color == W, "a captured Ember Bird lays an egg on the free square nearest a1")
+	expect((result.get("eggs_laid", []) as Array).size() == 1, "the move result reports the egg")
+	expect(crowded.egg_turns_left(egg) == 2, "the egg hatches in 2 of its owner's turns")
+	expect(egg.def.is_egg and MoveGenerator.generate_pseudo_legal(crowded, Vector2i(0, 1)).is_empty(), "an egg cannot move")
+	# A Black egg goes to Black's own bottom-left corner (h8).
+	var black: BoardState = _board({Vector2i(3, 3): [&"ember_bird", B], Vector2i(3, 0): [&"rook", W], Vector2i(4, 0): [&"king", W], Vector2i(4, 7): [&"king", B]})
+	black.make_move(Vector2i(3, 0), Vector2i(3, 3))
+	expect(black.get_piece(Vector2i(7, 7)) != null and black.get_piece(Vector2i(7, 7)).def.id == "ember_egg", "a Black egg lies in h8")
+	# Breaking an Ember Egg ends the bird for good.
+	var fragile: BoardState = _board({Vector2i(3, 3): [&"ember_bird", W], Vector2i(3, 6): [&"rook", B], Vector2i(0, 6): [&"rook", B], Vector2i(4, 0): [&"king", W], Vector2i(7, 7): [&"king", B], Vector2i(5, 1): [&"pawn", W]}, B)
+	fragile.make_move(Vector2i(3, 6), Vector2i(3, 3))
+	fragile.make_move(Vector2i(5, 1), Vector2i(5, 2))
+	fragile.make_move(Vector2i(0, 6), Vector2i(0, 0))
+	expect(fragile.get_piece(Vector2i(0, 0)).def.id == "rook", "the Ember Egg breaks when attacked")
+	var ember_left: bool = false
+	for x: int in range(8):
+		for y: int in range(8):
+			var piece: ChessPiece = fragile.get_piece(Vector2i(x, y))
+			ember_left = ember_left or (piece != null and (piece.def.id == "ember_bird" or piece.def.id == "ember_egg"))
+	expect(not ember_left, "with its egg broken the Ember Bird is gone for good")
+	# A Phoenix Egg is never broken; each blow adds 2 turns.
+	var hard: BoardState = _board({Vector2i(3, 3): [&"flame_phoenix", W], Vector2i(3, 6): [&"rook", B], Vector2i(0, 6): [&"rook", B], Vector2i(4, 0): [&"king", W], Vector2i(7, 7): [&"king", B], Vector2i(5, 1): [&"pawn", W]}, B)
+	hard.make_move(Vector2i(3, 6), Vector2i(3, 3))
+	var phoenix_egg: ChessPiece = hard.get_piece(Vector2i(0, 0))
+	expect(phoenix_egg != null and phoenix_egg.def.id == "phoenix_egg", "a captured Flame Phoenix lays a Phoenix Egg")
+	var before: int = hard.egg_turns_left(phoenix_egg)
+	hard.make_move(Vector2i(5, 1), Vector2i(5, 2))
+	var blow: Dictionary = hard.make_move(Vector2i(0, 6), Vector2i(0, 0))
+	expect(hard.get_piece(Vector2i(0, 0)) == phoenix_egg and hard.get_piece(Vector2i(0, 6)).def.id == "rook", "the Phoenix Egg survives and the attacker bounces back")
+	expect(hard.egg_turns_left(phoenix_egg) == before + 2 - 1, "each blow adds 2 turns to the hatching")
+	expect(not bool(blow["captured"]), "hitting a Phoenix Egg is not a capture")
+	# Eggs do not keep a side in the battle.
+	var lone: BoardState = _board({Vector2i(0, 0): [&"ember_egg", B], Vector2i(4, 7): [&"king", B], Vector2i(4, 0): [&"king", W], Vector2i(3, 1): [&"pawn", W]})
+	expect(lone.has_only_king(B) and not lone.has_non_king_piece(B), "a King with only an egg left is alone")

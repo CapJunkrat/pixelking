@@ -82,6 +82,10 @@ func show_piece(piece: ChessPiece, enemy: bool) -> void:
 			traits.append(_text(key))
 	if not traits.is_empty():
 		text.append("[color=#%s]%s[/color]" % [GOLD_SOFT.to_html(false), " · ".join(traits)])
+	if piece.def.is_egg:
+		var egg_board: BoardState = _board()
+		if egg_board != null:
+			text[0] += "  [color=#%s]%s[/color]" % [GOLD_SOFT.to_html(false), _text("LOG_EGG_HATCHES_IN") % egg_board.egg_turns_left(piece)]
 	var shield_note: String = _shield_note(piece)
 	if not shield_note.is_empty():
 		# On the name line: it is why this piece cannot be taken right now.
@@ -89,9 +93,12 @@ func show_piece(piece: ChessPiece, enemy: bool) -> void:
 	log_label.text = "\n".join(text)
 
 ## "Shielded: cannot be captured for 2 more turns", or "" when unshielded.
-func _shield_note(piece: ChessPiece) -> String:
+func _board() -> BoardState:
 	var game_state: Node = get_node_or_null("/root/GameState")
-	var board: BoardState = game_state.get("board") as BoardState if game_state != null else null
+	return game_state.get("board") as BoardState if game_state != null else null
+
+func _shield_note(piece: ChessPiece) -> String:
+	var board: BoardState = _board()
 	if board == null or not piece.is_shielded(board.turn_serial):
 		return ""
 	var turns: int = maxi(1, ceili((piece.shield_until_serial - board.turn_serial) / 2.0))
@@ -150,10 +157,25 @@ func _format_event(event: BattleEvent) -> String:
 		BattleCommandProcessor.EVENT_ITEM_USED:
 			var item: ChallengerItemDef = ChallengerItemDatabase.get_def(StringName(str(data.get("item_id", ""))))
 			return _text("LOG_ITEM_USED") % (_text(String(item.display_name_key)) if item != null else str(data.get("item_id", "")))
+		BattleCommandProcessor.EVENT_EGG_LAID:
+			var bird: PieceDef = PieceDefDatabase.get_def(str(data.get("piece_def_id", "")))
+			return "[color=#%s]%s[/color]" % [GOLD_SOFT.to_html(false), _text("LOG_EGG_LAID") % _who(_hatchling(str(data.get("piece_def_id", ""))), int(data.get("color", 0)))] if bird != null else ""
+		BattleCommandProcessor.EVENT_PIECE_REVIVED:
+			if bool(data.get("hatched", false)):
+				return "[color=#%s]%s[/color]" % [GOLD_SOFT.to_html(false), _text("LOG_EGG_HATCHED") % _who(str(data.get("piece_def_id", "")), int(data.get("color", 0)))]
+			return ""
 		BattleCommandProcessor.EVENT_CHECK_DECLARED:
 			return "" if bool(data.get("checkmate", false)) else "[color=#%s]%s[/color]" % [ENEMY.to_html(false), _text("LOG_CHECK")]
 		_:
 			return ""
+
+## The bird an egg belongs to (for "Your Ember Bird laid an egg").
+func _hatchling(egg_id: String) -> String:
+	for piece_id: String in PieceDefDatabase.all_ids():
+		var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
+		if definition != null and definition.egg_def_id == egg_id:
+			return piece_id
+	return egg_id
 
 ## "Your Knight" in teal or "Enemy Knight" in coral.
 func _who(piece_id: String, color: int) -> String:

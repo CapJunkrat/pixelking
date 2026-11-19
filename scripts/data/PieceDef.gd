@@ -85,6 +85,13 @@ enum WeightClass {
 @export var shell_hits: int = 0
 ## Revives this many of its owner's turns after being captured, once per battle (0 = never).
 @export var revive_after_turns: int = 0
+## When captured (with a revive left) it leaves this egg piece on the owner's free
+## square nearest its bottom-left corner; the egg hatches back into it.
+@export var egg_def_id: String = ""
+## An egg: it cannot move or fight and does not keep its side in the battle.
+@export var is_egg: bool = false
+## A hard egg is never broken: each blow only adds 2 turns to its hatching.
+@export var egg_hardened: bool = false
 ## Learns the movement of the pieces it captures, keeping at most this many (0 = never).
 @export var learn_capacity: int = 0
 ## Becomes `evolves_into` once its run-wide capture count reaches `evolve_at_captures`.
