@@ -277,37 +277,68 @@ func get_executable_moves_for_color(pos: Vector2i, color: int) -> Array[Vector2i
 		return []
 	return MoveGenerator.generate_pseudo_legal(self, pos)
 
-## Mandatory Shadow safety is a bounded terminal-threat query, not minimax.
-## Execute the complete action without regenerating its safe moves, then execute
-## enemy geometric captures. A reply killing this King is terminal, so it needs
-## no recursive 'is the enemy King safe after my retaliation?' query. Shells,
-## immunity, freeze, death effects and the real returned position all settle first.
-## The rule is non-borrowable: this contract is for a royal Shadow mover.
+## Shadow King safety, judged like a ranged shot: play the blink or strike out (the
+## strike resolves in melee, death effects included, then the survivor returns), let
+## the enemy's turn begin (eggs due now hatch), and the action is safe when the
+## King's final square is not under enemy attack. Attack maps are pure geometry, so
+## this never asks for anyone's safe moves and cannot recurse. Results are cached by
+## position, since the same board is asked again and again while marking targets.
 func is_shadow_action_safe(from: Vector2i, to: Vector2i) -> bool:
 	var piece: ChessPiece = get_piece(from)
 	if piece == null:
 		return false
+	var key: String = "%s|%d,%d>%d,%d" % [_position_key(), from.x, from.y, to.x, to.y]
+	if _shadow_safety_cache.has(key):
+		return bool(_shadow_safety_cache[key])
+	var safe: bool = _shadow_action_safe_uncached(piece, from, to)
+	if _shadow_safety_cache.size() >= SHADOW_CACHE_LIMIT:
+		_shadow_safety_cache.clear()
+	_shadow_safety_cache[key] = safe
+	return safe
+
+const SHADOW_CACHE_LIMIT := 4096
+static var _shadow_safety_cache: Dictionary = {}
+
+func _shadow_action_safe_uncached(piece: ChessPiece, from: Vector2i, to: Vector2i) -> bool:
 	var after: BoardState = clone()
 	var outcome: Dictionary = after._apply_move(from, to, "queen", true)
+	if not bool(outcome.get("success", false)):
+		return false
 	var landing: Vector2i = outcome.get("landing", to)
 	var survivor: ChessPiece = after.get_piece(landing)
-	if not bool(outcome.get("success", false)) or survivor == null or survivor.instance_id != piece.instance_id:
+	if survivor == null or survivor.instance_id != piece.instance_id:
 		return false
 	if has_king(piece.color) and not after.has_king(piece.color):
 		return false
 	if bool(outcome.get("king_captured", false)):
+		# Taking the enemy King ends the battle; there is no reply to fear.
+		return true
+	if survivor.shell_left > 0:
+		# One enemy reply can only break the shell.
 		return true
 	var enemy: int = GameRules.opposite(piece.color)
 	after._hand_turn_to(enemy)
 	after.process_revivals(enemy)
-	for reply: Array in after._capture_replies(enemy, true):
-		var trial: BoardState = after.clone()
-		var hit: Dictionary = trial._apply_move(reply[0], reply[1], "queen", true)
-		if bool(hit.get("king_captured", false)) and int(hit.get("captured_color", -1)) == piece.color:
-			return false
-		if _lists_instance(hit.get("removed", []), piece.instance_id):
-			return false
-	return true
+	return not after.is_square_attacked(landing, enemy)
+
+## Everything about this position the rules can see, as a short text: pieces and their
+## battle state, rocks, whose turn and the turn count. Two boards with the same key
+## give the same answers.
+func _position_key() -> String:
+	var parts: PackedStringArray = PackedStringArray()
+	parts.append("%d:%d:%d:%d" % [turn, turn_serial, actions_this_turn, bonus_instance_id])
+	for x: int in range(board_size):
+		for y: int in range(board_size):
+			var piece: ChessPiece = grid[x][y]
+			if piece != null:
+				parts.append("%d%d%s%d.%d.%d.%d.%d" % [x, y, piece.def.id, piece.color, piece.shell_left, piece.frozen_until_serial, piece.shield_until_serial, piece.hatch_serial])
+	for square: Variant in rocks:
+		parts.append("r%s" % str(square))
+	for entry: Dictionary in pending_revivals:
+		var waiting: ChessPiece = entry.get("piece") as ChessPiece
+		if waiting != null:
+			parts.append("v%s%d%d" % [waiting.def.id, waiting.color, int(entry.get("ready_serial", 0))])
+	return "|".join(parts)
 
 ## A move after which some enemy reply kills the moving piece or takes its King.
 func is_move_dangerous(from: Vector2i, to: Vector2i) -> bool:

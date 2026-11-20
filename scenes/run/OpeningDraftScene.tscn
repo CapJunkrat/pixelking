@@ -313,3 +313,63 @@ text = "Back"
 
 [node name="InfoLayer" type="CanvasLayer" parent="." unique_id=1619462393]
 layer = 100
+
+[node name="CandidateInfoPopup" type="PanelContainer" parent="InfoLayer" unique_id=40304169]
+visible = false
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 20.0
+offset_top = 104.0
+offset_right = -20.0
+offset_bottom = 338.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleButtonHover")
+
+[node name="Content" type="VBoxContainer" parent="InfoLayer/CandidateInfoPopup" unique_id=1374745961]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 5
+alignment = 1
+
+[node name="NameLabel" type="Label" parent="InfoLayer/CandidateInfoPopup/Content" unique_id=612095104]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.98, 0.84, 0.46, 1)
+theme_override_font_sizes/font_size = 18
+text = "Piece"
+horizontal_alignment = 1
+
+[node name="DiagramCenter" type="CenterContainer" parent="InfoLayer/CandidateInfoPopup/Content" unique_id=219234501]
+custom_minimum_size = Vector2(0, 106)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Diagram" type="GridContainer" parent="InfoLayer/CandidateInfoPopup/Content/DiagramCenter" unique_id=1808331376]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/h_separation = 1
+theme_override_constants/v_separation = 1
+columns = 5
+
+[node name="LegendLabel" type="Label" parent="InfoLayer/CandidateInfoPopup/Content" unique_id=917550254]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.68, 0.76, 0.78, 1)
+theme_override_font_sizes/font_size = 10
+text = "MOVE  •  ATTACK  •  BOTH"
+horizontal_alignment = 1
+
+[node name="MovementLabel" type="Label" parent="InfoLayer/CandidateInfoPopup/Content" unique_id=2039881384]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.51, 0.85, 0.92, 1)
+theme_override_font_sizes/font_size = 11
+text = "Movement"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="AttackLabel" type="Label" parent="InfoLayer/CandidateInfoPopup/Content" unique_id=1266454850]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.61, 0.47, 1)
+theme_override_font_sizes/font_size = 11
+text = "Attack"
+horizontal_alignment = 1
+autowrap_mode = 2

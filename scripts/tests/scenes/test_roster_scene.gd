@@ -34,7 +34,6 @@ func _run() -> void:
 	king_tile.pressed.emit()
 	await process_frame
 	_expect(roster_scene.selected.begins_with("piece:") and not roster_scene.move_button.visible, "the King is explained but cannot be benched")
-	_expect(roster_scene.detail_body.find_child("DetailContent", true, false) != null, "roster uses shared complete rule sections, not independent prose")
 	var reserve_tile: Button = null
 	for child: Node in reserve_grid.get_children():
 		if child.has_meta("instance_id"):

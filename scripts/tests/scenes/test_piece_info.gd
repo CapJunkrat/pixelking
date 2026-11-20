@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Long-pressing a piece in battle opens a card with how it moves and captures, its
-## traits and its current state; a quick tap selects it; only backdrop / Close dismisses it.
+## traits and its current state; a quick tap still just selects it; any tap closes it.
 
 var failed: bool = false
 var _loc: Node = null
@@ -37,17 +37,11 @@ func _run() -> void:
 	var text: String = _all_text(info)
 	_expect(_loc.text("DRAFT_MOVE_KNIGHT") in text and _loc.text("DRAFT_ATTACK_KNIGHT") in text, "the card explains how it moves and captures")
 	_expect(info.find_children("*", "GridContainer", true, false).size() == 1, "the card draws the move grid")
-	var inside_tap: InputEventMouseButton = InputEventMouseButton.new()
-	inside_tap.button_index = MOUSE_BUTTON_LEFT
-	inside_tap.pressed = true
-	inside_tap.position = (info.get_node("Card") as Control).position + Vector2(20, 80)
-	info._gui_input(inside_tap)
-	_expect(info.is_open(), "tapping inside the detail never dismisses it")
 	var close_tap: InputEventMouseButton = InputEventMouseButton.new()
 	close_tap.button_index = MOUSE_BUTTON_LEFT
 	close_tap.pressed = true
 	info._gui_input(close_tap)
-	_expect(not info.is_open(), "a backdrop tap closes the card")
+	_expect(not info.is_open(), "any tap closes the card")
 
 	# A finger that slides away is not a long press.
 	knight = board_view.get_node("PieceLayer/Piece_1_0") as Sprite2D

@@ -1,7 +1,7 @@
 class_name PieceRulePreview
 extends RefCounted
 
-const DEFAULT_GRID_SIZE := 7
+const DEFAULT_GRID_SIZE := 5
 
 static func pattern(piece_def_id: String, grid_size: int = DEFAULT_GRID_SIZE) -> Dictionary:
 	var definition: PieceDef = PieceDefDatabase.get_def(piece_def_id)
@@ -43,7 +43,6 @@ static func make_grid(piece_def_id: String, grid_size: int, cell_px: float, faci
 	grid.add_theme_constant_override("h_separation", 2)
 	grid.add_theme_constant_override("v_separation", 2)
 	var marks: Dictionary = pattern(piece_def_id, grid_size)
-	var extended: Dictionary = pattern(piece_def_id, maxi(15, grid_size + 2))
 	var half: int = grid_size / 2
 	for row: int in range(grid_size):
 		var y: int = (half - row) if facing_up else (row - half)
@@ -54,28 +53,6 @@ static func make_grid(piece_def_id: String, grid_size: int, cell_px: float, faci
 			var kind: String = str(marks.get(Vector2i(x, y), ""))
 			cell.color = PATTERN_CENTER if x == 0 and y == 0 else PATTERN_COLORS.get(kind, PATTERN_EMPTY)
 			grid.add_child(cell)
-			# Query the same empty-board geometry beyond the diagram edge. An arrow
-			# means range continues, not that it is infinite. Finite three-step Kings
-			# have no fourth step and therefore no misleading continuation arrow.
-			var delta: Vector2i = Vector2i.ZERO
-			if absi(x) == half and absi(y) == half:
-				delta = Vector2i(signi(x), signi(y))
-			elif absi(x) == half:
-				delta = Vector2i(signi(x), 0)
-			elif absi(y) == half:
-				delta = Vector2i(0, signi(y))
-			if not kind.is_empty() and delta != Vector2i.ZERO and extended.has(Vector2i(x, y) + delta):
-				var arrow: Label = Label.new()
-				arrow.name = "Continuation"
-				var visual_delta: Vector2i = Vector2i(delta.x, -delta.y if facing_up else delta.y)
-				var arrows: Dictionary = {Vector2i(1, 0): "→", Vector2i(-1, 0): "←", Vector2i(0, 1): "↓", Vector2i(0, -1): "↑", Vector2i(1, 1): "↘", Vector2i(-1, 1): "↙", Vector2i(1, -1): "↗", Vector2i(-1, -1): "↖"}
-				arrow.text = arrows[visual_delta]
-				arrow.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-				arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-				arrow.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-				arrow.add_theme_font_size_override("font_size", int(cell_px))
-				arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				cell.add_child(arrow)
 	return grid
 
 static func move_key(definition: PieceDef) -> String:
@@ -127,8 +104,34 @@ static func ability_keys(definition: PieceDef) -> Array[String]:
 			abilities.append("CODEX_TRAIT_BEAM")
 		if shot != null and shot.breaks_rocks and "CODEX_TRAIT_ROCKBREAKER" not in abilities:
 			abilities.append("CODEX_TRAIT_ROCKBREAKER")
+		if rule is ShadowStepMovementRule and "CODEX_TRAIT_SHADOW_STRIKE" not in abilities:
+			abilities.append("CODEX_TRAIT_SHADOW_STRIKE")
 	if definition.immune_to_ranged:
 		abilities.append("CODEX_TRAIT_RANGED_IMMUNE")
 	if abilities.is_empty():
 		abilities.append("CODEX_TRAIT_NONE")
 	return abilities
+
+## Short labels for the traits ("Shell", "Ranged"...), for cards that only have room for
+## a word or two; the full sentence stays in ability_keys(). Empty for plain pieces.
+static func tag_keys(definition: PieceDef) -> Array[String]:
+	var tags: Array[String] = []
+	for key: String in ability_keys(definition):
+		if key == "CODEX_TRAIT_NONE":
+			continue
+		var tag: String = key.replace("CODEX_TRAIT_", "TAG_")
+		# Two kinds of rock breaking read the same on a card.
+		if tag == "TAG_ROCKBREAKER":
+			tag = "TAG_ROCK_SMASHER"
+		if tag not in tags:
+			tags.append(tag)
+	return tags
+
+const RARITY_KEYS: Array[String] = ["RARITY_COMMON", "RARITY_RARE", "RARITY_EPIC", "RARITY_LEGENDARY", "RARITY_MYTHIC"]
+const RARITY_COLORS: Array[Color] = [Color("#b8c0cc"), Color("#5aa8ff"), Color("#b77cff"), Color("#f5c860"), Color("#ff6a5a")]
+
+static func rarity_key(definition: PieceDef) -> String:
+	return RARITY_KEYS[clampi(definition.rarity, 0, RARITY_KEYS.size() - 1)]
+
+static func rarity_color(definition: PieceDef) -> Color:
+	return RARITY_COLORS[clampi(definition.rarity, 0, RARITY_COLORS.size() - 1)]

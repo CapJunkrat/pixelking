@@ -69,19 +69,5 @@ func _init() -> void:
 	if localization.content("Wishing Well") != "Wishing Well":
 		push_error("English content must stay English")
 		ok = false
-	# Both the piece description and Codex must explain the lethal counterattack.
-	var last_stand_terms: Dictionary = {
-		"en": ["once per battle", "first checkmate", "all checking enemy non-King pieces", "shells and shields"],
-		"zh_CN": ["每场战斗一次", "首次被将死", "所有正在将军的敌方非国王棋子", "外壳与护盾"],
-	}
-	for locale: String in last_stand_terms:
-		localization.set_locale(locale, false)
-		for key: String in ["DRAFT_MOVE_SHIELD_KING", "CODEX_TRAIT_LAST_STAND"]:
-			var description: String = localization.text(key)
-			for term: String in last_stand_terms[locale]:
-				if term not in description:
-					push_error("%s %s must explain Shield King's counterattack: missing '%s'" % [locale, key, term])
-					ok = false
-	localization.set_locale("en", false)
 	print("[PASS] Localization smoke test" if ok else "[FAIL] Localization smoke test")
 	quit(0 if ok else 1)

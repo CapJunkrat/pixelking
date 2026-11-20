@@ -46,18 +46,13 @@ func _run() -> void:
 	draft.call("_start_candidate_info", 0)
 	await draft.candidate_info_opened
 	var info_layer: CanvasLayer = draft.get_node("InfoLayer") as CanvasLayer
-	var info_popup: Control = info_layer.get_node_or_null("PieceDetails") as Control
-	_expect(info_popup != null and info_popup.is_open(), "holding a card opens complete shared piece information")
+	var info_popup: PanelContainer = info_layer.get_node("CandidateInfoPopup") as PanelContainer
+	var diagram: GridContainer = info_popup.get_node("Content/DiagramCenter/Diagram") as GridContainer
+	_expect(info_popup.visible, "holding a card opens the floating piece information")
 	_expect(info_layer.layer > 10, "floating information renders above every draft card")
-	if info_popup != null:
-		var diagram: GridContainer = info_popup.find_child("MovementDiagram", true, false) as GridContainer
-		_expect(diagram != null and diagram.get_child_count() == 49, "shared information shows full three-square geometry")
-		_expect(info_popup.find_child("DetailScroll", true, false) != null, "full movement, attack, traits and exceptions are scrollable")
-		var before_choice: Dictionary = (run_manager.get("current_run") as RunState).pending_choice.duplicate(true)
-		draft.call("_stop_candidate_info")
-		_expect(info_popup.is_open(), "releasing or scrolling into detail does not dismiss it")
-		_expect((run_manager.get("current_run") as RunState).pending_choice == before_choice, "inspecting does not draft the piece")
-		info_popup.close()
+	_expect(diagram.get_child_count() == 25, "floating information prioritizes a 5 x 5 movement diagram")
+	_expect(not (info_popup.get_node("Content/MovementLabel") as Label).text.is_empty(), "floating information gives a concise movement summary")
+	_expect(not (info_popup.get_node("Content/AttackLabel") as Label).text.is_empty(), "floating information gives a concise attack summary")
 	draft.call("_stop_candidate_info")
 
 	for round_index: int in range(3):

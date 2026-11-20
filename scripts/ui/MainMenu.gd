@@ -31,6 +31,8 @@ var codex_grid: GridContainer
 var codex_title_label: Label
 var codex_progress_label: Label
 var codex_back_button: Button
+var codex_details: PieceInfoPanel
+var codex_hint_label: Label
 var achievement_button: Button
 var achievement_overlay: AchievementPanel
 var debug_badge: Label
@@ -75,6 +77,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_close_overwrite_confirmation()
 		elif settings_overlay.visible:
 			_close_settings()
+		elif codex_overlay.visible and codex_details.is_open():
+			codex_details.close()
 		elif codex_overlay.visible:
 			_close_codex()
 		elif achievement_overlay.visible:
@@ -132,6 +136,11 @@ func _build_codex_controls() -> void:
 	codex_progress_label = Label.new()
 	codex_progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(codex_progress_label)
+	codex_hint_label = Label.new()
+	codex_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	codex_hint_label.add_theme_font_size_override("font_size", 11)
+	codex_hint_label.add_theme_color_override("font_color", Color(0.6, 0.66, 0.75, 1.0))
+	content.add_child(codex_hint_label)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.name = "CodexScroll"
@@ -147,6 +156,10 @@ func _build_codex_controls() -> void:
 	codex_grid.add_theme_constant_override("v_separation", 8)
 	scroll.add_child(codex_grid)
 	DragScroll.enable(scroll)
+
+	codex_details = PieceInfoPanel.new()
+	codex_details.name = "CodexDetails"
+	codex_overlay.add_child(codex_details)
 
 	codex_back_button = Button.new()
 	codex_back_button.custom_minimum_size = Vector2(0, 46)
@@ -213,42 +226,116 @@ func _render_codex() -> void:
 	for piece_id: String in all_ids:
 		codex_grid.add_child(_make_codex_card(piece_id, GameState.debug_mode or piece_id in discovered))
 
+## Every codex card has the same size: both portraits, the name, the rarity (also the
+## border colour) and a few one-word traits. Tapping a found piece opens its details.
+const CODEX_CARD_HEIGHT := 140.0
+const CODEX_MAX_TAGS := 4
+
 func _make_codex_card(piece_id: String, revealed: bool) -> PanelContainer:
-	if revealed:
-		var card: PieceSummaryCard = PieceSummaryCard.new()
-		card.configure(PieceDefDatabase.get_def(piece_id))
-		card.detail_requested.connect(_show_piece_details)
+	var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
+	var accent: Color = PieceRulePreview.rarity_color(definition) if revealed and definition != null else Color(0.3, 0.32, 0.38, 1.0)
+	var card: PanelContainer = PanelContainer.new()
+	card.name = "Codex_%s" % piece_id
+	card.custom_minimum_size = Vector2(0, CODEX_CARD_HEIGHT)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.clip_contents = true
+	var card_style: StyleBoxFlat = StyleBoxFlat.new()
+	card_style.bg_color = Color(0.075, 0.08, 0.14, 0.98)
+	card_style.set_border_width_all(1)
+	card_style.border_width_top = 3
+	card_style.border_color = accent.darkened(0.15)
+	card_style.set_corner_radius_all(4)
+	card_style.set_content_margin_all(6)
+	card.add_theme_stylebox_override("panel", card_style)
+	var layout: VBoxContainer = VBoxContainer.new()
+	layout.alignment = BoxContainer.ALIGNMENT_CENTER
+	layout.add_theme_constant_override("separation", 3)
+	layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(layout)
+	if not revealed or definition == null:
+		var unknown_label: Label = Label.new()
+		unknown_label.text = Localization.text("CODEX_UNKNOWN")
+		unknown_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		unknown_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		unknown_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		unknown_label.add_theme_color_override("font_color", Color(0.55, 0.56, 0.62, 1.0))
+		unknown_label.add_theme_font_size_override("font_size", 56)
+		layout.add_child(unknown_label)
 		return card
-	var unknown: PanelContainer = PanelContainer.new()
-	unknown.custom_minimum_size.y = 160
+	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	card.gui_input.connect(_on_codex_card_input.bind(definition))
+	var portraits: HBoxContainer = HBoxContainer.new()
+	portraits.alignment = BoxContainer.ALIGNMENT_CENTER
+	portraits.add_theme_constant_override("separation", 4)
+	portraits.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layout.add_child(portraits)
+	for color: StringName in [&"white", &"black"]:
+		var portrait: TextureRect = TextureRect.new()
+		portrait.custom_minimum_size = Vector2(44, 44)
+		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		portrait.texture = piece_skin_manager.piece_texture(color, StringName(piece_id))
+		portraits.add_child(portrait)
+	var name_label: Label = _codex_label(Localization.text(String(definition.display_name_key)), 15, Color(0.95, 0.91, 0.8, 1.0))
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	layout.add_child(name_label)
+	layout.add_child(_codex_label(Localization.text(PieceRulePreview.rarity_key(definition)), 10, accent))
+	var tags: HFlowContainer = HFlowContainer.new()
+	tags.name = "Tags"
+	tags.alignment = FlowContainer.ALIGNMENT_CENTER
+	tags.add_theme_constant_override("h_separation", 3)
+	tags.add_theme_constant_override("v_separation", 3)
+	tags.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layout.add_child(tags)
+	var tag_keys: Array[String] = PieceRulePreview.tag_keys(definition)
+	for key: String in tag_keys.slice(0, CODEX_MAX_TAGS):
+		tags.add_child(_codex_tag(Localization.text(key)))
+	return card
+
+func _codex_label(text: String, font_size: int, color: Color) -> Label:
 	var label: Label = Label.new()
-	label.text = Localization.text("CODEX_UNKNOWN")
+	label.text = text
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 32)
-	unknown.add_child(label)
-	return unknown
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	return label
 
-func _show_piece_details(definition: PieceDef) -> void:
-	var detail: PieceInfoPanel = get_node_or_null("PieceDetails") as PieceInfoPanel
-	if detail == null:
-		detail = PieceInfoPanel.new()
-		detail.name = "PieceDetails"
-		add_child(detail)
-	detail.show_definition(definition)
+func _codex_tag(text: String) -> PanelContainer:
+	var chip: PanelContainer = PanelContainer.new()
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = Color(0.16, 0.2, 0.3, 1.0)
+	style.set_corner_radius_all(3)
+	style.content_margin_left = 4
+	style.content_margin_right = 4
+	style.content_margin_top = 1
+	style.content_margin_bottom = 1
+	chip.add_theme_stylebox_override("panel", style)
+	chip.add_child(_codex_label(text, 10, Color(0.96, 0.84, 0.56, 1.0)))
+	return chip
 
-func _codex_rule_details(definition: PieceDef) -> Array[String]:
-	return [str(PiecePresentation.describe(definition).summary)]
+## A tap (not a drag-scroll) on a found piece opens its details: the finger must lift
+## close to where it went down.
+const CODEX_TAP_SLOP := 12.0
+var _codex_press_point: Vector2 = Vector2.INF
 
-func _make_codex_diagram(definition: PieceDef) -> GridContainer:
-	return PieceRulePreview.make_grid(definition.id, 7, 12.0, true)
+func _on_codex_card_input(event: InputEvent, definition: PieceDef) -> void:
+	# Touches arrive as emulated mouse buttons too; only those carry a screen position,
+	# which tells a tap from a drag that scrolled the card away under the finger.
+	var mouse: InputEventMouseButton = event as InputEventMouseButton
+	if mouse == null or mouse.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if mouse.pressed:
+		_codex_press_point = mouse.global_position
+	elif _codex_press_point != Vector2.INF and mouse.global_position.distance_to(_codex_press_point) <= CODEX_TAP_SLOP:
+		_codex_press_point = Vector2.INF
+		open_codex_details(definition)
 
-func _codex_diagram_color(role: String) -> Color:
-	match role:
-		"move": return Color("#287a91")
-		"attack": return Color("#a34f3c")
-		"both": return Color("#7160a9")
-		"piece": return Color("#d9ad4f")
-		_: return Color("#101b29")
+func open_codex_details(definition: PieceDef) -> void:
+	codex_details.show_definition(definition)
 
 func _rarity_text(rarity: PieceDef.Rarity) -> String:
 	match rarity:
@@ -286,6 +373,7 @@ func _apply_locale(_locale: String) -> void:
 	codex_label.text = Localization.text("MENU_CODEX")
 	(achievement_button.get_node("Content/Group/Label") as Label).text = Localization.text("MENU_ACHIEVEMENTS")
 	codex_title_label.text = Localization.text("CODEX_TITLE")
+	codex_hint_label.text = Localization.text("CODEX_TAP_HINT")
 	codex_back_button.text = Localization.text("COMMON_BACK")
 	debug_badge.text = Localization.text("DEBUG_ENABLED")
 	$SettingsOverlay/SettingsPanel/SettingsContent/Title.text = Localization.text("SETTINGS_TITLE")
