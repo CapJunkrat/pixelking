@@ -357,11 +357,16 @@ static func _state_token(piece: ChessPiece, square: Vector2i) -> String:
 		token += ":e%d" % piece.hatch_serial
 	return token
 
-## A short fingerprint of everything the rules care about on this board.
+## A short fingerprint of everything the rules care about on this board. Instance ids
+## are left out: pieces born in battle (eggs, promotions) draw theirs from a counter
+## that differs between the phone and a replay, while the board itself is the same.
 static func board_hash(board: BoardState) -> String:
 	if board == null:
 		return "0000"
-	return "%04x" % (hash("\n".join(snapshot_lines(board))) & 0xffff)
+	var text: String = "\n".join(snapshot_lines(board))
+	return "%04x" % (hash(_INSTANCE_ID.sub(text, "", true)) & 0xffff)
+
+static var _INSTANCE_ID: RegEx = RegEx.create_from_string(":i-?\\d+")
 
 ## The board as text: ranks from the top, two letters per piece (upper case = White),
 ## "##" for rocks, "." for empty squares, then a legend of the letters used.

@@ -66,11 +66,33 @@ func _run() -> void:
 	if decoded != null and decoded.actions.size() > 3:
 		decoded.actions[1] = decoded.actions[1].split(" #")[0] + " #ffff"
 		expect(int(decoded.replay()["first_mismatch"]) == 1, "a wrong fingerprint points at its step")
+	_check_born_pieces(game_state)
 	game_state.call("start_new_game")
 	expect(game_state.get("battle_record") == null, "leaving the battle drops its record")
 	manager.abandon_run()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH))
 	finish_test("Battle record test")
+
+## Eggs and promotions take fresh instance ids from a global counter, which is never
+## the same on the phone and in a replay; the replay must still match step by step.
+func _check_born_pieces(game_state: Node) -> void:
+	var text: String = "PK1\nv=t\nboard=8 color=W turns=0\nrocks=c4 f5\nitems=\nW king@e1:i1 queen@d1:i2 rook@a1:i3 knight@g1:i4 gargoyle@c2:i6 bowman@f2:i7\nB king@e8:i20 queen@d8:i21 rook@h8:i22 ember_bird@c7:i23 stone_giant@f7:i24 powder_keg@d7:i25 lancer@g7:i26\nmoves\n"
+	expect(bool(game_state.call("start_recorded_battle", BattleRecord.decode(text))), "a battle starts from a written line-up")
+	var selector: EnemyMoveSelector = EnemyMoveSelector.new()
+	for _step: int in range(60):
+		var board: BoardState = game_state.get("board") as BoardState
+		if bool(game_state.call("is_battle_finished")):
+			break
+		var action: MoveAction = selector.choose_action(board, board.turn)
+		if action == null or not bool(game_state.call("try_move", action.from, action.to, action.promotion_id)):
+			break
+		game_state.call("evaluate_battle_terminal_state")
+	var code: String = str(game_state.call("battle_code", [] as Array[String]))
+	expect(BattleRecord.decode_text(code).contains("ember_bird"), "the code holds the line-up")
+	for _burn: int in range(500):
+		ChessPiece.new(PieceDefDatabase.get_def("pawn"), GameRules.PieceColor.WHITE)
+	var report: Dictionary = BattleRecord.decode(code).replay()
+	expect(int(report["first_mismatch"]) == -1, "a battle with an egg laid replays exactly after other ids were used (first mismatch %d of %d)" % [int(report["first_mismatch"]), (report["steps"] as Array).size()])
 
 func _enemy_square(board: BoardState) -> Vector2i:
 	for y: int in range(board.board_size):
