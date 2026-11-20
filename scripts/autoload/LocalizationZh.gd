@@ -285,6 +285,7 @@ const STRINGS := {
 	"MAP_TITLE": "王冠之路",
 	"MAP_PROGRESS": "第 %d / %d 层",
 	"MAP_ACT": "第 %d 幕",
+	"BATTLE_HUD_PLACE": "第%d幕 · %d/%d层",
 	"INTERACTION_UNAVAILABLE": "这个选项现在不可用。",
 	"LOG_HINT": "点击棋子查看它的能力，长按查看完整说明。",
 	"LOG_LEGEND_PROTECTED": "橙色盾牌：会被攻击，但有己方保护",

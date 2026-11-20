@@ -48,6 +48,14 @@ func _run() -> void:
 		}
 		await _check_scene("res://scenes/run/RunInteractionScene.tscn", locale + " summary")
 		run.pending_choice = saved_choice
+		# Pre-battle and the battle itself, with the run's act and layer in the top bar.
+		run_manager.abandon_run()
+		expect(RunTestFixture.create_drafted_run(run_manager) == OK, "%s: drafted run for battle" % locale)
+		expect(RunTestFixture.prepare_confirmed_battle(run_manager, true) == OK, "%s: battle deployment ready" % locale)
+		await _check_scene("res://scenes/run/PreBattleScene.tscn", locale)
+		expect(run_manager.start_current_battle() == OK, "%s: battle starts" % locale)
+		await _check_scene("res://scenes/battle/BattleScene.tscn", locale)
+		await _check_long_boss_name(locale)
 	run_manager.abandon_run()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH))
 	finish_test("Phone width layout test")
@@ -68,6 +76,24 @@ func _check_achievements(locale: String) -> void:
 	var overflow: Array[String] = LayoutOverflow.find(overlay, WIDTH)
 	expect(overflow.is_empty(), "achievements page (%s) fits 360 wide%s" % [locale, "" if overflow.is_empty() else ": " + ", ".join(overflow.slice(0, 4))])
 	menu.queue_free()
+	await process_frame
+
+## The longest boss name in the battle top bar still leaves the bar on screen (the name
+## ends in "…" instead).
+func _check_long_boss_name(locale: String) -> void:
+	var battle: Control = (load("res://scenes/battle/BattleScene.tscn") as PackedScene).instantiate() as Control
+	root.add_child(battle)
+	for _frame: int in range(2):
+		await process_frame
+	var localization: Node = root.get_node("Localization")
+	var hud: BattleHUD = battle.get_node("Margin/Layout/TopBar") as BattleHUD
+	hud.enemy_label.text = str(localization.call("text", "BOSS_SHADOW_KING")).to_upper() + " THE ENDLESS"
+	for _frame: int in range(4):
+		await process_frame
+	var overflow: Array[String] = LayoutOverflow.find(battle, WIDTH)
+	expect(overflow.is_empty(), "battle top bar with a long boss name (%s) fits 360 wide%s" % [locale, "" if overflow.is_empty() else ": " + ", ".join(overflow.slice(0, 4))])
+	expect(hud.settings_button.get_global_rect().end.x <= WIDTH, "%s: the settings gear stays on screen" % locale)
+	battle.queue_free()
 	await process_frame
 
 func _check_scene(path: String, label: String) -> void:

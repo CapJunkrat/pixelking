@@ -40,7 +40,7 @@ var _debug_click_started_msec: int = 0
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(0, BAR_HEIGHT)
-	add_theme_constant_override("separation", 8)
+	add_theme_constant_override("separation", 6)
 	alignment = BoxContainer.ALIGNMENT_BEGIN
 	_build()
 	_load_encounter()
@@ -57,9 +57,12 @@ func _draw() -> void:
 # --- building ---------------------------------------------------------------------
 
 func _build() -> void:
-	# Who you fight: a framed portrait, the battle tier and the layer.
+	# Who you fight: a framed portrait, the battle tier and the layer. It takes whatever
+	# width the turn pill and the gear leave, and a name too long for it ends in "…",
+	# so the bar never grows past a 360-wide phone (long boss names, Chinese text).
 	var foe: HBoxContainer = HBoxContainer.new()
 	foe.name = "Foe"
+	foe.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	foe.add_theme_constant_override("separation", 6)
 	var frame: PanelContainer = PanelContainer.new()
 	frame.name = "BossPortrait"
@@ -80,14 +83,18 @@ func _build() -> void:
 	frame.add_child(enemy_portrait)
 	foe.add_child(frame)
 	var names: VBoxContainer = VBoxContainer.new()
+	names.name = "Names"
+	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	names.alignment = BoxContainer.ALIGNMENT_CENTER
 	names.add_theme_constant_override("separation", -2)
 	enemy_label = _label(_text("BATTLE_ENEMY"), 12, _tier_color)
 	enemy_label.name = "EnemyLabel"
+	_let_shrink(enemy_label)
 	names.add_child(enemy_label)
 	layer_label = _label("", 10, MUTED)
 	layer_label.name = "LayerLabel"
 	layer_label.visible = false
+	_let_shrink(layer_label)
 	names.add_child(layer_label)
 	foe.add_child(names)
 	add_child(foe)
@@ -105,8 +112,10 @@ func _build() -> void:
 	turn_label = _label("", 13, TEAL)
 	turn_label.name = "TurnLabel"
 	turn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	turn_label.custom_minimum_size = Vector2(92, 0)
 	turn_segment.add_child(turn_label)
+	# As wide as the longer of the two turn texts, so the pill keeps its size when the
+	# turn changes, in any language.
+	turn_label.custom_minimum_size = Vector2(_text_width(turn_label, [_text("BATTLE_YOUR_TURN"), _text("BATTLE_ENEMY_TURN")]), 0)
 	middle.add_child(turn_segment)
 	var round_chip: PanelContainer = PanelContainer.new()
 	round_chip.name = "RoundSegment"
@@ -170,7 +179,7 @@ func _load_encounter() -> void:
 	var map_state: Variant = (run_manager.get("current_run") as RunState).map_state
 	if map_state != null:
 		var act: int = (run_manager.get("current_run") as RunState).act_index + 1
-		layer_label.text = "%s · %s" % [_text("MAP_ACT") % act, _text("MAP_PROGRESS") % [node.layer_index + 1, (map_state as MapState).total_layers]]
+		layer_label.text = _text("BATTLE_HUD_PLACE") % [act, node.layer_index + 1, (map_state as MapState).total_layers]
 		layer_label.visible = true
 	var frame: PanelContainer = find_child("BossPortrait", true, false) as PanelContainer
 	var frame_style: StyleBoxFlat = frame.get_theme_stylebox("panel") as StyleBoxFlat
@@ -195,8 +204,8 @@ func _style_turn() -> void:
 	turn_label.add_theme_color_override("font_color", accent.lightened(0.15) if _your_turn else accent)
 	var pill: StyleBoxFlat = _box(Color(accent, 0.16), accent, 14)
 	pill.set_border_width_all(2 if _your_turn else 1)
-	pill.content_margin_left = 12
-	pill.content_margin_right = 12
+	pill.content_margin_left = 10
+	pill.content_margin_right = 10
 	pill.content_margin_top = 4
 	pill.content_margin_bottom = 4
 	if _your_turn:
@@ -211,6 +220,22 @@ func _label(text: String, size: int, color: Color) -> Label:
 	label.add_theme_color_override("font_color", color)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
+
+## A label that may be narrower than its text: it then ends in "…" instead of
+## widening its container.
+func _let_shrink(label: Label) -> void:
+	label.clip_text = true
+	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+## The widest of `texts` in the label's own font and size, rounded up.
+func _text_width(label: Label, texts: Array[String]) -> float:
+	var font: Font = label.get_theme_font("font")
+	var font_size: int = label.get_theme_font_size("font_size")
+	var widest: float = 0.0
+	for line: String in texts:
+		widest = maxf(widest, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x)
+	return ceilf(widest)
 
 func _box(fill: Color, border: Color, radius: int) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()

@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/battle/BattleBoardView.gd" id="1_script"]
 
 [node name="BoardFrame" type="Control"]
-custom_minimum_size = Vector2(351, 351)
+custom_minimum_size = Vector2(344, 351)
 size_flags_horizontal = 4
 size_flags_vertical = 4
 script = ExtResource("1_script")

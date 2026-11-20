@@ -288,6 +288,7 @@ const LOCALES := {
 			"MAP_TITLE": "The Crown Road",
 			"MAP_PROGRESS": "Layer %d / %d",
 			"MAP_ACT": "Act %d",
+			"BATTLE_HUD_PLACE": "Act %d · %d/%d",
 			"BATTLE_RESULT_REWARD": "Choose Reward",
 			"BATTLE_RESULT_SUMMARY": "Run Summary",
 			"FUSION_PREVIEW_UNAVAILABLE": "Fusion preview unavailable.",
