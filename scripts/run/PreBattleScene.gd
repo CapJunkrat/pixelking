@@ -299,58 +299,13 @@ func _render_pattern() -> void:
 		return
 	var enemy: bool = own == null
 	pattern_panel.add_theme_stylebox_override("panel", _box(Color("#1d1a2b") if enemy else Color("#12283a"), ENEMY if enemy else TEAL, 6))
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	row.mouse_filter = Control.MOUSE_FILTER_PASS
-	var side: VBoxContainer = VBoxContainer.new()
-	side.add_theme_constant_override("separation", 4)
-	side.mouse_filter = Control.MOUSE_FILTER_PASS
-	var picture: TextureRect = TextureRect.new()
-	picture.texture = _texture(&"black" if enemy else &"white", piece_id)
-	picture.custom_minimum_size = Vector2(36, 36)
-	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	picture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	side.add_child(picture)
-	var grid: GridContainer = GridContainer.new()
-	grid.columns = PATTERN_SIZE
-	grid.add_theme_constant_override("h_separation", 1)
-	grid.add_theme_constant_override("v_separation", 1)
-	var pattern: Dictionary = PieceRulePreview.pattern(piece_id, PATTERN_SIZE)
-	var half: int = PATTERN_SIZE / 2
-	# Enemy pieces advance down the board, so their pattern is shown mirrored.
-	for row_index: int in range(PATTERN_SIZE):
-		var y: int = (row_index - half) if enemy else (half - row_index)
-		for x: int in range(-half, half + 1):
-			var cell: ColorRect = ColorRect.new()
-			cell.custom_minimum_size = Vector2(6, 6)
-			var kind: String = str(pattern.get(Vector2i(x, y), ""))
-			cell.color = GOLD if x == 0 and y == 0 else PATTERN_COLORS.get(kind, Color("#2a3550"))
-			grid.add_child(cell)
-	side.add_child(grid)
-	row.add_child(side)
-	var text: RichTextLabel = RichTextLabel.new()
-	text.bbcode_enabled = true
-	text.fit_content = true
-	text.scroll_active = false
-	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.add_theme_font_size_override("normal_font_size", 11)
-	text.add_theme_font_size_override("bold_font_size", 12)
-	var accent: String = (ENEMY if enemy else GOLD_SOFT).to_html(false)
 	var owner: String = _text("LOG_ENEMY_TAG") if enemy else _text("LOG_YOURS_TAG")
-	var lines: Array[String] = ["[b][color=#%s]%s[/color][/b]  [color=#9aa8bf]%s · %s[/color]" % [accent, _piece_name(piece_id), owner, _text("PREBATTLE_VALUE") % definition.base_value]]
-	lines.append(_text(PieceRulePreview.move_key(definition)))
-	lines.append(_text(PieceRulePreview.attack_key(definition)))
-	for key: String in PieceRulePreview.ability_keys(definition):
-		if key != "CODEX_TRAIT_NONE":
-			lines.append("[color=#f5d58f]%s[/color]" % _text(key))
+	var live: Array[String] = []
 	if own != null and own.capture_count > 0:
-		lines.append("[color=#4fd1c5]%s[/color]" % (_text("PREBATTLE_CAPTURES") % own.capture_count))
-	text.text = "\n".join(lines)
-	text.mouse_filter = Control.MOUSE_FILTER_PASS
-	row.add_child(text)
-	pattern_panel.add_child(row)
+		live.append(_text("PREBATTLE_CAPTURES") % own.capture_count)
+	var content: PieceDetailContent = PieceDetailContent.new()
+	pattern_panel.add_child(content)
+	content.show_definition(definition, owner, live, not enemy)
 
 ## Where every enemy piece of the chosen kind can move (blue) or capture (red) from
 ## where it stands now, rocks and all.

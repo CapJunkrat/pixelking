@@ -214,95 +214,33 @@ func _render_codex() -> void:
 		codex_grid.add_child(_make_codex_card(piece_id, GameState.debug_mode or piece_id in discovered))
 
 func _make_codex_card(piece_id: String, revealed: bool) -> PanelContainer:
-	var card: PanelContainer = PanelContainer.new()
-	card.custom_minimum_size = Vector2(0, 252)
-	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var card_style: StyleBoxFlat = StyleBoxFlat.new()
-	card_style.bg_color = Color(0.075, 0.08, 0.14, 0.98)
-	card_style.set_border_width_all(1)
-	card_style.border_color = Color(0.48, 0.39, 0.27, 1.0)
-	card_style.set_corner_radius_all(3)
-	card_style.content_margin_left = 6
-	card_style.content_margin_right = 6
-	card_style.content_margin_top = 6
-	card_style.content_margin_bottom = 6
-	card.add_theme_stylebox_override("panel", card_style)
-	var layout: VBoxContainer = VBoxContainer.new()
-	layout.alignment = BoxContainer.ALIGNMENT_CENTER
-	layout.add_theme_constant_override("separation", 2)
-	card.add_child(layout)
 	if revealed:
-		var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
-		var portraits: HBoxContainer = HBoxContainer.new()
-		portraits.alignment = BoxContainer.ALIGNMENT_CENTER
-		portraits.add_theme_constant_override("separation", 4)
-		layout.add_child(portraits)
-		for color: StringName in [&"white", &"black"]:
-			var portrait: TextureRect = TextureRect.new()
-			portrait.custom_minimum_size = Vector2(46, 46)
-			portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-			portrait.texture = piece_skin_manager.piece_texture(color, StringName(piece_id))
-			portraits.add_child(portrait)
-		var name_label: Label = Label.new()
-		name_label.text = Localization.text(String(definition.display_name_key))
-		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		name_label.add_theme_font_size_override("font_size", 16)
-		layout.add_child(name_label)
-		var detail_label: Label = Label.new()
-		detail_label.text = "%s | %d" % [_rarity_text(definition.rarity), definition.base_value]
-		detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		detail_label.add_theme_font_size_override("font_size", 10)
-		layout.add_child(detail_label)
-		layout.add_child(_make_codex_diagram(definition))
-		for detail: String in _codex_rule_details(definition):
-			var rule_label: Label = Label.new()
-			rule_label.text = detail
-			rule_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			rule_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			rule_label.add_theme_font_size_override("font_size", 8)
-			rule_label.add_theme_color_override("font_color", Color(0.78, 0.79, 0.84, 1.0))
-			layout.add_child(rule_label)
-	else:
-		var unknown_label: Label = Label.new()
-		unknown_label.text = Localization.text("CODEX_UNKNOWN")
-		unknown_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		unknown_label.add_theme_color_override("font_color", Color(0.55, 0.56, 0.62, 1.0))
-		unknown_label.add_theme_font_size_override("font_size", 64)
-		unknown_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		unknown_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		layout.add_child(unknown_label)
-	return card
+		var card: PieceSummaryCard = PieceSummaryCard.new()
+		card.configure(PieceDefDatabase.get_def(piece_id))
+		card.detail_requested.connect(_show_piece_details)
+		return card
+	var unknown: PanelContainer = PanelContainer.new()
+	unknown.custom_minimum_size.y = 160
+	var label: Label = Label.new()
+	label.text = Localization.text("CODEX_UNKNOWN")
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 32)
+	unknown.add_child(label)
+	return unknown
+
+func _show_piece_details(definition: PieceDef) -> void:
+	var detail: PieceInfoPanel = get_node_or_null("PieceDetails") as PieceInfoPanel
+	if detail == null:
+		detail = PieceInfoPanel.new()
+		detail.name = "PieceDetails"
+		add_child(detail)
+	detail.show_definition(definition)
 
 func _codex_rule_details(definition: PieceDef) -> Array[String]:
-	var details: Array[String] = [
-		Localization.text(PieceRulePreview.move_key(definition)),
-		Localization.text(PieceRulePreview.attack_key(definition)),
-	]
-	var ability_lines: Array[String] = []
-	for key: String in PieceRulePreview.ability_keys(definition):
-		ability_lines.append(Localization.text(key))
-	details.append(" | ".join(ability_lines))
-	return details
+	return [str(PiecePresentation.describe(definition).summary)]
 
 func _make_codex_diagram(definition: PieceDef) -> GridContainer:
-	var diagram: GridContainer = GridContainer.new()
-	diagram.columns = 5
-	diagram.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	var pattern: Dictionary = PieceRulePreview.pattern(definition.id, 5)
-	var center: Vector2i = Vector2i(2, 2)
-	for y_position: int in range(5):
-		for x_position: int in range(5):
-			var offset: Vector2i = Vector2i(x_position, y_position) - center
-			var role: String = "piece" if offset == Vector2i.ZERO else str(pattern.get(offset, "empty"))
-			var cell: ColorRect = ColorRect.new()
-			cell.custom_minimum_size = Vector2(8, 8)
-			cell.color = _codex_diagram_color(role)
-			cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			diagram.add_child(cell)
-	return diagram
+	return PieceRulePreview.make_grid(definition.id, 7, 12.0, true)
 
 func _codex_diagram_color(role: String) -> Color:
 	match role:

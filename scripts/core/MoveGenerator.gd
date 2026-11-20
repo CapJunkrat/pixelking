@@ -3,7 +3,7 @@ extends RefCounted
 
 ## Combines the movement strategies declared by PieceDef. New pieces can reuse
 ## existing rules in any combination without adding piece IDs to this class.
-static func generate_pseudo_legal(board: BoardState, pos: Vector2i) -> Array[Vector2i]:
+static func generate_pseudo_legal(board: BoardState, pos: Vector2i, geometry_only: bool = false) -> Array[Vector2i]:
 	var piece := board.get_piece(pos)
 	if piece == null or board.is_piece_immobilized(pos):
 		return []
@@ -12,7 +12,8 @@ static func generate_pseudo_legal(board: BoardState, pos: Vector2i) -> Array[Vec
 	for rule in piece.def.resolved_movement_rules():
 		if rule == null:
 			continue
-		_append_unique(moves, rule.get_moves(board, pos, piece))
+		var shadow: ShadowStepMovementRule = rule as ShadowStepMovementRule
+		_append_unique(moves, shadow.candidates(board, pos, piece) if geometry_only and shadow != null else rule.get_moves(board, pos, piece))
 	return _without_shielded(board, piece, moves)
 
 static func get_attack_squares(board: BoardState, pos: Vector2i) -> Array[Vector2i]:
@@ -36,7 +37,12 @@ static func action_kind(board: BoardState, from: Vector2i, to: Vector2i) -> Stri
 		return &""
 	var kind: StringName = &"none"
 	for rule: MovementRule in piece.def.resolved_movement_rules():
-		if rule == null or to not in rule.get_moves(board, from, piece):
+		if rule == null:
+			continue
+		# Resolution must not re-enter executable safety during its own simulation.
+		var shadow: ShadowStepMovementRule = rule as ShadowStepMovementRule
+		var candidates: Array[Vector2i] = shadow.candidates(board, from, piece) if shadow != null else rule.get_moves(board, from, piece)
+		if to not in candidates:
 			continue
 		var rule_kind: StringName = rule.action_kind(board, from, to, piece)
 		if rule_kind.is_empty():

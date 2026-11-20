@@ -248,14 +248,16 @@ func _test_blast_catapult() -> void:
 func _test_kings() -> void:
 	var war: BoardState = _board({Vector2i(3, 3): [&"war_king", W], Vector2i(7, 7): [&"king", B]})
 	var moves: Array[Vector2i] = _moves(war, Vector2i(3, 3))
-	expect(Vector2i(3, 5) in moves and Vector2i(5, 5) not in moves, "War King moves 2 straight or 1 diagonally")
+	expect(Vector2i(3, 5) in moves and Vector2i(5, 5) in moves, "War King moves 2 along all eight rays")
 	var shadow: BoardState = _board({Vector2i(3, 3): [&"shadow_king", W], Vector2i(7, 7): [&"king", B], Vector2i(6, 0): [&"rook", B]})
 	moves = _moves(shadow, Vector2i(3, 3))
 	expect(Vector2i(5, 5) in moves and Vector2i(6, 3) not in moves and Vector2i(3, 0) not in moves, "Shadow King blinks to safe squares within 3")
 	shadow.make_move(Vector2i(3, 3), Vector2i(5, 5))
 	shadow.make_move(Vector2i(7, 7), Vector2i(7, 6))
-	expect(Vector2i(2, 2) not in _moves(shadow, Vector2i(5, 5)), "the blink works once per battle")
-	# Shield King: checkmated in the corner, the checking Rook is destroyed instead.
+	expect(Vector2i(2, 2) in _moves(shadow, Vector2i(5, 5)), "the safe Shadow step remains available on later turns")
+	# Shield King: the checking Rook covers both horizontal escape squares;
+	# the pawns block the extended vertical/diagonal rays, so this remains mate.
+	# The checking Rook is destroyed instead.
 	var board: BoardState = _board({Vector2i(0, 0): [&"shield_king", W], Vector2i(0, 1): [&"pawn", W], Vector2i(1, 1): [&"pawn", W], Vector2i(7, 7): [&"king", B], Vector2i(5, 6): [&"pawn", B], Vector2i(7, 4): [&"rook", B]}, B)
 	var processor: BattleCommandProcessor = BattleCommandProcessor.new(board)
 	var mate: BattleCommandResult = processor.execute(MoveAction.new(Vector2i(7, 4), Vector2i(7, 0), B))

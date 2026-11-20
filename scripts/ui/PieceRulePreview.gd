@@ -1,7 +1,7 @@
 class_name PieceRulePreview
 extends RefCounted
 
-const DEFAULT_GRID_SIZE := 5
+const DEFAULT_GRID_SIZE := 7
 
 static func pattern(piece_def_id: String, grid_size: int = DEFAULT_GRID_SIZE) -> Dictionary:
 	var definition: PieceDef = PieceDefDatabase.get_def(piece_def_id)
@@ -43,6 +43,7 @@ static func make_grid(piece_def_id: String, grid_size: int, cell_px: float, faci
 	grid.add_theme_constant_override("h_separation", 2)
 	grid.add_theme_constant_override("v_separation", 2)
 	var marks: Dictionary = pattern(piece_def_id, grid_size)
+	var extended: Dictionary = pattern(piece_def_id, maxi(15, grid_size + 2))
 	var half: int = grid_size / 2
 	for row: int in range(grid_size):
 		var y: int = (half - row) if facing_up else (row - half)
@@ -53,6 +54,28 @@ static func make_grid(piece_def_id: String, grid_size: int, cell_px: float, faci
 			var kind: String = str(marks.get(Vector2i(x, y), ""))
 			cell.color = PATTERN_CENTER if x == 0 and y == 0 else PATTERN_COLORS.get(kind, PATTERN_EMPTY)
 			grid.add_child(cell)
+			# Query the same empty-board geometry beyond the diagram edge. An arrow
+			# means range continues, not that it is infinite. Finite three-step Kings
+			# have no fourth step and therefore no misleading continuation arrow.
+			var delta: Vector2i = Vector2i.ZERO
+			if absi(x) == half and absi(y) == half:
+				delta = Vector2i(signi(x), signi(y))
+			elif absi(x) == half:
+				delta = Vector2i(signi(x), 0)
+			elif absi(y) == half:
+				delta = Vector2i(0, signi(y))
+			if not kind.is_empty() and delta != Vector2i.ZERO and extended.has(Vector2i(x, y) + delta):
+				var arrow: Label = Label.new()
+				arrow.name = "Continuation"
+				var visual_delta: Vector2i = Vector2i(delta.x, -delta.y if facing_up else delta.y)
+				var arrows: Dictionary = {Vector2i(1, 0): "→", Vector2i(-1, 0): "←", Vector2i(0, 1): "↓", Vector2i(0, -1): "↑", Vector2i(1, 1): "↘", Vector2i(-1, 1): "↙", Vector2i(1, -1): "↗", Vector2i(-1, -1): "↖"}
+				arrow.text = arrows[visual_delta]
+				arrow.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+				arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				arrow.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+				arrow.add_theme_font_size_override("font_size", int(cell_px))
+				arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				cell.add_child(arrow)
 	return grid
 
 static func move_key(definition: PieceDef) -> String:

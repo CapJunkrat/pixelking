@@ -1119,6 +1119,8 @@ func _present_strike(move_data: Dictionary, capture_data: Dictionary, speed: flo
 		corner = _bent_corner_square(attacker_def, from, to)
 	_strike.mimic_texture = _texture_for(int(move_data.get("color", player_color)), str(capture_data.get("piece_def_id", "")))
 	_strike.egg_square = _eggs_by_victim.get(int(capture_data.get("instance_id", -1)), NO_SQUARE)
+	var settled_attacker: ChessPiece = board.get_piece(to)
+	_strike.returning_attacker_alive = settled_attacker != null and settled_attacker.get_id() == attacker_id and settled_attacker.color == int(move_data.get("color", player_color))
 	_strike.play(attack_id, attacker_texture, victim_texture, from, to, strike_type, attacker_def.weight_class, victim_def.weight_class, speed, victim_square, corner, StringName(victim_def.id))
 	return true
 
@@ -1202,6 +1204,8 @@ static func presentation_kind_for(definition: PieceDef, captured: bool = false) 
 	if definition == null:
 		return &"standard"
 	for rule: MovementRule in definition.resolved_movement_rules():
+		if rule.rule_id() == &"shadow_step":
+			return &"teleport"
 		if rule is TeleportMovementRule:
 			return &"teleport"
 		if rule is RangeTeleportMovementRule and (rule as RangeTeleportMovementRule).once_ability.is_empty():

@@ -124,10 +124,22 @@ func _render() -> void:
 	leave_button.text = _localized("INTERACTION_FINISH_RUN") if type == "run_summary" else _localized("INTERACTION_WALK_AWAY" if type in ["event", "rest"] else "INTERACTION_LEAVE")
 
 ## One choice: a picture, what it is, what it does, and its price or risk.
-func _card(option: Dictionary) -> Button:
+func _card(option: Dictionary) -> Control:
 	var payload: Dictionary = option.get("payload", {}) as Dictionary
 	var enabled: bool = bool(option.get("enabled", true))
 	var kind: String = str(payload.get("kind", ""))
+	if kind == "piece":
+		var definition: PieceDef = PieceDefDatabase.get_def(str(payload.get("piece_def_id", "")))
+		if definition != null:
+			var summary: PieceSummaryCard = PieceSummaryCard.new()
+			summary.name = "Choice_%s" % str(option.get("id", ""))
+			summary.set_meta("choice_id", str(option.get("id", "")))
+			var price: int = int(payload.get("price", payload.get("cost", 0)))
+			var action: String = _localized("INFO_BUY") % price if price > 0 else _localized("INFO_RECRUIT")
+			summary.configure(definition, action, enabled)
+			summary.detail_requested.connect(_show_piece_details)
+			summary.action_requested.connect(_submit.bind(str(option.get("id", ""))))
+			return summary
 	var card: Button = Button.new()
 	card.name = "Choice_%s" % str(option.get("id", ""))
 	card.set_meta("choice_id", str(option.get("id", "")))
@@ -198,13 +210,18 @@ func _card(option: Dictionary) -> Button:
 	if tags.get_child_count() > 0:
 		row.add_child(tags)
 	card.add_child(row)
-	# A Button does not grow with its children, so size it from the text it carries.
-	# Chinese characters are about twice as wide as Latin letters.
-	var width_factor: float = 1.8 if localization != null and bool(localization.call("is_chinese")) else 1.0
-	var title_lines: int = ceili(float(title.length()) * width_factor / 30.0)
-	var detail_lines: int = ceili(float(detail.length()) * width_factor / 40.0)
-	card.custom_minimum_size.y = maxf(66.0, 16.0 + title_lines * 19.0 + detail_lines * 15.0)
+	# Actual wrapped content drives the minimum, never a string-length estimate.
+	row.minimum_size_changed.connect(func() -> void: card.custom_minimum_size.y = maxf(66, row.get_combined_minimum_size().y + 16))
+	row.resized.connect(func() -> void: card.custom_minimum_size.y = maxf(66, row.get_combined_minimum_size().y + 16))
 	return card
+
+func _show_piece_details(definition: PieceDef) -> void:
+	var detail: PieceInfoPanel = get_node_or_null("PieceDetails") as PieceInfoPanel
+	if detail == null:
+		detail = PieceInfoPanel.new()
+		detail.name = "PieceDetails"
+		add_child(detail)
+	detail.show_definition(definition)
 
 func _detail(kind: String, payload: Dictionary) -> String:
 	if payload.has("detail"):
@@ -214,7 +231,7 @@ func _detail(kind: String, payload: Dictionary) -> String:
 	match kind:
 		"piece":
 			var definition: PieceDef = PieceDefDatabase.get_def(str(payload.get("piece_def_id", "")))
-			return _localized(PieceRulePreview.move_key(definition)) if definition != null else ""
+			return str(PiecePresentation.describe(definition).get("summary", ""))
 		"relic", "item":
 			var item: ChallengerItemDef = ChallengerItemDatabase.get_def(StringName(str(payload.get("relic_id", payload.get("item_id", "")))))
 			return _localized(String(item.description_key)) if item != null else ""

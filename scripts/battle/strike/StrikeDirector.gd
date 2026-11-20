@@ -192,6 +192,8 @@ var _pose: Pose = Pose.new()
 ## Plays only the victim's side of a strike (an extra victim of the same blow, such
 ## as every enemy a boomerang passes through): no attacker, no camera, no attack art.
 var victim_only: bool = false
+## A returning strike may lose its attacker to a death effect before it can return.
+var returning_attacker_alive: bool = true
 ## The victim survives (a shell absorbed the blow): the attacker springs back to its
 ## own square right after the hit instead of standing on the victim.
 var _bounce: bool = false
@@ -280,6 +282,9 @@ func play(attacker_id: StringName, attacker_texture: Texture2D, victim_texture: 
 	_end_time = _impact_time + 2.0 if _underdog else float(_attack["end"])
 	_apply_dynamic_timing()
 	_bounce = NewPieceStrikes.victim_survives(_reaction)
+	if attacker_id == &"shadow_king" and _dest.is_equal_approx(_a):
+		# Its own pose handles the blink home after either a kill or a shell hit.
+		_bounce = false
 	if _bounce:
 		_end_time = minf(_end_time, _impact_time + BOUNCE_SECONDS + 0.45)
 	_t = 0.0

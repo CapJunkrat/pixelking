@@ -69,6 +69,7 @@ func _run() -> void:
 	await process_frame
 	_expect(preview.focus_id == str(deployment.enemy_placements[0].get("piece_def_id", "")) and pattern.find_child("DetailsHint", true, false) == null, "tapping an enemy on the board shows its details")
 	_expect(lineup.visible and strip.visible, "the reserve and items stay while a piece is explained")
+	_expect(pattern.find_child("DetailContent", true, false) != null, "prebattle uses shared complete rule sections")
 	_expect(board.get_global_rect() == board_rect, "showing details does not move the board")
 	_expect(not board.hints.is_empty(), "the chosen enemy's reach is marked on the board")
 	board.square_pressed.emit(Vector2i(0, 5))

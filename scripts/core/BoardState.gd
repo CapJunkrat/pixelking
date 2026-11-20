@@ -37,6 +37,11 @@ var growth: Dictionary = {}
 ## Rock squares (Vector2i -> true): not part of the playable board. Nothing stands on,
 ## moves to or targets a rock, sliding pieces stop in front of it, leapers hop over it.
 var rocks: Dictionary = {}
+## Simulation-created eggs use board-local negative IDs, never the real allocator.
+var _simulating: bool = false
+var _next_preview_instance_id: int = -2
+## Vacated during a strike, but not available for spawning an egg over the return.
+var _shadow_return_square: Vector2i = Vector2i(-1, -1)
 
 func _init(p_board_size: int = DEFAULT_SIZE, setup_default: bool = true) -> void:
 	board_size = maxi(p_board_size, MIN_SIZE)
@@ -272,6 +277,38 @@ func get_executable_moves_for_color(pos: Vector2i, color: int) -> Array[Vector2i
 		return []
 	return MoveGenerator.generate_pseudo_legal(self, pos)
 
+## Mandatory Shadow safety is a bounded terminal-threat query, not minimax.
+## Execute the complete action without regenerating its safe moves, then execute
+## enemy geometric captures. A reply killing this King is terminal, so it needs
+## no recursive 'is the enemy King safe after my retaliation?' query. Shells,
+## immunity, freeze, death effects and the real returned position all settle first.
+## The rule is non-borrowable: this contract is for a royal Shadow mover.
+func is_shadow_action_safe(from: Vector2i, to: Vector2i) -> bool:
+	var piece: ChessPiece = get_piece(from)
+	if piece == null:
+		return false
+	var after: BoardState = clone()
+	var outcome: Dictionary = after._apply_move(from, to, "queen", true)
+	var landing: Vector2i = outcome.get("landing", to)
+	var survivor: ChessPiece = after.get_piece(landing)
+	if not bool(outcome.get("success", false)) or survivor == null or survivor.instance_id != piece.instance_id:
+		return false
+	if has_king(piece.color) and not after.has_king(piece.color):
+		return false
+	if bool(outcome.get("king_captured", false)):
+		return true
+	var enemy: int = GameRules.opposite(piece.color)
+	after._hand_turn_to(enemy)
+	after.process_revivals(enemy)
+	for reply: Array in after._capture_replies(enemy, true):
+		var trial: BoardState = after.clone()
+		var hit: Dictionary = trial._apply_move(reply[0], reply[1], "queen", true)
+		if bool(hit.get("king_captured", false)) and int(hit.get("captured_color", -1)) == piece.color:
+			return false
+		if _lists_instance(hit.get("removed", []), piece.instance_id):
+			return false
+	return true
+
 ## A move after which some enemy reply kills the moving piece or takes its King.
 func is_move_dangerous(from: Vector2i, to: Vector2i) -> bool:
 	return bool(evaluate_landing(from, to).get("lethal", false))
@@ -314,6 +351,9 @@ func evaluate_landing(from: Vector2i, to: Vector2i) -> Dictionary:
 	if mover == null or mover.instance_id != piece.instance_id or (has_king(color) and not after.has_king(color)):
 		safety["lethal"] = true
 		return safety
+	if bool(result.get("king_captured", false)):
+		# The authoritative battle ends here, before any invented enemy reply.
+		return safety
 	var all_answered: bool = true
 	for reply: Array in after._capture_replies(enemy):
 		var attacker: ChessPiece = after.get_piece(reply[0])
@@ -341,7 +381,7 @@ func _hand_turn_to(color: int) -> void:
 	bonus_instance_id = 0
 
 ## Every move of `color` that strikes an enemy piece: [[from, to], ...].
-func _capture_replies(color: int) -> Array:
+func _capture_replies(color: int, geometry_only: bool = false) -> Array:
 	var replies: Array = []
 	for x: int in range(board_size):
 		for y: int in range(board_size):
@@ -349,7 +389,7 @@ func _capture_replies(color: int) -> Array:
 			var piece: ChessPiece = grid[x][y]
 			if piece == null or piece.color != color:
 				continue
-			for target: Vector2i in MoveGenerator.generate_pseudo_legal(self, square):
+			for target: Vector2i in MoveGenerator.generate_pseudo_legal(self, square, geometry_only):
 				var occupant: ChessPiece = get_piece(target)
 				if occupant != null and occupant.color != color:
 					replies.append([square, target])
@@ -476,6 +516,7 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 	if piece == null:
 		result["error"] = "no_piece"
 		return result
+	_simulating = simulate
 	var moving_color: int = piece.color
 	var moving_def: PieceDef = piece.def
 	var is_pawn_move: bool = piece.def.is_pawn
@@ -502,7 +543,7 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 		target_piece.has_moved = true
 		result["swapped_with_king"] = true
 	else:
-		if not kind.is_empty() and kind != &"ranged" and kind != SlideMovementRule.SMASH:
+		if not kind.is_empty() and kind not in [&"ranged", SlideMovementRule.SMASH, ShadowStepMovementRule.STEP, ShadowStepMovementRule.STRIKE]:
 			piece.used_abilities[kind] = true
 		var victim_died: bool = false
 		if kind == SlideMovementRule.SMASH:
@@ -532,16 +573,24 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 				set_piece(to, null)
 				set_piece(from, null)
 				set_piece(landing, piece)
+				_shadow_return_square = from if kind == ShadowStepMovementRule.STRIKE else Vector2i(-1, -1)
 				_resolve_death(victim, to, &"capture", result, serial)
+				_shadow_return_square = Vector2i(-1, -1)
 			else:
 				set_piece(from, null)
 				set_piece(landing, piece)
+		# A strike occupies the target while its real death effects resolve. Only
+		# the surviving instance returns; never restore a killed attacker.
+		if kind == ShadowStepMovementRule.STRIKE and landing != from and get_piece(landing) == piece:
+			set_piece(landing, null)
+			set_piece(from, piece)
+			landing = from
 		piece.has_moved = true
 		if victim_died:
 			_record_capture(piece, result)
 		var alive: bool = get_piece(landing) == piece
 		if alive and is_pawn_move and landing.y == _promotion_rank(moving_color):
-			var promoted: ChessPiece = ChessPiece.new(PieceDefDatabase.get_def(promotion_id), moving_color)
+			var promoted: ChessPiece = _action_piece(PieceDefDatabase.get_def(promotion_id), moving_color)
 			promoted.has_moved = true
 			promoted.origin = piece.origin
 			set_piece(landing, promoted)
@@ -696,6 +745,13 @@ func _record_capture(piece: ChessPiece, result: Dictionary) -> void:
 		"learned": piece.learned_def_ids.duplicate(),
 	}
 
+func _action_piece(definition: PieceDef, color: int) -> ChessPiece:
+	var piece: ChessPiece = ChessPiece.new(definition, color, not _simulating)
+	if _simulating:
+		piece.instance_id = _next_preview_instance_id
+		_next_preview_instance_id -= 1
+	return piece
+
 ## A fallen reviving piece leaves an egg on its side's free square nearest the
 ## owner's bottom-left corner. With no free square left it is gone for good.
 func _lay_egg(victim: ChessPiece, serial: int, result: Dictionary) -> void:
@@ -703,7 +759,7 @@ func _lay_egg(victim: ChessPiece, serial: int, result: Dictionary) -> void:
 	var square: Vector2i = egg_square(victim.color)
 	if egg_def == null or square.x < 0:
 		return
-	var egg: ChessPiece = ChessPiece.new(egg_def, victim.color)
+	var egg: ChessPiece = _action_piece(egg_def, victim.color)
 	egg.hatch_piece = victim
 	egg.hatch_serial = serial + 2 * victim.def.revive_after_turns + 1
 	egg.has_moved = true
@@ -718,7 +774,7 @@ func egg_square(color: int) -> Vector2i:
 	for row: int in range(board_size):
 		for column: int in range(board_size):
 			var square: Vector2i = corner + Vector2i(column, row) * (1 if color == GameRules.PieceColor.WHITE else -1)
-			if not in_bounds(square) or get_piece(square) != null:
+			if not in_bounds(square) or get_piece(square) != null or square == _shadow_return_square:
 				continue
 			var offset: Vector2i = square - corner
 			var distance: int = offset.x * offset.x + offset.y * offset.y
@@ -810,6 +866,7 @@ func _clone_with_history(preserve_history: bool) -> BoardState:
 	copy.actions_this_turn = actions_this_turn
 	copy.growth = growth.duplicate(true)
 	copy.rocks = rocks
+	copy._next_preview_instance_id = _next_preview_instance_id
 	copy.pending_revivals = []
 	for entry: Dictionary in pending_revivals:
 		var waiting: ChessPiece = entry.get("piece") as ChessPiece

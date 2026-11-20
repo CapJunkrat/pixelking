@@ -634,6 +634,14 @@ func pose(u: float, o: StrikeDirector.Pose) -> void:
 					var q: float = _q(u, 0.66, 0.25)
 					o.at(d._along(behind, -_n(2.0) * (1.0 - q)))
 					o.rot = 0.35 * face * (1.0 - q)
+			elif d._dest.is_equal_approx(a):
+				# Shadow strikes return by blinking, not by walking across the board.
+				if u < 1.26:
+					o.at(behind)
+					o.alpha = 1.0 - _q(u, 1.1, 0.16)
+				else:
+					o.at(a)
+					o.alpha = _q(u, 1.26, 0.19) if d.returning_attacker_alive else 0.0
 			else:
 				d._settle_into(o, behind, u, 1.1, 0.35, 1.0)
 		&"shield_king":

@@ -300,26 +300,10 @@ func _render_piece_detail(piece: PieceInstanceState) -> void:
 	if definition == null:
 		return
 	var on_line: bool = piece.instance_id in run_manager.current_run.active_piece_ids
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	var grid: GridContainer = PieceRulePreview.make_grid(String(piece.piece_def_id), 7, 9.0, true)
-	grid.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	row.add_child(grid)
-	var facts: VBoxContainer = VBoxContainer.new()
-	facts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	facts.add_theme_constant_override("separation", 2)
-	facts.add_child(_label(_piece_name(piece), 15, GOLD_SOFT))
-	var rarity: int = clampi(int(definition.rarity), 0, RARITY_KEYS.size() - 1)
-	facts.add_child(_label("%s · %s" % [_text(RARITY_KEYS[rarity]), _text("PREBATTLE_VALUE") % definition.base_value], 11, RARITY_COLORS[rarity]))
 	var where: String = _text("ROSTER_KING_LOCKED") if piece.is_king else _text("ROSTER_ON_LINE" if on_line else "ROSTER_IN_RESERVE")
-	facts.add_child(_label(where, 11, TEAL if on_line else MUTED))
-	row.add_child(facts)
-	detail_body.add_child(row)
-	var lines: Array[String] = [_text(PieceRulePreview.move_key(definition)), _text(PieceRulePreview.attack_key(definition))]
-	for key: String in PieceRulePreview.ability_keys(definition):
-		if key != "CODEX_TRAIT_NONE":
-			lines.append("[color=#f5d58f]%s[/color]" % _text(key))
-	detail_body.add_child(_rich("\n".join(lines)))
+	var content: PieceDetailContent = PieceDetailContent.new()
+	detail_body.add_child(content)
+	content.show_definition(definition, where)
 	if not piece.is_king:
 		move_button.text = _text("ROSTER_TO_RESERVE" if on_line else "ROSTER_TO_LINE")
 		move_button.visible = true
