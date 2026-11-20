@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="PixelKing"
-config/version="0.2.3"
+config/version="0.2.4"
 config/description="像素风国际象棋 Roguelike：招募奇特棋子，守护你的王，踏上王冠之路。"
 run/main_scene="res://scenes/ui/MainMenu.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
