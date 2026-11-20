@@ -185,7 +185,7 @@ func preview_description(run_state: RunState, plan: FusionPlan) -> String:
 	var rarity_label: String = _t(rarity_keys[result_definition.rarity]) if result_definition != null and result_definition.rarity >= 0 and result_definition.rarity < rarity_keys.size() else "?"
 	var lines: Array[String] = [
 		_t("FUSION_PREVIEW_USES") % ", ".join(ingredient_labels),
-		_t("FUSION_PREVIEW_CREATES") % [_piece_name(String(plan.result_piece_def_id)), rarity_label, result_definition.base_value if result_definition != null else 0],
+		_t("FUSION_PREVIEW_CREATES") % [_piece_name(String(plan.result_piece_def_id)), rarity_label],
 	]
 	if result_definition != null:
 		lines.append(_t(PieceRulePreview.move_key(result_definition)))

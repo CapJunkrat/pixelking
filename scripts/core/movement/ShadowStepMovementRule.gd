@@ -7,12 +7,18 @@ const STRIKE: StringName = &"shadow_strike"
 func rule_id() -> StringName:
 	return STEP
 
-## Geometry only: unlike radius teleport, these are exactly eight rays.
+## How far the Shadow King reaches: every square of the 7x7 area around it.
+const REACH := 3
+
+## Geometry only: every square up to REACH away in any direction (a 7x7 area), over
+## pieces and rocks; empty squares and enemies that are not shielded.
 func candidates(board: BoardState, pos: Vector2i, piece: ChessPiece) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
-	for direction: Vector2i in BoardState.NEIGHBORS:
-		for distance: int in range(1, 4):
-			var target := pos + direction * distance
+	for dy: int in range(-REACH, REACH + 1):
+		for dx: int in range(-REACH, REACH + 1):
+			if dx == 0 and dy == 0:
+				continue
+			var target := pos + Vector2i(dx, dy)
 			if not board.in_bounds(target):
 				continue
 			var occupant := board.get_piece(target)

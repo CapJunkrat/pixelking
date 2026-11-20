@@ -73,9 +73,9 @@ func show_piece(board: BoardState, square: Vector2i, player_color: int) -> bool:
 	var side_color: Color = ALLY if mine else ENEMY
 	var definition: PieceDef = piece.def
 	var side: String = _t("PIECE_INFO_YOURS" if mine else "PIECE_INFO_ENEMY")
-	var value_text: String = _t("PIECE_INFO_KING") if definition.is_king else _t("PREBATTLE_VALUE") % definition.base_value
+	var kind_text: String = _t("PIECE_INFO_KING") if definition.is_king else _t(PieceRulePreview.rarity_key(definition))
 	# The player's pieces advance up the screen, the enemy's down it.
-	_fill(definition, piece.color, "%s · %s" % [side, value_text], side_color, mine, status_lines(board, square))
+	_fill(definition, piece.color, "%s · %s" % [side, kind_text], side_color, mine, status_lines(board, square))
 	shown_square = square
 	return true
 
@@ -85,8 +85,10 @@ func show_definition(definition: PieceDef) -> void:
 	if definition == null:
 		return
 	var rarity_color: Color = PieceRulePreview.rarity_color(definition)
-	var value_text: String = _t("PIECE_INFO_KING") if definition.is_king else _t("PREBATTLE_VALUE") % definition.base_value
-	_fill(definition, GameRules.PieceColor.WHITE, "%s · %s" % [_t(PieceRulePreview.rarity_key(definition)), value_text], rarity_color, true, [])
+	var subtitle: String = _t(PieceRulePreview.rarity_key(definition))
+	if definition.is_king:
+		subtitle += " · " + _t("PIECE_INFO_KING")
+	_fill(definition, GameRules.PieceColor.WHITE, subtitle, rarity_color, true, [])
 	shown_square = Vector2i(-1, -1)
 
 func _fill(definition: PieceDef, color: int, subtitle: String, accent: Color, facing_up: bool, status: Array[String]) -> void:

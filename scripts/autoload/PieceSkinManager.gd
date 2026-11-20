@@ -7,9 +7,9 @@ const DEFAULT_SKIN_ID: StringName = &"carved_figurine"
 ## Bumped when the default art changes so existing players switch to it once.
 const CURRENT_STYLE_VERSION := 3
 const CARVED_FIGURINE_SKIN: PieceSkin = preload("res://assets/chess/piece_skins/carved_figurine.tres")
-const MODERN_PARCHMENT_SKIN: PieceSkin = preload("res://assets/chess/piece_skins/modern_parchment.tres")
-const ROYAL_FORGE_SKIN: PieceSkin = preload("res://assets/chess/piece_skins/royal_forge.tres")
-const BUILT_IN_SKINS: Array[PieceSkin] = [CARVED_FIGURINE_SKIN, MODERN_PARCHMENT_SKIN, ROYAL_FORGE_SKIN]
+## Only one style for now. New styles are added here; the settings menu shows the
+## style picker as soon as there is more than one.
+const BUILT_IN_SKINS: Array[PieceSkin] = [CARVED_FIGURINE_SKIN]
 
 var current_skin_id: StringName = DEFAULT_SKIN_ID
 var _skins: Dictionary = {}

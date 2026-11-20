@@ -339,7 +339,7 @@ func _render_pattern() -> void:
 	text.add_theme_font_size_override("bold_font_size", 12)
 	var accent: String = (ENEMY if enemy else GOLD_SOFT).to_html(false)
 	var owner: String = _text("LOG_ENEMY_TAG") if enemy else _text("LOG_YOURS_TAG")
-	var lines: Array[String] = ["[b][color=#%s]%s[/color][/b]  [color=#9aa8bf]%s · %s[/color]" % [accent, _piece_name(piece_id), owner, _text("PREBATTLE_VALUE") % definition.base_value]]
+	var lines: Array[String] = ["[b][color=#%s]%s[/color][/b]  [color=#9aa8bf]%s[/color]" % [accent, _piece_name(piece_id), owner]]
 	lines.append(_text(PieceRulePreview.move_key(definition)))
 	lines.append(_text(PieceRulePreview.attack_key(definition)))
 	for key: String in PieceRulePreview.ability_keys(definition):

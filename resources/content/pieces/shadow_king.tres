@@ -23,6 +23,6 @@ motion_profile = ExtResource("5_motion")
 is_royal = true
 is_king = true
 base_value = 1000
-rarity = 0
+rarity = 4
 available_in_opening_draft = false
 opening_draft_weight = 0

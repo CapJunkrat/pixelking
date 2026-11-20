@@ -23,6 +23,13 @@ func _run() -> void:
 		await _frames(4)
 		var cards: Array[Node] = menu.find_children("Codex_*", "PanelContainer", true, false)
 		expect(cards.size() == AchievementCatalog.codex_piece_ids().size(), "%s: a card for every codex piece (%d)" % [locale, cards.size()])
+		var ranks: Array[int] = []
+		for card: Node in cards:
+			ranks.append(PieceDefDatabase.get_def(str(card.name).trim_prefix("Codex_")).rarity)
+		var sorted_ranks: Array[int] = ranks.duplicate()
+		sorted_ranks.sort()
+		sorted_ranks.reverse()
+		expect(ranks == sorted_ranks and ranks[0] == PieceDef.Rarity.MYTHIC, "%s: cards run from the rarest down" % locale)
 		var heights: Dictionary = {}
 		var tagged: int = 0
 		for card: Node in cards:

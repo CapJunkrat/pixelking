@@ -248,7 +248,7 @@ func _test_blast_catapult() -> void:
 func _test_kings() -> void:
 	var war: BoardState = _board({Vector2i(3, 3): [&"war_king", W], Vector2i(7, 7): [&"king", B]})
 	var moves: Array[Vector2i] = _moves(war, Vector2i(3, 3))
-	expect(Vector2i(3, 5) in moves and Vector2i(5, 5) in moves, "War King moves 2 along all eight rays")
+	expect(Vector2i(3, 5) in moves and Vector2i(4, 4) in moves and Vector2i(5, 5) not in moves, "War King moves 2 straight and 1 diagonally")
 	var shadow: BoardState = _board({Vector2i(3, 3): [&"shadow_king", W], Vector2i(7, 7): [&"king", B], Vector2i(6, 0): [&"rook", B]})
 	moves = _moves(shadow, Vector2i(3, 3))
 	expect(Vector2i(5, 5) in moves and Vector2i(6, 3) not in moves and Vector2i(3, 0) not in moves, "Shadow King blinks to safe squares within 3")

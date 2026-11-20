@@ -310,7 +310,7 @@ func _render_piece_detail(piece: PieceInstanceState) -> void:
 	facts.add_theme_constant_override("separation", 2)
 	facts.add_child(_label(_piece_name(piece), 15, GOLD_SOFT))
 	var rarity: int = clampi(int(definition.rarity), 0, RARITY_KEYS.size() - 1)
-	facts.add_child(_label("%s · %s" % [_text(RARITY_KEYS[rarity]), _text("PREBATTLE_VALUE") % definition.base_value], 11, RARITY_COLORS[rarity]))
+	facts.add_child(_label(_text(RARITY_KEYS[rarity]), 11, RARITY_COLORS[rarity]))
 	var where: String = _text("ROSTER_KING_LOCKED") if piece.is_king else _text("ROSTER_ON_LINE" if on_line else "ROSTER_IN_RESERVE")
 	facts.add_child(_label(where, 11, TEAL if on_line else MUTED))
 	row.add_child(facts)

@@ -14,7 +14,7 @@ func _run() -> void:
 	for skin_value: Variant in skins:
 		var skin: PieceSkin = skin_value as PieceSkin
 		skin_ids.append(skin.skin_id)
-	expect(skins.size() == 3 and &"carved_figurine" in skin_ids and &"royal_forge" in skin_ids and &"modern_parchment" in skin_ids, "all built-in piece skins are available")
+	expect(skins.size() == 1 and &"carved_figurine" in skin_ids, "the carved figurines are the only piece style for now")
 	expect(piece_skin_manager.get("current_skin_id") == &"carved_figurine", "carved figurines are the default skin")
 	var carved: PieceSkin = load("res://assets/chess/piece_skins/carved_figurine.tres") as PieceSkin
 	for color: StringName in [&"white", &"black"]:
@@ -35,10 +35,9 @@ func _run() -> void:
 	var option: OptionButton = menu.get_node("SettingsOverlay/SettingsPanel/SettingsContent/PieceSkinOption") as OptionButton
 	var white_preview: GridContainer = menu.get_node("SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview/WhitePieces") as GridContainer
 	var black_preview: GridContainer = menu.get_node("SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview/BlackPieces") as GridContainer
-	var option_names: Array[String] = []
-	for index: int in option.item_count:
-		option_names.append(option.get_item_text(index))
-	expect(option.item_count == 3 and "Carved Figurine" in option_names and "Royal Forge" in option_names and "Modern Parchment" in option_names, "piece skin selector lists every skin")
-	expect(white_preview.get_child_count() == 16 and black_preview.get_child_count() == 16, "settings preview includes all catalogued piece skins")
+	var label: Control = menu.get_node("SettingsOverlay/SettingsPanel/SettingsContent/PieceSkinLabel") as Control
+	var preview: Control = menu.get_node("SettingsOverlay/SettingsPanel/SettingsContent/SkinPreview") as Control
+	expect(option.item_count == 1 and not option.visible and not label.visible and not preview.visible, "with one style the settings show no style picker")
+	expect(white_preview.get_child_count() == 16 and black_preview.get_child_count() == 16, "the hidden preview is still built for when styles return")
 	menu.queue_free()
 	finish_test("Piece skin test")

@@ -221,6 +221,7 @@ func _render_codex() -> void:
 		var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
 		if definition != null and not definition.is_egg:
 			all_ids.append(piece_id)
+	all_ids.sort_custom(_codex_order)
 	var shown_count: int = all_ids.size() if GameState.debug_mode else discovered.size()
 	codex_progress_label.text = Localization.text("CODEX_DEBUG_COMPLETE") if GameState.debug_mode else Localization.text("CODEX_PROGRESS") % [shown_count, all_ids.size()]
 	for piece_id: String in all_ids:
@@ -230,6 +231,16 @@ func _render_codex() -> void:
 ## border colour) and a few one-word traits. Tapping a found piece opens its details.
 const CODEX_CARD_HEIGHT := 140.0
 const CODEX_MAX_TAGS := 4
+
+## Rarest first; within a rarity the more valuable piece first, then by id.
+func _codex_order(a: String, b: String) -> bool:
+	var first: PieceDef = PieceDefDatabase.get_def(a)
+	var second: PieceDef = PieceDefDatabase.get_def(b)
+	if first.rarity != second.rarity:
+		return first.rarity > second.rarity
+	if first.base_value != second.base_value:
+		return first.base_value > second.base_value
+	return a < b
 
 func _make_codex_card(piece_id: String, revealed: bool) -> PanelContainer:
 	var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
@@ -556,6 +567,11 @@ func _populate_piece_skins() -> void:
 		if skin.skin_id == piece_skin_manager.current_skin_id:
 			selected_index = index
 	piece_skin_option.select(selected_index)
+	# With a single style there is nothing to pick: the picker and its preview stay
+	# hidden until a second style exists.
+	var has_choice: bool = piece_skin_option.item_count > 1
+	for node_name: String in ["PieceSkinLabel", "PieceSkinOption", "PreviewLabel", "SkinPreview"]:
+		($SettingsOverlay/SettingsPanel/SettingsContent.get_node(node_name) as Control).visible = has_choice
 
 func _build_skin_preview() -> void:
 	for row in [white_skin_preview, black_skin_preview]:

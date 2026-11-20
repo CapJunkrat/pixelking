@@ -96,7 +96,15 @@ func _test_rocks() -> void:
 		var other: BoardState = _board({Vector2i(3, 1): [id, W], Vector2i(0, 0): [&"king", W], Vector2i(7, 7): [&"king", B]})
 		other.set_rocks([Vector2i(3, 3)])
 		expect(Vector2i(3, 3) not in _moves(other, Vector2i(3, 1)), "%s cannot break rocks" % id)
-	for id: StringName in [&"catapult", &"blast_catapult", &"sky_archer"]:
+	# The Catapult lobs over rocks instead of breaking them.
+	var lobber: BoardState = _board({Vector2i(3, 1): [&"catapult", W], Vector2i(3, 4): [&"pawn", B], Vector2i(0, 0): [&"king", W], Vector2i(7, 7): [&"king", B]})
+	lobber.set_rocks([Vector2i(3, 3)])
+	var lob_moves: Array[Vector2i] = _moves(lobber, Vector2i(3, 1))
+	expect(Vector2i(3, 3) not in lob_moves, "the catapult cannot target or break a rock")
+	expect(Vector2i(3, 4) in lob_moves, "the catapult shoots over a rock")
+	var lob_result: Dictionary = lobber.make_move(Vector2i(3, 1), Vector2i(3, 4))
+	expect(bool(lob_result["success"]) and lobber.get_piece(Vector2i(3, 4)) == null and lobber.is_rock(Vector2i(3, 3)), "the shot lands beyond the rock and the rock stays")
+	for id: StringName in [&"blast_catapult", &"sky_archer"]:
 		var heavy: BoardState = _board({Vector2i(3, 1): [id, W], Vector2i(0, 0): [&"king", W], Vector2i(7, 7): [&"king", B]})
 		heavy.set_rocks([Vector2i(3, 3)])
 		var clone: BoardState = heavy.clone()
@@ -111,7 +119,7 @@ func _test_rocks() -> void:
 	expect(blast.is_rock(Vector2i(4, 5)), "the blast splash leaves neighbouring rocks alone")
 
 func _test_presentation_event() -> void:
-	var board: BoardState = _board({Vector2i(3, 1): [&"catapult", W], Vector2i(0, 0): [&"king", W], Vector2i(7, 7): [&"king", B]})
+	var board: BoardState = _board({Vector2i(3, 1): [&"blast_catapult", W], Vector2i(0, 0): [&"king", W], Vector2i(7, 7): [&"king", B]})
 	board.set_rocks([Vector2i(3, 4)])
 	var processor: BattleCommandProcessor = BattleCommandProcessor.new(board)
 	var result: BattleCommandResult = processor.execute(MoveAction.new(Vector2i(3, 1), Vector2i(3, 4), W))

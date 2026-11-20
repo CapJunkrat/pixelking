@@ -2,7 +2,7 @@ class_name NewPiecesGallery
 extends Control
 
 const PIECES: Array[StringName] = [&"assassin", &"royal_guard", &"catapult", &"bowman", &"portal_mage", &"unicorn_cavalry", &"centaur", &"manticore", &"gryphon", &"gorgon"]
-const SKINS: Array[StringName] = [&"royal_forge", &"modern_parchment"]
+const SKINS: Array[StringName] = [PieceSkinManager.DEFAULT_SKIN_ID]
 
 func _ready() -> void:
 	var title: Label = Label.new()

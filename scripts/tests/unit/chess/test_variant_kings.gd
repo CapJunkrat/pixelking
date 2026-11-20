@@ -24,19 +24,23 @@ func _test_ray_kings() -> void:
 		for color: int in [W, B]:
 			var board := _board({Vector2i(3, 3): [id, color]})
 			var moves := board.get_executable_moves_for_color(Vector2i(3, 3), color)
+			# Two squares straight, one diagonally.
 			for direction: Vector2i in BoardState.NEIGHBORS:
-				expect(Vector2i(3, 3) + direction * 2 in moves, "%s has every two-square ray" % id)
-				expect(Vector2i(3, 3) + direction * 3 not in moves, "%s has no third square" % id)
-				var target := Vector2i(3, 3) + direction * 2
+				var reach: int = 1 if direction.x != 0 and direction.y != 0 else 2
+				expect(Vector2i(3, 3) + direction * reach in moves, "%s reaches %d along %s" % [id, reach, direction])
+				expect(Vector2i(3, 3) + direction * (reach + 1) not in moves, "%s stops after %d along %s" % [id, reach, direction])
+				var target := Vector2i(3, 3) + direction * reach
 				board.set_piece(target, _piece("pawn", GameRules.opposite(color)))
-				expect(target in board.get_executable_moves_for_color(Vector2i(3, 3), color), "%s captures second square" % id)
-				board.set_piece(Vector2i(3, 3) + direction, _piece("pawn", color))
-				expect(target not in board.get_executable_moves_for_color(Vector2i(3, 3), color), "%s cannot cross pieces" % id)
-				board.set_piece(Vector2i(3, 3) + direction, null)
-				board.set_rocks([Vector2i(3, 3) + direction])
-				expect(target not in board.get_executable_moves_for_color(Vector2i(3, 3), color), "%s cannot cross rocks" % id)
-				board.set_rocks([])
+				expect(target in board.get_executable_moves_for_color(Vector2i(3, 3), color), "%s captures at its full reach" % id)
+				if reach == 2:
+					board.set_piece(Vector2i(3, 3) + direction, _piece("pawn", color))
+					expect(target not in board.get_executable_moves_for_color(Vector2i(3, 3), color), "%s cannot cross pieces" % id)
+					board.set_piece(Vector2i(3, 3) + direction, null)
+					board.set_rocks([Vector2i(3, 3) + direction])
+					expect(target not in board.get_executable_moves_for_color(Vector2i(3, 3), color), "%s cannot cross rocks" % id)
+					board.set_rocks([])
 				board.set_piece(target, null)
+			expect(moves.size() == 12, "%s reaches 12 squares (%d)" % [id, moves.size()])
 			expect(Vector2i(5, 4) not in moves, "%s has no knight offset" % id)
 
 func _test_war_actions() -> void:
@@ -69,9 +73,9 @@ func _test_war_actions() -> void:
 	processor = BattleCommandProcessor.new(stopped)
 	var no_followup := processor.execute(MoveAction.new(Vector2i(3, 3), Vector2i(4, 3), W))
 	expect(no_followup.success and stopped.turn == B and stopped.bonus_instance_id == 0, "War without executable followup automatically passes turn")
-	var ending := _board({Vector2i(3, 3): ["war_king", W], Vector2i(0, 0): ["pawn", W], Vector2i(5, 5): ["king", B], Vector2i(7, 5): ["rook", B]})
+	var ending := _board({Vector2i(3, 3): ["war_king", W], Vector2i(0, 0): ["pawn", W], Vector2i(3, 5): ["king", B], Vector2i(7, 5): ["rook", B]})
 	processor = BattleCommandProcessor.new(ending)
-	var ended := processor.execute(MoveAction.new(Vector2i(3, 3), Vector2i(5, 5), W))
+	var ended := processor.execute(MoveAction.new(Vector2i(3, 3), Vector2i(3, 5), W))
 	expect(ended.success and processor.status.is_finished() and ending.bonus_instance_id == 0, "War King capture ends battle without granting another action")
 
 func _test_shadow_strike() -> void:
@@ -81,7 +85,7 @@ func _test_shadow_strike() -> void:
 		board.set_rocks([Vector2i(3, 4)])
 		var moves := board.get_executable_moves(Vector2i(3, 3))
 		expect(Vector2i(3, 6) in moves and Vector2i(6, 6) in moves, "Shadow strikes and steps through rocks and allies")
-		expect(Vector2i(5, 4) not in moves and Vector2i(6, 5) not in moves and Vector2i(7, 3) not in moves, "Shadow only eight rays one to three")
+		expect(Vector2i(5, 4) in moves and Vector2i(6, 5) in moves and Vector2i(7, 3) not in moves, "Shadow reaches the whole 7x7 area and no further")
 		expect(Vector2i(4, 4) not in moves and Vector2i(3, 4) not in moves, "Shadow cannot target allies or rocks")
 		var attacker := board.get_piece(Vector2i(3, 3))
 		var result := board.make_move(Vector2i(3, 3), Vector2i(3, 6))
@@ -158,7 +162,7 @@ func _test_shadow_previews() -> void:
 
 func _test_protection_and_death_regressions() -> void:
 	var empty := _board({Vector2i(3, 3): ["shadow_king", W]})
-	expect(empty.get_executable_moves(Vector2i(3, 3)).size() == 24, "Shadow center has exactly 24 ray destinations")
+	expect(empty.get_executable_moves(Vector2i(3, 3)).size() == 48, "Shadow center reaches all 48 squares of its 7x7 area")
 	var shield := _board({Vector2i(3, 3): ["shadow_king", W], Vector2i(3, 5): ["pawn", B]})
 	shield.get_piece(Vector2i(3, 5)).shield_until_serial = 5
 	expect(Vector2i(3, 5) not in shield.get_executable_moves(Vector2i(3, 3)), "Shadow still respects ordinary shields")

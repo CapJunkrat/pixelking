@@ -170,7 +170,11 @@ func _render_candidate(button: Button, piece_def_id: String) -> void:
 	name_label.text = Localization.text(String(definition.display_name_key))
 	rarity_label.text = Localization.text(_rarity_key(definition.rarity))
 	rarity_label.add_theme_color_override("font_color", _rarity_color(definition.rarity))
-	description_label.text = Localization.text("DRAFT_POWER") % definition.base_value
+	# A few one-word traits; the hold-to-inspect card has the full rules.
+	var tags: Array[String] = []
+	for key: String in PieceRulePreview.tag_keys(definition):
+		tags.append(Localization.text(key))
+	description_label.text = " · ".join(tags)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	description_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

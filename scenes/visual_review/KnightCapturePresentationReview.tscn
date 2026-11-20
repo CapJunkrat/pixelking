@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://b0q4m47e37hgu"]
 
 [ext_resource type="Script" path="res://scripts/visual_review/KnightCapturePresentationReview.gd" id="1_script"]
-[ext_resource type="Texture2D" uid="uid://cpduvin2uohrk" path="res://assets/chess/piece_skins/royal_forge/black_rook.png" id="2_rook"]
+[ext_resource type="Texture2D" path="res://assets/chess/piece_skins/carved_figurine/black_rook.png" id="2_rook"]
 [ext_resource type="Texture2D" uid="uid://cykj1oxy7lop1" path="res://assets/ui/battle/modern/selection_brackets.png" id="3_ring"]
 [ext_resource type="Texture2D" uid="uid://y74il0yt1mk6" path="res://assets/generated/review_knight_capture_attack.png" id="4_m5td0"]
 

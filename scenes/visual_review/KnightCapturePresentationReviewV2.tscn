@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://b2oeqjp7rluy4"]
 
 [ext_resource type="Script" uid="uid://cukmxneibgotf" path="res://scripts/visual_review/KnightCapturePresentationReviewV2.gd" id="1_script"]
-[ext_resource type="Texture2D" uid="uid://cogpuugw8a2h2" path="res://assets/chess/piece_skins/royal_forge/white_knight.png" id="2_knight"]
+[ext_resource type="Texture2D" path="res://assets/chess/piece_skins/carved_figurine/white_knight.png" id="2_knight"]
 [ext_resource type="Texture2D" uid="uid://3fd10pb45ld3" path="res://assets/generated/review_obsidian_rook_structural_destroy.png" id="3_eymu4"]
 [ext_resource type="Texture2D" uid="uid://cykj1oxy7lop1" path="res://assets/ui/battle/modern/selection_brackets.png" id="3_ring"]
 [ext_resource type="Texture2D" uid="uid://cymtoy4nlgpu3" path="res://assets/generated/review_lancer_knight_dive_attack.png" id="4_j2whx"]

@@ -104,6 +104,8 @@ static func ability_keys(definition: PieceDef) -> Array[String]:
 			abilities.append("CODEX_TRAIT_BEAM")
 		if shot != null and shot.breaks_rocks and "CODEX_TRAIT_ROCKBREAKER" not in abilities:
 			abilities.append("CODEX_TRAIT_ROCKBREAKER")
+		if shot != null and shot.over_rocks and "CODEX_TRAIT_OVER_ROCKS" not in abilities:
+			abilities.append("CODEX_TRAIT_OVER_ROCKS")
 		if rule is ShadowStepMovementRule and "CODEX_TRAIT_SHADOW_STRIKE" not in abilities:
 			abilities.append("CODEX_TRAIT_SHADOW_STRIKE")
 	if definition.immune_to_ranged:

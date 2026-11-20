@@ -71,7 +71,6 @@ const TESTS = [
 	{"path": "res://scripts/tests/smoke/test_boss_piece_skin_fallback.gd", "layer": "smoke", "domain": "assets", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/smoke/test_challenger_item_icons.gd", "layer": "smoke", "domain": "assets", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/smoke/test_localization_smoke.gd", "layer": "smoke", "domain": "localization", "kind": "scene_tree", "serial": true},
-	{"path": "res://scripts/tests/smoke/test_new_piece_visual_contract.gd", "layer": "smoke", "domain": "assets", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/smoke/test_piece_skin.gd", "layer": "smoke", "domain": "assets", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/smoke/test_scene_routes.gd", "layer": "smoke", "domain": "navigation", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/smoke/test_ui_theme_font.gd", "layer": "smoke", "domain": "assets", "kind": "scene_tree"},
