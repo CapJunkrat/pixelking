@@ -1,100 +1,126 @@
-# PixelKing (像素国王) —— 像素风国际象棋Roguelike
+<div align="center">
 
-> **历史文档 / 已过时：** 本项目采用快速 Vibe Coding 节奏，当前实现迭代速度高于文档维护速度。下文仅保留为早期阶段参考，实际功能、场景与测试状态请以当前工程为准。
->
-> 当前产品结论、Roguelike 规则、PK-02/PK-03 架构方向及后续行动计划请阅读：[`docs/PIXELKING_PRODUCT_AND_ARCHITECTURE_PLAN.md`](docs/PIXELKING_PRODUCT_AND_ARCHITECTURE_PLAN.md)。
+<img src="docs/media/logo.png" alt="PixelKing" width="420">
 
-仿《衔尾蛇国王 The Ouroboros King》玩法:在小棋盘上以国王为核心,不断招募/升级各种棋子(含大量自定义特殊棋子),迎战一波波AI控制的敌方棋子,搭配遗物、商店构成完整roguelike循环。
+### A pixel-art chess roguelike — recruit strange pieces, guard your King, march the Crown Road.
 
-## 当前进度:P0(项目骨架)+ P1(核心象棋规则引擎)已完成
+**English** · [简体中文](README.zh-CN.md)
 
-**这一版还没有任何图形界面**,是纯逻辑层,专门先把"规则对不对"这件事做扎实,
-因为后面的UI、AI、Roguelike系统全都要依赖这层的正确性。
+[![Play in browser](https://img.shields.io/badge/▶_Play_in_browser-iPhone_·_Android_·_PC-e0b84f?style=for-the-badge)](https://capjunkrat.github.io/pixelking/)
+[![Download APK](https://img.shields.io/badge/⬇_Download-Android_APK-3ddc84?style=for-the-badge)](https://github.com/CapJunkrat/pixelking/releases/latest)
 
-### 已实现
+[![Release](https://img.shields.io/github/v/release/CapJunkrat/pixelking?include_prereleases&label=release)](https://github.com/CapJunkrat/pixelking/releases)
+[![Godot 4.7](https://img.shields.io/badge/Godot-4.7-478cbf?logo=godotengine&logoColor=white)](https://godotengine.org)
+![Platforms](https://img.shields.io/badge/platforms-Web_·_Android-555)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-- 标准8x8棋盘,标准开局
-- 六种标准棋子的完整走法:兵(含双步/吃过路兵/升变)、马、象、车、后、王
-- 王车易位(王翼/后翼),含"易位路径被攻击则禁止"的完整判断
-- 将军 / 被牵制棋子无法走出会导致己方被将军的棋(pin检测)
-- 将死 / 逼和(stalemate)判定
-- 数据驱动的棋子定义系统(`PieceDef`):新增棋子只需要描述"滑动方向+跳跃偏移",
-  不需要碰核心逻辑代码——这是专门为后面"千奇百怪的特殊棋子"打的地基
-- 全局信号总线(`EventBus`)+ 全局状态单例(`GameState`),为后续UI/AI层预留了干净的接入点
-- 自动化测试按 `unit / integration / scenes / smoke / characterization / e2e` 分层，并由显式 Manifest 管理。
-- 统一入口：`scripts/tests/runner/run_all_tests.gd`，支持按 layer 或 domain 过滤。
+<img src="docs/media/menu.png" width="200" alt="Main menu">&nbsp;
+<img src="docs/media/draft.png" width="200" alt="Opening draft">&nbsp;
+<img src="docs/media/map.png" width="200" alt="The Crown Road map">&nbsp;
+<img src="docs/media/battle.png" width="200" alt="Battle">
 
-## 如何打开 / 验证功能
+</div>
 
-1. 安装 [Godot 4.3+](https://godotengine.org/download)(你本地是4.7也完全没问题,向下兼容)
-2. 用 Godot 打开这个文件夹(选择 `project.godot`)
-3. **直接按 F5(或点右上角的 ▶ 播放按钮)** —— 已经设置好了主场景 `scenes/Main.tscn`,
-   不会再弹出"选择主场景"的窗口了。运行后屏幕上会显示测试的通过/失败汇总,
-   详细的每一条断言日志在编辑器底部的"输出"(Output)面板里能看到。
+## About
 
-> 如果你之前点开项目时弹出过"尚未定义主场景"的窗口:那是因为当时项目里还没有
-> 任何场景。现在已经加了 `scenes/Main.tscn` 并设置成了主场景,重新打开项目或者
-> 直接按 F5 就不会再出现了。
+**PixelKing** is a single-player roguelike played on a chessboard. You start with a King and a handful of pieces, then walk the Crown Road: fight battles, visit shops, rest sites and strange events, and grow your army along the way. Lose your King and the run is over.
 
-## 如何跑测试(命令行,可选)
+The pieces don't all follow the rules you know. Archers shoot without moving, catapults lob over rocks, birds hatch from eggs, and some pieces fuse into stronger ones. Every run deals you a different map, different recruits and different enemies.
 
-如果你更喜欢命令行,或者想在CI里跑:
+## Features
+
+- **48 kinds of pieces** — the classic six plus archers, mages, beasts, giants and stranger things, each with its own moves and strike animation.
+- **Four Kings** — the classic King plus the War, Shadow and Shield Kings, each with its own reach and ability.
+- **Fusion and growth** — combine pieces through 14 fusion recipes; pawns promote, squires level up.
+- **The Crown Road** — three acts, nine random bosses, then an endless mode. Elites, shops, rest sites and 12 events along the way.
+- **Relics and items** — passive relics and one-shot items that bend the rules.
+- **Readable battles** — a tilted 2.5D board that marks threatened and protected squares. Tap any piece, yours or the enemy's, to see what it does.
+- **Battle codes** — every battle can be exported as a short code and replayed exactly, handy for bug reports.
+- **Achievements**, **English and Simplified Chinese**, and a phone-first portrait layout.
+
+## How to play
+
+| Platform | How |
+|---|---|
+| **iPhone / iPad** | Open **<https://capjunkrat.github.io/pixelking/>** in Safari, then *Share → Add to Home Screen* to play full screen. |
+| **Android** | Download the APK from [Releases](https://github.com/CapJunkrat/pixelking/releases/latest) and install it (allow installs from unknown sources), or play in the browser. |
+| **PC / Mac** | Open the [web version](https://capjunkrat.github.io/pixelking/) in any modern browser. |
+
+> [!NOTE]
+> The web version keeps your save in the browser. Clearing site data also clears your progress. On iPhone, adding it to the Home Screen makes the save much less likely to be cleared.
+
+## Building from source
+
+**Requirements:** [Godot 4.7](https://godotengine.org/download) (standard build, not .NET). The project uses the Compatibility renderer.
+
+1. Clone the repo and open `project.godot` in Godot.
+2. Press <kbd>F5</kbd> to play.
+
+### Tests
 
 ```bash
-# 全量测试
+# Everything
 godot --headless --path . --script res://scripts/tests/runner/run_all_tests.gd
 
-# 只跑单元测试
-godot --headless --path . --script res://scripts/tests/runner/run_all_tests.gd -- --layer=unit
-
-# 只跑 battle 领域
-godot --headless --path . --script res://scripts/tests/runner/run_all_tests.gd -- --domain=battle
-
-# 快速档：跳过打击动画的全量检查（平时改规则用，约 17 秒；全量约 30 秒）
+# Quick pass (skips the slow strike-animation checks)
 godot --headless --path . --script res://scripts/tests/runner/run_all_tests.gd -- --quick
+
+# One layer or one domain
+godot --headless --path . --script res://scripts/tests/runner/run_all_tests.gd -- --layer=unit
+godot --headless --path . --script res://scripts/tests/runner/run_all_tests.gd -- --domain=battle
 ```
 
-Runner 让每个测试文件在独立进程里运行，默认最多 6 个同时跑（`--jobs=N` 可改，`--jobs=1` 为逐个运行）。
-单个文件超过 120 秒仍未结束会被结束并记为失败（`--timeout=秒` 可改），不会再因为脚本编译失败而卡住。
-Manifest 中标记 `serial` 的测试会读写共享的设置文件，它们在并行批次之后逐个运行；标记 `slow` 的测试在快速档中跳过。
-最后输出通过/失败文件数和总用时，并返回可靠退出码。
+Each test file runs in its own process (6 in parallel by default, `--jobs=N` to change). The runner exits non-zero on any failure.
 
-## 目录结构
+### Exporting
+
+Install the Godot 4.7 export templates first (Android, and `web_nothreads` for the web build).
+
+```bash
+# Android debug APK  → export/PixelKing-debug.apk
+godot --headless --path . --export-debug "Android Debug" export/PixelKing-debug.apk
+
+# Web build          → export/web/
+godot --headless --path . --export-release "Web" export/web/index.html
+```
+
+The web preset is single-threaded, so it runs in iOS Safari and on hosts like GitHub Pages without special headers.
+
+### Project layout
 
 ```
-project.godot
-scenes/
-└── Main.tscn               # 当前的主场景(P1阶段临时用来跑测试;P2会替换成真正的棋盘UI)
+scenes/          Godot scenes: ui/, run/ (map, draft, shops…), battle/
 scripts/
-├── core/
-│   ├── GameRules.gd        # 颜色枚举(PieceColor)等全局规则常量
-│   ├── ChessPiece.gd       # 棋子实例(类型+颜色+状态)
-│   ├── MoveGenerator.gd    # 走法生成(数据驱动:滑动方向+跳跃偏移)
-│   └── BoardState.gd       # 棋盘状态、合法走法过滤、将军/将死判定、执行走子
-├── data/
-│   ├── PieceDef.gd         # 棋子类型的数据定义(Resource)
-│   └── PieceDefDatabase.gd # 标准6种棋子的定义;后续会扩展成加载特殊棋子
-├── autoload/
-│   ├── EventBus.gd         # 全局信号总线
-│   └── GameState.gd        # 当前对局状态单例,UI/AI通过它调用 try_move()
-└── tests/
-	├── runner/                   # Manifest、全量入口、Node 方法入口
-	├── unit/                     # 单对象、纯规则和确定性测试
-	├── integration/              # 跨服务、存档和事务边界测试
-	├── scenes/                   # 场景结构、信号连接和输入测试
-	├── smoke/                    # Autoload、素材、字体和本地化契约
-	├── characterization/         # 待移除旧接口的兼容行为锁定
-	└── e2e/                      # 玩家关键旅程
+  core/          Chess rules: board state, move generation, check and mate
+  battle/        Battle flow, enemy AI, board view, strike animations
+  run/           The run: map, draft, roster, fusion, saves, achievements
+  content/       Content registry (data-driven definitions)
+  data/          Piece, map, encounter and fusion definitions
+  autoload/      Global singletons: settings, audio, localization, run state
+  tests/         Test runner and tests (unit / integration / scenes / smoke / e2e)
+resources/content/   Pieces, encounters, events, maps… as .tres data
+assets/          Art, audio, fonts, shaders
+docs/            Design notes and release notes
 ```
 
-## 后续路线图
+Design notes live in [`docs/`](docs/), starting with [`PIXELKING_PRODUCT_AND_ARCHITECTURE_PLAN.md`](docs/PIXELKING_PRODUCT_AND_ARCHITECTURE_PLAN.md) (Chinese).
 
-| 阶段 | 内容 |
-|---|---|
-| P2 | 像素棋盘UI:渲染棋盘/棋子、选中高亮、可行移动提示、点击走子、基础动画 |
-| P3 | 简单AI(Minimax + Alpha-Beta剪枝,2-3层深度)作为敌方对手 |
-| P4 | Roguelike框架:波次系统、招募UI、商店、遗物系统,先打通2-3个特殊棋子+2-3个遗物的完整流程 |
-| P5 | 持续扩充特殊棋子/遗物/道具内容(数据驱动,可以不断迭代加量) |
-| P6 | 像素美术精修、音效、过渡动画 |
+## Contributing
 
-随时可以回来找我继续下一阶段,或者调整任何一步的设计。
+Bug reports and ideas are welcome in [Issues](https://github.com/CapJunkrat/pixelking/issues). For a battle bug, tap *Copy battle code* (in the battle menu or on the result screen) and paste it into the issue; it lets the exact battle be replayed.
+
+## License
+
+The code is released under the [MIT License](LICENSE). Third-party assets keep their own licenses, listed below.
+
+## Credits
+
+- **Music** — *Chiptune Medieval* tracks by RandomMind, CC0 ([details](assets/audio/music/CREDITS.md))
+- **Sound effects** — [Kenney](https://kenney.nl), CC0 ([details](assets/audio/sfx/CREDITS.md))
+- **Item icons** — partly from *496 pixel art icons* by Henrique Lazarini (7Soul1), CC0 ([details](assets/ui/items/CREDITS.md))
+- **Fonts** — [Fusion Pixel Font](https://github.com/TakWolf/fusion-pixel-font) (SIL OFL 1.1, see [`licenses/`](licenses/)) and PixelMplus ([readme](assets/fonts/battle/PixelMplus-README.md))
+- **Engine** — [Godot Engine](https://godotengine.org)
+
+## Acknowledgements
+
+PixelKing is inspired by chess roguelikes such as [The Ouroboros King](https://store.steampowered.com/app/2096510/) by Oriol Cosp Games. If you enjoy this kind of game, go play it.

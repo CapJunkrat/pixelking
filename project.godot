@@ -16,7 +16,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="PixelKing"
 config/version="0.2.3"
-config/description="像素风格国际象棋Roguelike (仿衔尾蛇国王 The Ouroboros King)"
+config/description="像素风国际象棋 Roguelike：招募奇特棋子，守护你的王，踏上王冠之路。"
 run/main_scene="res://scenes/ui/MainMenu.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/icon/icon_1024.png"
