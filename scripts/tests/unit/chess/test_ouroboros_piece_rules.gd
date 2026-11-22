@@ -76,8 +76,15 @@ func _test_bent_rays() -> void:
 
 func _test_gorgon() -> void:
 	var board: BoardState = _piece_board(&"gorgon")
-	board.set_piece(Vector2i(3, 5), _piece(&"pawn", GameRules.PieceColor.BLACK))
-	expect(Vector2i(3, 4) in MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3)) and Vector2i(3, 5) not in MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3)), "Gorgon moves on Queen rays but cannot capture at a distance")
+	var slides: Array[Vector2i] = MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3))
+	expect(Vector2i(6, 6) in slides and Vector2i(0, 0) in slides and Vector2i(5, 1) in slides, "Gorgon slides on Bishop diagonals")
+	expect(Vector2i(3, 4) not in slides and Vector2i(3, 0) not in slides and Vector2i(7, 3) not in slides, "Gorgon no longer slides straight like a Queen")
+	board.set_piece(Vector2i(5, 5), _piece(&"pawn", GameRules.PieceColor.BLACK))
+	expect(Vector2i(5, 5) not in MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3)), "Gorgon cannot capture at a distance")
+	board.set_piece(Vector2i(5, 5), null)
+	board.set_piece(Vector2i(3, 4), _piece(&"pawn", GameRules.PieceColor.BLACK))
+	expect(Vector2i(3, 4) in MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3)), "Gorgon still captures an adjacent enemy straight ahead")
+	board.set_piece(Vector2i(3, 4), null)
 	board.set_piece(Vector2i(2, 2), _piece(&"pawn", GameRules.PieceColor.BLACK))
 	expect(Vector2i(2, 2) in MoveGenerator.generate_pseudo_legal(board, Vector2i(3, 3)), "Gorgon captures an adjacent enemy")
 	expect(Vector2i(2, 2) in MoveGenerator.get_attack_squares(board, Vector2i(3, 3)) and Vector2i(3, 5) not in MoveGenerator.get_attack_squares(board, Vector2i(3, 3)), "Gorgon attacks only the squares next to it")

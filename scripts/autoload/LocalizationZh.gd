@@ -273,7 +273,7 @@ const STRINGS := {
 	"DRAFT_ATTACK_MANTICORE": "吃子 · 拐角后的第一个敌人",
 	"DRAFT_MOVE_GRYPHON": "移动 · 先斜走 1 格，再沿直线前进",
 	"DRAFT_ATTACK_GRYPHON": "吃子 · 拐角后的第一个敌人",
-	"DRAFT_MOVE_GORGON": "移动 · 皇后的射线（移动时不能吃子） · 相邻的敌人被石化，无法移动",
+	"DRAFT_MOVE_GORGON": "移动 · 主教的斜线（移动时不能吃子） · 相邻的敌人被石化，无法移动",
 	"DRAFT_ATTACK_GORGON": "吃子 · 相邻的敌人",
 	"DRAFT_SELECTED": "阵容",
 	"DRAFT_SEED": "种子：%d",

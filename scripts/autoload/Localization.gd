@@ -276,7 +276,7 @@ const LOCALES := {
 			"DRAFT_ATTACK_MANTICORE": "CAPTURE · first enemy after the clear corner",
 			"DRAFT_MOVE_GRYPHON": "MOVE · 1 diagonal step, then a straight ray",
 			"DRAFT_ATTACK_GRYPHON": "CAPTURE · first enemy after the clear corner",
-			"DRAFT_MOVE_GORGON": "MOVE · Queen rays (no capture while sliding) · adjacent enemies are turned to stone and cannot move",
+			"DRAFT_MOVE_GORGON": "MOVE · Bishop diagonals (no capture while sliding) · adjacent enemies are turned to stone and cannot move",
 			"DRAFT_ATTACK_GORGON": "CAPTURE · an adjacent enemy",
 			"DRAFT_SELECTED": "ROSTER",
 			"DRAFT_SEED": "Seed: %d",

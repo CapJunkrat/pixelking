@@ -7,7 +7,7 @@
 
 [sub_resource type="Resource" id="SlideRule"]
 script = ExtResource("3_slide")
-directions = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)])
+directions = Array[Vector2i]([Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)])
 max_distance = 8
 allow_captures = false
 
@@ -32,7 +32,7 @@ movement_profile = SubResource("MovementProfile")
 motion_profile = ExtResource("4_motion")
 immobilizes_adjacent = true
 immune_to_immobilization = true
-base_value = 8
+base_value = 6
 rarity = 2
 available_in_opening_draft = true
 opening_draft_weight = 3
