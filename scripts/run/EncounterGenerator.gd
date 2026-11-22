@@ -30,6 +30,32 @@ const POOLS := [
 ]
 ## Legendary pieces that join enemy armies from Act 3 on.
 const LEGENDARY_ENEMIES: Array[String] = ["archmage", "stone_giant"]
+## Pieces made by fusion join enemy armies too: the Epic ones from Act 3, all of them
+## from Act 5 (acts counted from 0). Fused Kings never do; they lead their own Bosses.
+const EPIC_FUSIONS_FROM_ACT := 2
+const ALL_FUSIONS_FROM_ACT := 4
+
+## The fusion results enemy armies may field in `act`, read from the recipes.
+static func fusion_enemies(act: int) -> Array[String]:
+	var result: Array[String] = []
+	if act < EPIC_FUSIONS_FROM_ACT:
+		return result
+	for recipe: FusionRecipeDef in FusionRecipeDatabase.all_defs():
+		var id: String = String(recipe.result_piece_def_id)
+		var definition: PieceDef = PieceDefDatabase.get_def(id)
+		if definition == null or definition.is_king or id in result:
+			continue
+		if act >= ALL_FUSIONS_FROM_ACT or definition.rarity == PieceDef.Rarity.EPIC:
+			result.append(id)
+	return result
+
+## `pool` plus the act's fusion results it does not have yet.
+static func _with_fusions(pool: Array[String], act: int) -> Array[String]:
+	var result: Array[String] = pool.duplicate()
+	for id: String in fusion_enemies(act):
+		if id not in result:
+			result.append(id)
+	return result
 ## Percent per rarity [common, rare, epic, legendary] of each enemy pick, by act
 ## (Act 1, 2, 3; later acts use the last row). Later acts field rarer pieces rather
 ## than more pawns.
@@ -110,7 +136,7 @@ static func generate_at(tier: StringName, stage: float, early: bool, seed_value:
 		pool.append_array(LEGENDARY_ENEMIES)
 	if act >= PAWN_FREE_FROM_ACT:
 		pool.erase("pawn")
-	pool = _above_floor(pool, act)
+	pool = _above_floor(_with_fusions(pool, act), act)
 	var king_file: int = KING_FILES[rng.randi_range(0, KING_FILES.size() - 1)]
 	var army: Array[String] = []
 	if tier == &"elite":
@@ -195,7 +221,7 @@ static func upgrade_boss_pawns(placements: Array[Dictionary], act: int, seed_val
 				pool.append(id)
 	if act >= 2:
 		pool.append_array(LEGENDARY_ENEMIES)
-	pool = _above_floor(pool, act)
+	pool = _above_floor(_with_fusions(pool, act), act)
 	for placement: Dictionary in placements:
 		var copy: Dictionary = placement.duplicate(true)
 		if act >= PAWN_FREE_FROM_ACT and not meets_rarity_floor(str(copy.get("piece_def_id", "")), act):
@@ -251,7 +277,7 @@ static func reinforce(placements: Array[Dictionary], extra: int, seed_value: int
 		for id: String in POOLS[band]["ids"]:
 			pool.append(id)
 	if act >= 0:
-		pool = _above_floor(pool, act)
+		pool = _above_floor(_with_fusions(pool, act), act)
 	var remaining: int = extra
 	var index: int = 0
 	while remaining > 0:

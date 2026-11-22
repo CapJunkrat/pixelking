@@ -133,6 +133,7 @@ func _test_enemy_rarity() -> void:
 	_expect(pawns_by_act[0] > 0 and pawns_by_act[1] == 0 and pawns_by_act[2] == 0, "from Act 2 on, a normal battle has no pawns")
 	_expect(rare_by_act[2] > rare_by_act[1] and rare_by_act[1] > rare_by_act[0], "each act fields more epic and legendary pieces than the last")
 	_test_enemy_rarity_floor()
+	_test_enemy_fusions()
 	var boss: Array[Dictionary] = []
 	for x: int in range(3):
 		boss.append({"placement_id": "p%d" % x, "piece_def_id": "pawn", "position": {"x": 4 + x, "y": 6}})
@@ -152,6 +153,33 @@ func _test_enemy_rarity() -> void:
 	_expect(pawns_one == 3 and act_one[3]["piece_def_id"] == "rook", "Act 1 Bosses keep their army")
 	_expect(pawns_two == 0 and act_two[3]["piece_def_id"] == "rook", "Act 2 Bosses lose every pawn but keep their Rares")
 	_expect(act_four[3]["piece_def_id"] != "rook" and act_four[4]["piece_def_id"] == "king", "Act 4 Bosses swap their Rares too, never the King")
+
+## Epic fusion results join enemy armies at Act 3, every fusion result at Act 5, fused
+## Kings never.
+func _test_enemy_fusions() -> void:
+	_expect(EncounterGenerator.fusion_enemies(1).is_empty(), "no fusion results before Act 3")
+	_expect("lancer" in EncounterGenerator.fusion_enemies(2) and "swift_courier" not in EncounterGenerator.fusion_enemies(2), "Act 3 adds the Epic fusion results only")
+	var late: Array[String] = EncounterGenerator.fusion_enemies(4)
+	var all_fused: bool = true
+	for id: String in ["lancer", "swift_courier", "blast_catapult", "sky_archer", "flame_phoenix", "thousand_faces", "archmage", "stone_giant"]:
+		all_fused = all_fused and id in late
+	_expect(all_fused, "Act 5 adds every fusion result")
+	_expect("war_king" not in late and "shadow_king" not in late and "shield_king" not in late, "fused Kings never join an enemy army")
+	var seen: Dictionary = {}
+	for act: int in range(5):
+		var stage: float = (float(act) + 0.5) / 3.0
+		for seed_value: int in range(150):
+			for tier: StringName in [&"normal", &"elite"]:
+				for placement: Dictionary in EncounterGenerator.generate_at(tier, stage, false, seed_value, 10, act):
+					seen["%d:%s" % [act, placement["piece_def_id"]]] = true
+	_expect(not seen.has("1:lancer") and seen.has("2:lancer"), "the Lancer first appears in Act 3")
+	var mythic_early: bool = false
+	var mythic_late: int = 0
+	for id: String in ["swift_courier", "blast_catapult", "sky_archer", "flame_phoenix", "thousand_faces"]:
+		for act: int in range(4):
+			mythic_early = mythic_early or seen.has("%d:%s" % [act, id])
+		mythic_late += 1 if seen.has("4:%s" % id) else 0
+	_expect(not mythic_early and mythic_late == 5, "the Mythic fusion results first appear in Act 5 (%d of 5 seen)" % mythic_late)
 
 ## Commons stop at Act 2 and Rares at Act 4, in every kind of enemy army, and the King
 ## still has a piece in front of it.
