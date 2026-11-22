@@ -38,6 +38,25 @@ func _run() -> void:
 	_expect(saved.load(TEST_SETTINGS_PATH) == OK, "settings file can be reloaded")
 	_expect(int(saved.get_value("unrelated", "preserved", 0)) == 42, "saving preserves unrelated settings")
 	reader.queue_free()
+
+	# A saved choice beats the device language.
+	var chinese_device_with_choice: Node = manager_script.new() as Node
+	chinese_device_with_choice.call("configure_path", TEST_SETTINGS_PATH)
+	chinese_device_with_choice.set("device_language_override", "zh")
+	chinese_device_with_choice.call("load_settings")
+	_expect(str(chinese_device_with_choice.get("locale")) == "en", "a saved language is kept on a Chinese device")
+	chinese_device_with_choice.free()
+
+	# First launch: no settings file yet, so the device language decides.
+	_cleanup()
+	for case: Array in [["zh", "zh_CN"], ["ZH", "zh_CN"], ["en", "en"], ["ja", "en"], ["fr", "en"]]:
+		var fresh: Node = manager_script.new() as Node
+		fresh.call("configure_path", TEST_SETTINGS_PATH)
+		fresh.set("device_language_override", case[0])
+		fresh.call("load_settings")
+		_expect(str(fresh.get("locale")) == case[1], "first launch on a '%s' device starts in %s" % [case[0], case[1]])
+		fresh.free()
+	_expect(not FileAccess.file_exists(TEST_SETTINGS_PATH), "the device default is not written as a choice")
 	_cleanup()
 	_finish()
 
