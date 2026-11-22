@@ -1,7 +1,7 @@
 class_name BattleRunResultCoordinator
 extends RefCounted
 
-func integrate(manager: AppRunManager, player_won: bool) -> BattleRunResult:
+func integrate(manager: AppRunManager, player_won: bool, draw: bool = false) -> BattleRunResult:
 	var result: BattleRunResult = BattleRunResult.new()
 	result.exit_text_key = &"BATTLE_RESULT_MAIN_MENU"
 	if manager == null or manager.current_run == null:
@@ -11,7 +11,7 @@ func integrate(manager: AppRunManager, player_won: bool) -> BattleRunResult:
 	var definition: MapNodeDef = MapNodeDefDatabase.get_def(current.node_type_id) if current != null else null
 	if definition == null or not definition.is_battle:
 		return result
-	var error: Error = manager.apply_battle_outcome(player_won)
+	var error: Error = manager.apply_battle_draw() if draw else manager.apply_battle_outcome(player_won)
 	if error != OK:
 		result.success = false
 		result.error = error
@@ -30,7 +30,10 @@ func integrate(manager: AppRunManager, player_won: bool) -> BattleRunResult:
 		_:
 			result.exit_text = ""
 			result.exit_text_key = &"BATTLE_RESULT_MAP"
-			if not player_won and manager.current_run.phase == RunPhase.DEPLOYMENT:
+			if draw and manager.current_run.phase == RunPhase.DEPLOYMENT:
+				result.exit_text_key = &"BATTLE_RESULT_REDEPLOY"
+				result.defeat_detail_key = &"BATTLE_DRAW_FREE_RETRY"
+			elif not player_won and manager.current_run.phase == RunPhase.DEPLOYMENT:
 				result.exit_text_key = &"BATTLE_RESULT_REDEPLOY"
 				result.defeat_detail_key = &"BATTLE_DEFEAT_RETRY_USED"
 	return result

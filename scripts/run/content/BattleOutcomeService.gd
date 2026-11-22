@@ -52,6 +52,15 @@ func apply_victory(run_state: RunState, rng: RunRngService, progress: MapProgres
 		return reward_error
 	return reward_generator.generate(run_state, rng, fusion_service, reward_service, encounter.reward_tier == &"elite")
 
+## A draw is not a defeat: nothing is counted against the run and the retry is kept.
+## The same battle (same node, same enemy army) is fought again after redeploying.
+func apply_draw(run_state: RunState, deployment: DeploymentService) -> Error:
+	if run_state == null or deployment == null:
+		return ERR_INVALID_PARAMETER
+	run_state.run_statistics["battles_drawn"] = int(run_state.run_statistics.get("battles_drawn", 0)) + 1
+	deployment.clear(run_state)
+	return deployment.ensure_deployment(run_state)
+
 func apply_defeat(run_state: RunState, rng: RunRngService, deployment: DeploymentService) -> Error:
 	if run_state == null or rng == null or deployment == null:
 		return ERR_INVALID_PARAMETER

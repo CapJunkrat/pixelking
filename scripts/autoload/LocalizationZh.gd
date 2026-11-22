@@ -551,6 +551,7 @@ const STRINGS := {
 	"BATTLE_RESULT_MAP": "返回路线图",
 	"BATTLE_RESULT_REDEPLOY": "重新部署并再战",
 	"BATTLE_DEFEAT_RETRY_USED": "你唯一的重试机会已用掉。重新部署，再战一次。",
+	"BATTLE_DRAW_FREE_RETRY": "平局不消耗重试机会。重新部署，再战一次。",
 	"BATTLE_DEFEAT_RUN_OVER": "没有重试机会了，旅程到此结束。",
 	"MAP_RETRY_READY": "可重试",
 	"MAP_RETRY_SPENT": "重试已用",

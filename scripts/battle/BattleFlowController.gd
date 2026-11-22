@@ -78,7 +78,7 @@ func _show_result(player_won: bool, draw: bool) -> void:
 	var processor: BattleCommandProcessor = game_state.get("command_processor") as BattleCommandProcessor
 	var player_color: int = int(game_state.get("player_color"))
 	var summary: BattleResultSummary = BattleResultSummary.from_history(processor.event_history, player_color) if processor != null else null
-	var run_result: BattleRunResult = run_result_coordinator.integrate(manager, player_won and not draw)
+	var run_result: BattleRunResult = run_result_coordinator.integrate(manager, player_won and not draw, draw)
 	result_presenter.present(player_won, draw, run_result, summary, _piece_texture.bind(player_color))
 
 func _piece_texture(piece_id: String, color: int) -> Texture2D:

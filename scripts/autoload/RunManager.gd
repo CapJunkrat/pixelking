@@ -514,6 +514,14 @@ func consume_challenger_item(slot_index: int, expected_item_id: StringName, befo
 	return _commit_transaction(item_run, item_rng, before_publish)
 
 func apply_battle_outcome(player_won: bool, growth: Dictionary = {}) -> Error:
+	return _apply_battle_result(&"victory" if player_won else &"defeat", growth)
+
+## A drawn battle: fought again for free, without spending the retry.
+func apply_battle_draw() -> Error:
+	return _apply_battle_result(&"draw")
+
+func _apply_battle_result(result: StringName, growth: Dictionary = {}) -> Error:
+	var player_won: bool = result == &"victory"
 	_ensure_services()
 	if current_run == null:
 		return ERR_DOES_NOT_EXIST
@@ -528,7 +536,14 @@ func apply_battle_outcome(player_won: bool, growth: Dictionary = {}) -> Error:
 		_keep_battle_growth(battle_run, growth if not growth.is_empty() else _battle_growth())
 	var kills: int = _battle_kills()
 	battle_run.run_statistics["kills"] = int(battle_run.run_statistics.get("kills", 0)) + kills
-	var error: Error = content_service.apply_battle_victory(battle_run, battle_rng, map_progress_service, deployment_service) if player_won else content_service.apply_battle_defeat(battle_run, battle_rng, deployment_service)
+	var error: Error
+	match result:
+		&"victory":
+			error = content_service.apply_battle_victory(battle_run, battle_rng, map_progress_service, deployment_service)
+		&"draw":
+			error = content_service.apply_battle_draw(battle_run, deployment_service)
+		_:
+			error = content_service.apply_battle_defeat(battle_run, battle_rng, deployment_service)
 	if error != OK:
 		return error
 	error = flow_state_machine.transition_to_derived_phase(battle_run)

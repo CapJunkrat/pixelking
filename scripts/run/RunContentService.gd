@@ -48,6 +48,9 @@ func begin_current_node(run_state: RunState, rng: RunRngService) -> Error:
 func apply_battle_victory(run_state: RunState, rng: RunRngService, progress: MapProgressService, deployment: DeploymentService) -> Error:
 	return battle_outcome_service.apply_victory(run_state, rng, progress, deployment)
 
+func apply_battle_draw(run_state: RunState, deployment: DeploymentService) -> Error:
+	return battle_outcome_service.apply_draw(run_state, deployment)
+
 func apply_battle_defeat(run_state: RunState, rng: RunRngService, deployment: DeploymentService) -> Error:
 	return battle_outcome_service.apply_defeat(run_state, rng, deployment)
 

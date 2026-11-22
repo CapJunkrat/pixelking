@@ -44,6 +44,10 @@ func _test_defeat_and_retry() -> void:
 	_expect(str(run_state.pending_choice.get("type", "")) != "run_summary", "first defeat does not end the run")
 	_expect(run_state.player_roster.size() == before_count, "defeat never removes a piece")
 	run_state.deployment_state = null
+	service.apply_battle_draw(run_state, deployment)
+	_expect(run_state.retries_left == 0 and run_state.failed_battles == 1, "a draw spends nothing and counts no failure")
+	_expect(str(run_state.pending_choice.get("type", "")) != "run_summary", "a draw with no retry left does not end the run")
+	run_state.deployment_state = null
 	service.apply_battle_defeat(run_state, rng, deployment)
 	_expect(str(run_state.pending_choice.get("type", "")) == "run_summary" and run_state.failed_battles == 2, "second defeat without a retry ends the run")
 	_expect(run_state.player_roster.size() == before_count, "ending the run still keeps the roster intact")

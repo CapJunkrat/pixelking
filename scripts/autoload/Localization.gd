@@ -581,6 +581,7 @@ const LOCALES := {
 			"BATTLE_RESULT_MAP": "Return to Route Map",
 			"BATTLE_RESULT_REDEPLOY": "Redeploy and Retry",
 			"BATTLE_DEFEAT_RETRY_USED": "Your one retry is spent. Redeploy and face this battle again.",
+			"BATTLE_DRAW_FREE_RETRY": "A draw costs nothing: your retry is kept. Redeploy and fight this battle again.",
 			"BATTLE_DEFEAT_RUN_OVER": "No retry left. The journey ends here.",
 			"MAP_RETRY_READY": "Retry ready",
 			"MAP_RETRY_SPENT": "Retry spent",
