@@ -59,7 +59,7 @@ func _run() -> void:
 	var portal_pattern: Dictionary = PieceRulePreview.pattern("portal_mage", 5)
 	_expect(portal_pattern.get(Vector2i(2, 2)) == "move" and portal_pattern.get(Vector2i(1, 0)) == "both", "rule preview derives teleport and adjacent attacks from live MovementRules")
 	var gorgon_pattern: Dictionary = PieceRulePreview.pattern("gorgon", 5)
-	_expect(gorgon_pattern.get(Vector2i(1, 1)) == "both" and gorgon_pattern.get(Vector2i(2, 2)) == "move" and gorgon_pattern.get(Vector2i(0, 2)) == "move", "rule preview shows Gorgon's bite next to it and non-capturing rays beyond")
+	_expect(gorgon_pattern.get(Vector2i(1, 1)) == "both" and gorgon_pattern.get(Vector2i(2, 2)) == "move" and gorgon_pattern.get(Vector2i(0, 1)) == "attack" and not gorgon_pattern.has(Vector2i(0, 2)), "rule preview shows Gorgon's bite next to it and non-capturing diagonals beyond")
 	animator.queue_free()
 	log_panel.queue_free()
 	print("[PASS] Battle presentation test" if not failed else "[FAIL] Battle presentation test")
