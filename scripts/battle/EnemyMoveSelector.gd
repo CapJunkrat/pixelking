@@ -7,9 +7,11 @@ class_name EnemyMoveSelector
 ## capturing reply the player could make next, so the enemy stops leaving its King in
 ## check and stops handing out free pieces (a Shadow King's strike included: it returns
 ## home, so what it takes is never won back).
+## HARD: looks several moves ahead within a time budget (EnemySearch).
 const DIFFICULTY_EASY := "easy"
 const DIFFICULTY_MEDIUM := "medium"
-const DIFFICULTIES: Array[String] = [DIFFICULTY_EASY, DIFFICULTY_MEDIUM]
+const DIFFICULTY_HARD := "hard"
+const DIFFICULTIES: Array[String] = [DIFFICULTY_EASY, DIFFICULTY_MEDIUM, DIFFICULTY_HARD]
 
 ## Medium looks one reply deep at this many of its best-scoring moves (plus every
 ## capture), which keeps a turn fast on phones.
@@ -18,6 +20,8 @@ const MEDIUM_CANDIDATES := 12
 const KING_LOSS := 10000000
 
 var difficulty: String = DIFFICULTY_EASY
+## Hard's time budget per move, in milliseconds.
+var hard_budget_ms: int = EnemySearch.default_budget_ms()
 
 static func is_valid_difficulty(value: String) -> bool:
 	return value in DIFFICULTIES
@@ -35,6 +39,10 @@ func choose_move(board: BoardState, color: int) -> Dictionary:
 		return {}
 	if difficulty == DIFFICULTY_MEDIUM:
 		return _choose_medium(board, color)
+	if difficulty == DIFFICULTY_HARD:
+		var search: EnemySearch = EnemySearch.new()
+		search.time_budget_ms = hard_budget_ms
+		return search.search(board, color, EnemySearch.root_moves(board, color))
 	var best_move: Dictionary = {}
 	var best_score := -1000000000
 	for move: Array in _all_moves(board, color):

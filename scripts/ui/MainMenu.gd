@@ -41,6 +41,7 @@ var debug_badge: Label
 var difficulty_picker: ColorRect
 var difficulty_easy_button: Button
 var difficulty_medium_button: Button
+var difficulty_hard_button: Button
 var difficulty_back_button: Button
 var _picker_allows_overwrite: bool = false
 var _intro_tween: Tween
@@ -418,6 +419,7 @@ func _apply_locale(_locale: String) -> void:
 	(picker.get_node("Warning") as Label).text = Localization.text("MENU_DIFFICULTY_WARNING")
 	difficulty_easy_button.text = Localization.text("DIFFICULTY_EASY")
 	difficulty_medium_button.text = Localization.text("DIFFICULTY_MEDIUM")
+	difficulty_hard_button.text = Localization.text("DIFFICULTY_HARD")
 	difficulty_back_button.text = Localization.text("COMMON_CANCEL")
 
 func _setup_menu_button_visuals() -> void:
@@ -485,6 +487,14 @@ func _build_difficulty_picker() -> void:
 	difficulty_medium_button = content.get_node("Actions/ConfirmButton") as Button
 	difficulty_easy_button.name = "EasyButton"
 	difficulty_medium_button.name = "MediumButton"
+	difficulty_hard_button = difficulty_medium_button.duplicate() as Button
+	difficulty_hard_button.name = "HardButton"
+	difficulty_medium_button.get_parent().add_child(difficulty_hard_button)
+	# Three choices share the width the two confirmation buttons had.
+	for button: Button in [difficulty_easy_button, difficulty_medium_button, difficulty_hard_button]:
+		button.custom_minimum_size = Vector2(88, 46)
+		button.focus_neighbor_left = NodePath()
+		button.focus_neighbor_right = NodePath()
 	difficulty_back_button = Button.new()
 	difficulty_back_button.name = "BackButton"
 	difficulty_back_button.flat = true
@@ -493,6 +503,7 @@ func _build_difficulty_picker() -> void:
 	content.add_child(difficulty_back_button)
 	difficulty_easy_button.pressed.connect(_on_difficulty_chosen.bind(EnemyMoveSelector.DIFFICULTY_EASY))
 	difficulty_medium_button.pressed.connect(_on_difficulty_chosen.bind(EnemyMoveSelector.DIFFICULTY_MEDIUM))
+	difficulty_hard_button.pressed.connect(_on_difficulty_chosen.bind(EnemyMoveSelector.DIFFICULTY_HARD))
 	difficulty_back_button.pressed.connect(_close_difficulty_picker)
 
 func _show_difficulty_picker(allow_overwrite: bool) -> void:

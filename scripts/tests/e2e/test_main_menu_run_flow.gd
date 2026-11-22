@@ -46,7 +46,8 @@ func _run() -> void:
 	var medium_button: Button = picker_content.get_node("Actions/MediumButton") as Button
 	var back_button: Button = picker_content.get_node("BackButton") as Button
 	_expect(picker.visible and not overwrite.visible, "confirming the overwrite asks for the difficulty")
-	_expect(easy_button.text == str(localization.call("text", "DIFFICULTY_EASY")) and medium_button.text == str(localization.call("text", "DIFFICULTY_MEDIUM")), "the difficulty choices are localized")
+	var hard_button: Button = picker_content.get_node("Actions/HardButton") as Button
+	_expect(easy_button.text == str(localization.call("text", "DIFFICULTY_EASY")) and medium_button.text == str(localization.call("text", "DIFFICULTY_MEDIUM")) and hard_button.text == str(localization.call("text", "DIFFICULTY_HARD")), "the three difficulty choices are localized")
 	_expect(easy_button.has_focus(), "Easy has the initial focus")
 	back_button.pressed.emit()
 	_expect(not picker.visible and run_manager.get("current_run") == original_run, "backing out of the difficulty keeps the active Run")
@@ -55,13 +56,13 @@ func _run() -> void:
 	new_button.pressed.emit()
 	await process_frame
 	_expect(picker.visible and run_manager.get("current_run") == null, "New Journey first asks for the difficulty")
-	medium_button.pressed.emit()
+	hard_button.pressed.emit()
 	await process_frame
 	var random_run: RunState = run_manager.get("current_run") as RunState
 	_expect(random_run != null and random_run.run_seed != 0, "choosing a difficulty creates a random-seed Run")
-	_expect(random_run != null and random_run.ai_difficulty == EnemyMoveSelector.DIFFICULTY_MEDIUM, "the journey keeps the chosen difficulty")
+	_expect(random_run != null and random_run.ai_difficulty == EnemyMoveSelector.DIFFICULTY_HARD, "the journey keeps the chosen difficulty")
 	var reloaded: RunState = RunState.new()
-	_expect(random_run != null and reloaded.load_from_dictionary(random_run.to_dictionary(), false) and reloaded.ai_difficulty == EnemyMoveSelector.DIFFICULTY_MEDIUM, "the difficulty survives a save")
+	_expect(random_run != null and reloaded.load_from_dictionary(random_run.to_dictionary(), false) and reloaded.ai_difficulty == EnemyMoveSelector.DIFFICULTY_HARD, "the difficulty survives a save")
 	var legacy: Dictionary = random_run.to_dictionary() if random_run != null else {}
 	legacy.erase("ai_difficulty")
 	_expect(reloaded.load_from_dictionary(legacy, false) and reloaded.ai_difficulty == EnemyMoveSelector.DIFFICULTY_EASY, "older saves load as Easy")
