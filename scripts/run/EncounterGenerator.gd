@@ -41,6 +41,31 @@ const ACT_RARITY_ODDS: Array = [
 ]
 ## From Act 2 on, pawns only guard the King, and only one of them.
 const PAWN_FREE_FROM_ACT := 1
+## The lowest rarity an enemy piece may have, by act (0 = Act 1): Commons stop at Act 2
+## and Rares at Act 4. This covers every enemy piece but the King: generated armies,
+## the piece guarding the King, elite captains, Boss armies and their reinforcements.
+const MIN_RARITY_FROM_ACT: Array = [
+	{"act": 3, "rarity": PieceDef.Rarity.EPIC},
+	{"act": 1, "rarity": PieceDef.Rarity.RARE},
+]
+
+static func min_rarity(act: int) -> int:
+	for step: Dictionary in MIN_RARITY_FROM_ACT:
+		if act >= int(step["act"]):
+			return int(step["rarity"])
+	return PieceDef.Rarity.COMMON
+
+## Whether `id` may stand in an enemy army in `act` (Kings always may).
+static func meets_rarity_floor(id: String, act: int) -> bool:
+	var definition: PieceDef = PieceDefDatabase.get_def(id)
+	return definition != null and (definition.is_king or int(definition.rarity) >= min_rarity(act))
+
+static func _above_floor(ids: Array[String], act: int) -> Array[String]:
+	var result: Array[String] = []
+	for id: String in ids:
+		if meets_rarity_floor(id, act):
+			result.append(id)
+	return result
 ## An elite battle is led by one of these, whatever the layer.
 const ELITE_CAPTAINS: Array[String] = ["gorgon", "manticore", "gryphon", "centaur", "unicorn_cavalry", "portal_mage", "gargoyle"]
 
@@ -85,27 +110,43 @@ static func generate_at(tier: StringName, stage: float, early: bool, seed_value:
 		pool.append_array(LEGENDARY_ENEMIES)
 	if act >= PAWN_FREE_FROM_ACT:
 		pool.erase("pawn")
+	pool = _above_floor(pool, act)
 	var king_file: int = KING_FILES[rng.randi_range(0, KING_FILES.size() - 1)]
 	var army: Array[String] = []
 	if tier == &"elite":
-		var captain: String = ELITE_CAPTAINS[rng.randi_range(0, ELITE_CAPTAINS.size() - 1)]
+		var captains: Array[String] = _above_floor(ELITE_CAPTAINS, act)
+		if captains.is_empty():
+			captains = ELITE_CAPTAINS
+		var captain: String = captains[rng.randi_range(0, captains.size() - 1)]
 		army.append(captain)
 		remaining -= _value(captain)
-	# The King's guard: pawns directly in front of it, more as the army grows.
+	# The King's guard, directly in front of it: pawns while Commons may still appear
+	# (more as the army grows, only one from Act 2), afterwards one piece that meets the
+	# act's rarity floor, bought even when the budget falls short.
 	var guards: int = 1 if remaining < 10 else (2 if remaining < 18 else 3)
 	if act >= PAWN_FREE_FROM_ACT:
 		guards = 1
+	var guard_slots: Array[int] = []
 	for _i: int in range(guards):
-		if remaining >= 1:
-			army.append("pawn")
-			remaining -= 1
+		var guard: String = "pawn" if meets_rarity_floor("pawn", act) else ""
+		if guard.is_empty():
+			guard = _pick_by_rarity(pool, act, remaining, rng)
+			if guard.is_empty():
+				guard = _pick_by_rarity(pool, act, -1, rng)
+		elif remaining < 1:
+			continue
+		if guard.is_empty():
+			continue
+		guard_slots.append(army.size())
+		army.append(guard)
+		remaining -= _value(guard)
 	while remaining > 0 and army.size() < MAX_PIECES:
 		var pick: String = _pick_by_rarity(pool, act, remaining, rng)
 		if pick.is_empty():
 			break
 		army.append(pick)
 		remaining -= _value(pick)
-	return _place(army, king_file, guards)
+	return _place(army, king_file, guard_slots)
 
 static func rarity_odds(act: int) -> Array:
 	return ACT_RARITY_ODDS[clampi(act, 0, ACT_RARITY_ODDS.size() - 1)]
@@ -140,8 +181,9 @@ static func _pick_by_rarity(pool: Array[String], act: int, budget: int, rng: Ran
 			return str(bucket[rng.randi_range(0, bucket.size() - 1)])
 	return ""
 
-## Boss armies are fixed, but from Act 2 on all their pawns but the first are swapped
-## for pieces rolled by the act's rarity odds, on the same squares.
+## Boss armies are fixed, but from Act 2 on every piece below the act's rarity floor
+## (pawns included) is swapped for one rolled by the act's rarity odds, on the same
+## square. The Boss King itself never changes.
 static func upgrade_boss_pawns(placements: Array[Dictionary], act: int, seed_value: int) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -153,20 +195,18 @@ static func upgrade_boss_pawns(placements: Array[Dictionary], act: int, seed_val
 				pool.append(id)
 	if act >= 2:
 		pool.append_array(LEGENDARY_ENEMIES)
-	var pawns_kept: int = 0
+	pool = _above_floor(pool, act)
 	for placement: Dictionary in placements:
 		var copy: Dictionary = placement.duplicate(true)
-		if act >= PAWN_FREE_FROM_ACT and str(copy.get("piece_def_id", "")) == "pawn":
-			if pawns_kept == 0:
-				pawns_kept += 1
-			else:
-				var pick: String = _pick_by_rarity(pool, act, -1, rng)
-				if not pick.is_empty():
-					copy["piece_def_id"] = pick
+		if act >= PAWN_FREE_FROM_ACT and not meets_rarity_floor(str(copy.get("piece_def_id", "")), act):
+			var pick: String = _pick_by_rarity(pool, act, -1, rng)
+			if not pick.is_empty():
+				copy["piece_def_id"] = pick
 		result.append(copy)
 	return result
 
-static func _place(army: Array[String], king_file: int, guards: int) -> Array[Dictionary]:
+## `guard_slots`: the indices in `army` of the pieces that stand in front of the King.
+static func _place(army: Array[String], king_file: int, guard_slots: Array[int]) -> Array[Dictionary]:
 	var taken: Dictionary = {Vector2i(king_file, BACK_RANK): true}
 	var result: Array[Dictionary] = [_placement("king", Vector2i(king_file, BACK_RANK), 0)]
 	var guard_squares: Array[Vector2i] = [Vector2i(king_file, FRONT_RANK), Vector2i(king_file - 1, FRONT_RANK), Vector2i(king_file + 1, FRONT_RANK)]
@@ -176,7 +216,7 @@ static func _place(army: Array[String], king_file: int, guards: int) -> Array[Di
 	for index: int in range(army.size()):
 		var id: String = army[index]
 		var square: Vector2i = Vector2i(-1, -1)
-		if id == "pawn" and guard_index < guards:
+		if index in guard_slots and guard_index < guard_squares.size():
 			square = guard_squares[guard_index]
 			guard_index += 1
 		elif DeploymentFormation.moves_forward_only(PieceDefDatabase.get_def(id)):
@@ -196,8 +236,9 @@ static func _place(army: Array[String], king_file: int, guards: int) -> Array[Di
 	return result
 
 ## Bosses past Act 3: add pieces worth about `extra` to a fixed Boss army, on free squares
-## of the enemy corner (the most valuable first, while room lasts).
-static func reinforce(placements: Array[Dictionary], extra: int, seed_value: int) -> Array[Dictionary]:
+## of the enemy corner (the most valuable first, while room lasts). `act` (-1: any)
+## keeps them above that act's rarity floor.
+static func reinforce(placements: Array[Dictionary], extra: int, seed_value: int, act: int = -1) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	var taken: Dictionary = {}
 	for placement: Dictionary in placements:
@@ -209,6 +250,8 @@ static func reinforce(placements: Array[Dictionary], extra: int, seed_value: int
 	for band: int in [1, 2]:
 		for id: String in POOLS[band]["ids"]:
 			pool.append(id)
+	if act >= 0:
+		pool = _above_floor(pool, act)
 	var remaining: int = extra
 	var index: int = 0
 	while remaining > 0:

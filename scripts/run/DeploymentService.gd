@@ -26,7 +26,7 @@ func ensure_deployment(run_state: RunState) -> Error:
 			EncounterGenerator.player_strength(run_state),
 			run_state.act_index)
 	if encounter.is_boss:
-		# From Act 2 on, a Boss brings rarer pieces instead of a wall of pawns.
+		# From Act 2 on, a Boss's pieces below the act's rarity floor are swapped for rarer ones.
 		deployment.enemy_placements = EncounterGenerator.upgrade_boss_pawns(
 			deployment.enemy_placements, run_state.act_index, run_state.current_encounter_seed)
 	if encounter.is_boss and run_state.act_index >= RunState.ACT_COUNT:
@@ -34,7 +34,8 @@ func ensure_deployment(run_state: RunState) -> Error:
 		deployment.enemy_placements = EncounterGenerator.reinforce(
 			deployment.enemy_placements,
 			(run_state.act_index - RunState.ACT_COUNT + 1) * 6,
-			run_state.current_encounter_seed)
+			run_state.current_encounter_seed,
+			run_state.act_index)
 	if current != null and run_state.map_state != null:
 		deployment.rocks = RockLayout.generate(run_state.current_encounter_seed, current.layer_index, run_state.map_state.total_layers, deployment.board_size)
 	run_state.deployment_state = deployment

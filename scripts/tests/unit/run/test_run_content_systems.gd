@@ -130,21 +130,61 @@ func _test_enemy_rarity() -> void:
 					pawns_by_act[act] += 1
 				elif id != "king" and PieceDefDatabase.get_def(id).rarity >= PieceDef.Rarity.EPIC:
 					rare_by_act[act] += 1
-	_expect(pawns_by_act[1] <= 40 and pawns_by_act[2] <= 40, "from Act 2 on, a normal battle has at most one pawn")
+	_expect(pawns_by_act[0] > 0 and pawns_by_act[1] == 0 and pawns_by_act[2] == 0, "from Act 2 on, a normal battle has no pawns")
 	_expect(rare_by_act[2] > rare_by_act[1] and rare_by_act[1] > rare_by_act[0], "each act fields more epic and legendary pieces than the last")
+	_test_enemy_rarity_floor()
 	var boss: Array[Dictionary] = []
 	for x: int in range(3):
 		boss.append({"placement_id": "p%d" % x, "piece_def_id": "pawn", "position": {"x": 4 + x, "y": 6}})
+	boss.append({"placement_id": "r", "piece_def_id": "rook", "position": {"x": 3, "y": 7}})
 	boss.append({"placement_id": "k", "piece_def_id": "king", "position": {"x": 5, "y": 7}})
 	var act_one: Array[Dictionary] = EncounterGenerator.upgrade_boss_pawns(boss, 0, 7)
 	var act_two: Array[Dictionary] = EncounterGenerator.upgrade_boss_pawns(boss, 1, 7)
+	var act_four: Array[Dictionary] = EncounterGenerator.upgrade_boss_pawns(boss, 3, 7)
 	var pawns_one: int = 0
 	var pawns_two: int = 0
 	for index: int in range(boss.size()):
 		pawns_one += 1 if act_one[index]["piece_def_id"] == "pawn" else 0
 		pawns_two += 1 if act_two[index]["piece_def_id"] == "pawn" else 0
 		_expect(act_two[index]["position"] == boss[index]["position"], "upgraded Boss pieces keep their squares")
-	_expect(pawns_one == 3 and pawns_two == 1, "Act 1 Bosses keep their pawns; later Bosses keep only one")
+		_expect(EncounterGenerator.meets_rarity_floor(str(act_two[index]["piece_def_id"]), 1), "Act 2 Boss pieces are Rare or better")
+		_expect(EncounterGenerator.meets_rarity_floor(str(act_four[index]["piece_def_id"]), 3), "Act 4 Boss pieces are Epic or better")
+	_expect(pawns_one == 3 and act_one[3]["piece_def_id"] == "rook", "Act 1 Bosses keep their army")
+	_expect(pawns_two == 0 and act_two[3]["piece_def_id"] == "rook", "Act 2 Bosses lose every pawn but keep their Rares")
+	_expect(act_four[3]["piece_def_id"] != "rook" and act_four[4]["piece_def_id"] == "king", "Act 4 Bosses swap their Rares too, never the King")
+
+## Commons stop at Act 2 and Rares at Act 4, in every kind of enemy army, and the King
+## still has a piece in front of it.
+func _test_enemy_rarity_floor() -> void:
+	var floor_ok: Array[bool] = [true, true, true, true, true]
+	var guarded: bool = true
+	for act: int in range(5):
+		var stage: float = (float(act) + 0.5) / 3.0
+		for seed_value: int in range(30):
+			for tier: StringName in [&"normal", &"elite"]:
+				var king_square: Vector2i = Vector2i(-1, -1)
+				var squares: Dictionary = {}
+				for placement: Dictionary in EncounterGenerator.generate_at(tier, stage, act == 0, seed_value, 8, act):
+					var square: Vector2i = DeploymentState.position_from_value(placement.get("position", {}))
+					squares[square] = true
+					if str(placement["piece_def_id"]) == "king":
+						king_square = square
+					elif not EncounterGenerator.meets_rarity_floor(str(placement["piece_def_id"]), act):
+						floor_ok[act] = false
+				# (An early Act 1 elite can spend its whole capped budget on the captain.)
+				if act >= 1:
+					guarded = guarded and squares.has(king_square + Vector2i(0, -1))
+		if act >= RunState.ACT_COUNT:
+			for boss: EncounterDef in EncounterDefDatabase.bosses_for_act(act):
+				var army: Array[Dictionary] = EncounterGenerator.upgrade_boss_pawns(boss.enemy_placements, act, 5)
+				army = EncounterGenerator.reinforce(army, 12, 5, act)
+				for placement: Dictionary in army:
+					if not EncounterGenerator.meets_rarity_floor(str(placement["piece_def_id"]), act):
+						floor_ok[act] = false
+	_expect(EncounterGenerator.min_rarity(0) == PieceDef.Rarity.COMMON and EncounterGenerator.min_rarity(1) == PieceDef.Rarity.RARE and EncounterGenerator.min_rarity(2) == PieceDef.Rarity.RARE and EncounterGenerator.min_rarity(3) == PieceDef.Rarity.EPIC and EncounterGenerator.min_rarity(5) == PieceDef.Rarity.EPIC, "the rarity floor rises at Act 2 and Act 4")
+	for act: int in range(5):
+		_expect(floor_ok[act], "Act %d enemy armies respect the rarity floor" % (act + 1))
+	_expect(guarded, "from Act 2 on, the enemy King always has a piece in front of it")
 
 func _base_run() -> RunState:
 	var run_state: RunState = RunState.new()
