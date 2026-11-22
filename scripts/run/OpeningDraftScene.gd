@@ -40,6 +40,11 @@ var card_pivots: Array[Node2D] = []
 var candidate_ids: Array[String] = []
 var previewed_candidate_index: int = 1
 var pending_info_index: int = -1
+## Set when a hold opened the information popup; the release that ends that hold must
+## not also count as a click (it would switch the previewed card).
+var press_opened_info: bool = false
+## The card under a finger or mouse button right now (-1: none).
+var held_card_index: int = -1
 var info_timer: Timer
 var fan_tween: Tween
 
@@ -65,8 +70,8 @@ func _ready() -> void:
 		card.pressed.connect(_on_card_preview_pressed.bind(index))
 		card.mouse_entered.connect(_start_candidate_info.bind(index))
 		card.mouse_exited.connect(_stop_candidate_info)
-		card.button_down.connect(_start_candidate_info.bind(index))
-		card.button_up.connect(_stop_candidate_info)
+		card.button_down.connect(_on_card_button_down.bind(index))
+		card.button_up.connect(_on_card_button_up)
 	select_button.pressed.connect(_on_select_candidate_pressed)
 	info_timer = Timer.new()
 	info_timer.one_shot = true
@@ -135,10 +140,20 @@ func _layout_card_fan(animate: bool = false) -> void:
 	_apply_card_transform(left_index, Vector2(CARD_WIDTH * 0.5, center_y + FAN_SIDE_DROP + CARD_HEIGHT * 0.5), -FAN_ROTATION_DEGREES, Vector2.ONE * SIDE_CARD_SCALE, 1, animate)
 	_apply_card_transform(right_index, Vector2(available_width - CARD_WIDTH * 0.5, center_y + FAN_SIDE_DROP + CARD_HEIGHT * 0.5), FAN_ROTATION_DEGREES, Vector2.ONE * SIDE_CARD_SCALE, 2, animate)
 	_apply_card_transform(previewed_candidate_index, Vector2(center_x + CARD_WIDTH * 0.5, center_y + CARD_HEIGHT * 0.5), 0.0, Vector2.ONE, 10, animate)
+	_order_cards_for_input(left_index, right_index)
 	if fan_tween != null:
 		fan_tween.finished.connect(func() -> void: fan_transition_completed.emit(), CONNECT_ONE_SHOT)
 	select_button.position = Vector2(center_x, center_y + CARD_HEIGHT + 6.0)
 	select_button.size = Vector2(CARD_WIDTH, 42.0)
+
+## Touches go to the last sibling under the finger, whatever the z_index, so the
+## sibling order must match what is drawn on top: side cards first, the centered card
+## last (just before the Select button). Otherwise a touch on the centered card where a
+## side card overlaps it lands on the side card.
+func _order_cards_for_input(left_index: int, right_index: int) -> void:
+	var order: Array[int] = [left_index, right_index, previewed_candidate_index]
+	for position_index: int in range(order.size()):
+		candidate_cards.move_child(card_pivots[order[position_index]], position_index)
 
 func _apply_card_transform(index: int, target_position: Vector2, target_rotation: float, target_scale: Vector2, target_z: int, animate: bool) -> void:
 	var pivot: Node2D = card_pivots[index]
@@ -198,6 +213,9 @@ func _render_selected_roster(run_state: RunState) -> void:
 		selected_roster.add_child(portrait)
 
 func _on_card_preview_pressed(index: int) -> void:
+	if press_opened_info:
+		press_opened_info = false
+		return
 	if index < 0 or index >= candidate_ids.size() or index == previewed_candidate_index:
 		return
 	previewed_candidate_index = index
@@ -214,6 +232,17 @@ func _on_select_candidate_pressed() -> void:
 		_show_error(Localization.text("SAVE_ERROR"))
 		return
 	_render()
+
+func _on_card_button_down(index: int) -> void:
+	press_opened_info = false
+	held_card_index = index
+	_start_candidate_info(index)
+
+## A button emits `pressed` before `button_up`, so the release that ends a hold is
+## swallowed before the hold is forgotten here.
+func _on_card_button_up() -> void:
+	held_card_index = -1
+	_stop_candidate_info()
 
 func _start_candidate_info(index: int) -> void:
 	if index < 0 or index >= candidate_ids.size() or info_timer == null:
@@ -238,6 +267,8 @@ func _on_info_timer_timeout() -> void:
 	(info_popup.get_node("Content/AttackLabel") as Label).text = Localization.text(PieceRulePreview.attack_key(definition))
 	(info_popup.get_node("Content/LegendLabel") as Label).text = Localization.text("DRAFT_INFO_LEGEND")
 	_render_move_diagram(String(definition.id))
+	if held_card_index == pending_info_index:
+		press_opened_info = true
 	info_popup.show()
 	candidate_info_opened.emit()
 

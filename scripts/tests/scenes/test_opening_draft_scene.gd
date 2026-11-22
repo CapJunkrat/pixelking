@@ -55,6 +55,26 @@ func _run() -> void:
 	_expect(not (info_popup.get_node("Content/AttackLabel") as Label).text.is_empty(), "floating information gives a concise attack summary")
 	draft.call("_stop_candidate_info")
 
+	# Input goes to the last sibling under the finger: the centered card must be the last
+	# card in the tree, so a touch where it overlaps a side card reaches it.
+	_expect(left_pivot.get_index() == 2, "the centered card is the topmost card for touches")
+	# A hold that opens the information must not switch cards on release.
+	var right_card: Button = fan.get_node("CardPivot2/Candidate2") as Button
+	right_card.button_down.emit()
+	await draft.candidate_info_opened
+	right_card.pressed.emit()
+	right_card.button_up.emit()
+	await process_frame
+	_expect(int(draft.get("previewed_candidate_index")) == 0, "releasing a hold keeps the previewed card")
+	_expect(not info_popup.visible, "releasing a hold closes the information")
+	# A short tap still previews the card.
+	right_card.button_down.emit()
+	right_card.pressed.emit()
+	right_card.button_up.emit()
+	await draft.fan_transition_completed
+	_expect(int(draft.get("previewed_candidate_index")) == 2, "a short tap on a side card still previews it")
+	_expect((fan.get_node("CardPivot2") as Node2D).get_index() == 2, "the newly centered card moves on top for touches")
+
 	for round_index: int in range(3):
 		var first_card: Button = draft.get_node("SafeArea/Layout/CandidateCards/CardPivot0/Candidate0") as Button
 		if draft.previewed_candidate_index != 0:
