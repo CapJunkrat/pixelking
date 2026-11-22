@@ -85,7 +85,9 @@ func _test_shadow_strike() -> void:
 		board.set_rocks([Vector2i(3, 4)])
 		var moves := board.get_executable_moves(Vector2i(3, 3))
 		expect(Vector2i(3, 6) in moves and Vector2i(6, 6) in moves, "Shadow strikes and steps through rocks and allies")
-		expect(Vector2i(5, 4) in moves and Vector2i(6, 5) in moves and Vector2i(7, 3) not in moves, "Shadow reaches the whole 7x7 area and no further")
+		expect(Vector2i(6, 3) in moves and Vector2i(0, 0) in moves and Vector2i(5, 1) in moves, "Shadow reaches 3 squares along ranks, files and diagonals")
+		expect(Vector2i(5, 4) not in moves and Vector2i(6, 5) not in moves and Vector2i(4, 5) not in moves, "Shadow never reaches off its eight lines")
+		expect(Vector2i(7, 3) not in moves and Vector2i(7, 7) not in moves, "Shadow reaches no further than 3 squares")
 		expect(Vector2i(4, 4) not in moves and Vector2i(3, 4) not in moves, "Shadow cannot target allies or rocks")
 		var attacker := board.get_piece(Vector2i(3, 3))
 		var result := board.make_move(Vector2i(3, 3), Vector2i(3, 6))
@@ -162,7 +164,7 @@ func _test_shadow_previews() -> void:
 
 func _test_protection_and_death_regressions() -> void:
 	var empty := _board({Vector2i(3, 3): ["shadow_king", W]})
-	expect(empty.get_executable_moves(Vector2i(3, 3)).size() == 48, "Shadow center reaches all 48 squares of its 7x7 area")
+	expect(empty.get_executable_moves(Vector2i(3, 3)).size() == 24, "Shadow center reaches all 24 squares of its eight 3-square lines")
 	var shield := _board({Vector2i(3, 3): ["shadow_king", W], Vector2i(3, 5): ["pawn", B]})
 	shield.get_piece(Vector2i(3, 5)).shield_until_serial = 5
 	expect(Vector2i(3, 5) not in shield.get_executable_moves(Vector2i(3, 3)), "Shadow still respects ordinary shields")
