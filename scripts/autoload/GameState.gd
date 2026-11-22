@@ -23,6 +23,10 @@ var challenger_items: Array[ChallengerItemDef] = []
 ## 玩家在 Roguelike 对局中控制的一方。
 var player_color: int = GameRules.PieceColor.WHITE
 
+## How hard the enemy plays in the current battle (EnemyMoveSelector.DIFFICULTY_*):
+## the journey's choice for a run battle, Easy otherwise.
+var ai_difficulty: String = EnemyMoveSelector.DIFFICULTY_EASY
+
 ## Developer access is intentionally session-only and resets on every launch.
 var debug_mode: bool = false
 
@@ -44,6 +48,7 @@ func reset_debug_mode() -> void:
 	debug_mode_changed.emit(false)
 
 func start_new_game() -> void:
+	ai_difficulty = EnemyMoveSelector.DIFFICULTY_EASY
 	board = BoardState.new()
 	challenger_items.clear()
 	command_processor = BattleCommandProcessor.new(board, challenger_items, player_color)
@@ -81,6 +86,7 @@ func start_run_battle(run_state: RunState) -> bool:
 		if item_definition == null:
 			return false
 		challenger_items.append(item_definition)
+	ai_difficulty = run_state.ai_difficulty
 	var turn_limit: int = 0
 	var encounter: EncounterDef = EncounterDefDatabase.for_current(run_state)
 	if encounter != null:

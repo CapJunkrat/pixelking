@@ -52,6 +52,9 @@ var next_piece_instance_id: int = 1
 var preferred_positions: Dictionary = {}
 ## The act being played, from 0 (Act 1); goes on past ACT_COUNT - 1.
 var act_index: int = 0
+## How hard the enemy plays this whole journey (EnemyMoveSelector.DIFFICULTY_*),
+## chosen when the journey starts. Saves from before difficulties load as Easy.
+var ai_difficulty: String = EnemyMoveSelector.DIFFICULTY_EASY
 
 ## How far through the whole run the current battle is: 0 at the first layer of Act 1,
 ## 1 at the end of Act 3, and above 1 in the acts beyond it.
@@ -69,6 +72,7 @@ func initialize_new(seed_value: int, _mode_value: String = MODE_STANDARD) -> voi
 	was_migrated_from_legacy = false
 	mode = MODE_STANDARD
 	run_seed = seed_value
+	ai_difficulty = EnemyMoveSelector.DIFFICULTY_EASY
 	rng_stream_states.clear()
 	current_map_id = &""
 	map_state = null
@@ -239,6 +243,7 @@ func to_dictionary() -> Dictionary:
 		"next_piece_instance_id": next_piece_instance_id,
 		"preferred_positions": preferred_positions.duplicate(true),
 		"act_index": act_index,
+		"ai_difficulty": ai_difficulty,
 	}
 
 func load_from_dictionary(data: Dictionary, normalize_active_battle: bool = true) -> bool:
@@ -301,6 +306,8 @@ func load_from_dictionary(data: Dictionary, normalize_active_battle: bool = true
 	next_piece_instance_id = int(data.get("next_piece_instance_id", 1))
 	preferred_positions = _dictionary_value(data, "preferred_positions")
 	act_index = maxi(0, int(data.get("act_index", 0)))
+	var loaded_difficulty: String = str(data.get("ai_difficulty", EnemyMoveSelector.DIFFICULTY_EASY))
+	ai_difficulty = loaded_difficulty if EnemyMoveSelector.is_valid_difficulty(loaded_difficulty) else EnemyMoveSelector.DIFFICULTY_EASY
 	var legacy_sacrifice: bool = str(pending_choice.get("type", "")) == "sacrifice"
 	if legacy_sacrifice:
 		# Older saves could stop on the removed sacrifice screen; send the player back to the battle node.

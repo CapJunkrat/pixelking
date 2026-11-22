@@ -47,12 +47,15 @@ func configure_save_path(path: String) -> void:
 func can_continue() -> bool:
 	return current_run != null
 
-func create_run(seed_value: int, mode: String = RunState.MODE_STANDARD, allow_overwrite: bool = false) -> bool:
+func create_run(seed_value: int, mode: String = RunState.MODE_STANDARD, allow_overwrite: bool = false, ai_difficulty: String = EnemyMoveSelector.DIFFICULTY_EASY) -> bool:
 	_ensure_services()
 	if (current_run != null or save_service.exists()) and not allow_overwrite:
 		return false
+	if not EnemyMoveSelector.is_valid_difficulty(ai_difficulty):
+		return false
 	var new_run: RunState = RunState.new()
 	new_run.initialize_new(seed_value, mode)
+	new_run.ai_difficulty = ai_difficulty
 	var king: PieceInstanceState = new_run.allocate_piece("king", true)
 	if king == null:
 		return false

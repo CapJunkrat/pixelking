@@ -66,6 +66,7 @@ func _play_enemy_turn(generation: int) -> void:
 		_enemy_generation += 1
 		_play_enemy_turn(_enemy_generation)
 		return
+	enemy_selector.difficulty = str(game_state.get("ai_difficulty")) if game_state.get("ai_difficulty") != null else EnemyMoveSelector.DIFFICULTY_EASY
 	var action: MoveAction = enemy_selector.choose_action(board, board.turn)
 	if action == null:
 		game_state.call("evaluate_battle_terminal_state")

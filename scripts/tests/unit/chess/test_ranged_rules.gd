@@ -133,7 +133,7 @@ func _test_ai_takes_the_shot() -> void:
 	var move: Dictionary = EnemyMoveSelector.new().choose_move(board, B)
 	expect(move.get("from") == Vector2i(3, 6) and move.get("to") == Vector2i(3, 3), "the enemy AI shoots a free Rook")
 	var multi: BoardState = _board({Vector2i(1, 6): [&"ranger", B], Vector2i(1, 4): [&"knight", W], Vector2i(1, 3): [&"bishop", W], Vector2i(6, 1): [&"pawn", W], Vector2i(0, 0): [&"king", W], Vector2i(1, 0): [&"pawn", W], Vector2i(7, 7): [&"king", B]}, B)
-	var score: int = EnemyMoveSelector.new()._score_move(multi, Vector2i(1, 6), Vector2i(1, 4), B)
+	var score: int = int(EnemyMoveSelector.new()._score_move(multi, Vector2i(1, 6), Vector2i(1, 4), B, true)["score"])
 	expect(score >= 5000, "a boomerang that takes two pieces scores both (%d)" % score)
 
 func _test_new_ranges() -> void:

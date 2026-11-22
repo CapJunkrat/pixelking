@@ -35,12 +35,36 @@ func _run() -> void:
 	cancel_button.pressed.emit()
 	_expect(not overwrite.visible, "cancel closes the themed overwrite confirmation")
 	_expect(run_manager.get("current_run") == original_run, "canceling overwrite preserves the active Run")
+	# Confirming the overwrite asks for the difficulty before anything is replaced.
+	new_button.pressed.emit()
+	await process_frame
+	confirm_button.pressed.emit()
+	await process_frame
+	var picker: ColorRect = menu.get_node("DifficultyPicker") as ColorRect
+	var picker_content: Node = picker.get_node("Center/Panel/Content")
+	var easy_button: Button = picker_content.get_node("Actions/EasyButton") as Button
+	var medium_button: Button = picker_content.get_node("Actions/MediumButton") as Button
+	var back_button: Button = picker_content.get_node("BackButton") as Button
+	_expect(picker.visible and not overwrite.visible, "confirming the overwrite asks for the difficulty")
+	_expect(easy_button.text == str(localization.call("text", "DIFFICULTY_EASY")) and medium_button.text == str(localization.call("text", "DIFFICULTY_MEDIUM")), "the difficulty choices are localized")
+	_expect(easy_button.has_focus(), "Easy has the initial focus")
+	back_button.pressed.emit()
+	_expect(not picker.visible and run_manager.get("current_run") == original_run, "backing out of the difficulty keeps the active Run")
 	run_manager.call("abandon_run")
 	await process_frame
 	new_button.pressed.emit()
 	await process_frame
+	_expect(picker.visible and run_manager.get("current_run") == null, "New Journey first asks for the difficulty")
+	medium_button.pressed.emit()
+	await process_frame
 	var random_run: RunState = run_manager.get("current_run") as RunState
-	_expect(random_run != null and random_run.run_seed != 0, "New Journey immediately creates a random-seed Run")
+	_expect(random_run != null and random_run.run_seed != 0, "choosing a difficulty creates a random-seed Run")
+	_expect(random_run != null and random_run.ai_difficulty == EnemyMoveSelector.DIFFICULTY_MEDIUM, "the journey keeps the chosen difficulty")
+	var reloaded: RunState = RunState.new()
+	_expect(random_run != null and reloaded.load_from_dictionary(random_run.to_dictionary(), false) and reloaded.ai_difficulty == EnemyMoveSelector.DIFFICULTY_MEDIUM, "the difficulty survives a save")
+	var legacy: Dictionary = random_run.to_dictionary() if random_run != null else {}
+	legacy.erase("ai_difficulty")
+	_expect(reloaded.load_from_dictionary(legacy, false) and reloaded.ai_difficulty == EnemyMoveSelector.DIFFICULTY_EASY, "older saves load as Easy")
 	_expect(menu.get_node_or_null("RunSetupOverlay") == null, "player-facing seed setup is removed")
 	_expect(menu.get_node_or_null("SafeArea/Layout/Version") == null, "pre-alpha version label is removed")
 	menu.queue_free()

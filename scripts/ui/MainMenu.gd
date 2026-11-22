@@ -36,6 +36,13 @@ var codex_hint_label: Label
 var achievement_button: Button
 var achievement_overlay: AchievementPanel
 var debug_badge: Label
+## Asked before every new journey: Easy or Medium. Built from a copy of the overwrite
+## confirmation so it shares its look.
+var difficulty_picker: ColorRect
+var difficulty_easy_button: Button
+var difficulty_medium_button: Button
+var difficulty_back_button: Button
+var _picker_allows_overwrite: bool = false
 var _intro_tween: Tween
 var _intro_playing: bool = false
 var _debug_title_clicks: int = 0
@@ -43,6 +50,7 @@ var _debug_title_click_started_msec: int = 0
 
 func _ready() -> void:
 	_build_codex_controls()
+	_build_difficulty_picker()
 	$SafeArea/Layout/MenuPanel/MenuButtons/NewGameButton.pressed.connect(_on_new_game_pressed)
 	continue_button.pressed.connect(_on_continue_pressed)
 	$SafeArea/Layout/MenuPanel/MenuButtons/SettingsButton.pressed.connect(_on_settings_pressed)
@@ -73,7 +81,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event.is_action_pressed("ui_cancel"):
-		if overwrite_confirmation.visible:
+		if difficulty_picker.visible:
+			_close_difficulty_picker()
+		elif overwrite_confirmation.visible:
 			_close_overwrite_confirmation()
 		elif settings_overlay.visible:
 			_close_settings()
@@ -402,6 +412,13 @@ func _apply_locale(_locale: String) -> void:
 	$OverwriteConfirmation/Center/Panel/Content/Warning.text = Localization.text("MENU_OVERWRITE_WARNING")
 	overwrite_cancel_button.text = Localization.text("COMMON_CANCEL")
 	overwrite_confirm_button.text = Localization.text("MENU_OVERWRITE_CONFIRM")
+	var picker: Node = difficulty_picker.get_node("Center/Panel/Content")
+	(picker.get_node("Title") as Label).text = Localization.text("MENU_DIFFICULTY_TITLE")
+	(picker.get_node("Message") as Label).text = Localization.text("MENU_DIFFICULTY_MESSAGE")
+	(picker.get_node("Warning") as Label).text = Localization.text("MENU_DIFFICULTY_WARNING")
+	difficulty_easy_button.text = Localization.text("DIFFICULTY_EASY")
+	difficulty_medium_button.text = Localization.text("DIFFICULTY_MEDIUM")
+	difficulty_back_button.text = Localization.text("COMMON_CANCEL")
 
 func _setup_menu_button_visuals() -> void:
 	for child in $SafeArea/Layout/MenuPanel/MenuButtons.get_children():
@@ -458,6 +475,39 @@ func _sync_music_slider(value: float) -> void:
 func _sync_sfx_slider(value: float) -> void:
 	sound_slider.set_value_no_signal(value)
 
+func _build_difficulty_picker() -> void:
+	difficulty_picker = overwrite_confirmation.duplicate() as ColorRect
+	difficulty_picker.name = "DifficultyPicker"
+	difficulty_picker.hide()
+	add_child(difficulty_picker)
+	var content: VBoxContainer = difficulty_picker.get_node("Center/Panel/Content") as VBoxContainer
+	difficulty_easy_button = content.get_node("Actions/CancelButton") as Button
+	difficulty_medium_button = content.get_node("Actions/ConfirmButton") as Button
+	difficulty_easy_button.name = "EasyButton"
+	difficulty_medium_button.name = "MediumButton"
+	difficulty_back_button = Button.new()
+	difficulty_back_button.name = "BackButton"
+	difficulty_back_button.flat = true
+	difficulty_back_button.custom_minimum_size = Vector2(0, 36)
+	difficulty_back_button.add_theme_font_size_override("font_size", 16)
+	content.add_child(difficulty_back_button)
+	difficulty_easy_button.pressed.connect(_on_difficulty_chosen.bind(EnemyMoveSelector.DIFFICULTY_EASY))
+	difficulty_medium_button.pressed.connect(_on_difficulty_chosen.bind(EnemyMoveSelector.DIFFICULTY_MEDIUM))
+	difficulty_back_button.pressed.connect(_close_difficulty_picker)
+
+func _show_difficulty_picker(allow_overwrite: bool) -> void:
+	_picker_allows_overwrite = allow_overwrite
+	difficulty_picker.show()
+	difficulty_easy_button.grab_focus()
+
+func _close_difficulty_picker() -> void:
+	difficulty_picker.hide()
+	_focus_new_game_button()
+
+func _on_difficulty_chosen(difficulty: String) -> void:
+	difficulty_picker.hide()
+	_start_random_journey(_picker_allows_overwrite, difficulty)
+
 func _setup_run_controls() -> void:
 	overwrite_cancel_button.pressed.connect(_close_overwrite_confirmation)
 	overwrite_confirm_button.pressed.connect(_confirm_overwrite)
@@ -477,7 +527,7 @@ func _close_overwrite_confirmation() -> void:
 
 func _confirm_overwrite() -> void:
 	overwrite_confirmation.hide()
-	_start_random_journey(true)
+	_show_difficulty_picker(true)
 
 func _refresh_run_buttons() -> void:
 	continue_button.disabled = not run_manager.can_continue()
@@ -486,11 +536,11 @@ func _refresh_run_buttons() -> void:
 func _on_active_run_changed(_run_state: RunState) -> void:
 	_refresh_run_buttons()
 
-func _start_random_journey(allow_overwrite: bool = false) -> void:
+func _start_random_journey(allow_overwrite: bool = false, difficulty: String = EnemyMoveSelector.DIFFICULTY_EASY) -> void:
 	var run_seed: int = _debug_seed_override()
 	if run_seed == 0:
 		run_seed = _generate_random_seed()
-	if not run_manager.create_run(run_seed, RunState.MODE_STANDARD, allow_overwrite):
+	if not run_manager.create_run(run_seed, RunState.MODE_STANDARD, allow_overwrite, difficulty):
 		push_error(Localization.text("SAVE_ERROR"))
 		return
 	get_tree().change_scene_to_file(run_manager.resume_scene_path())
@@ -608,7 +658,7 @@ func _on_new_game_pressed() -> void:
 	if run_manager.can_continue():
 		_show_overwrite_confirmation()
 		return
-	_start_random_journey(false)
+	_show_difficulty_picker(false)
 
 func _on_continue_pressed() -> void:
 	var error: Error = run_manager.ensure_opening_draft_pending()

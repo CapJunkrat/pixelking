@@ -24,7 +24,9 @@ func _run() -> void:
 	manager.begin_deployment()
 	manager.confirm_deployment()
 	var game_state: Node = root.get_node("GameState")
+	manager.current_run.ai_difficulty = EnemyMoveSelector.DIFFICULTY_MEDIUM
 	_expect(manager.start_current_battle() == OK, "confirmed Run deployment initializes prototype battle")
+	_expect(str(game_state.get("ai_difficulty")) == EnemyMoveSelector.DIFFICULTY_MEDIUM, "the battle's enemy plays at the journey's difficulty")
 	var battle_scene: PackedScene = load("res://scenes/battle/BattleScene.tscn") as PackedScene
 	var node_before: MapNodeState = manager.current_map_node()
 	var army_before: Array = EncounterDefDatabase.for_node(manager.current_run, node_before).enemy_placements.duplicate(true)
