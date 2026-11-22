@@ -134,11 +134,57 @@ func _fill(definition: PieceDef, color: int, subtitle: String, accent: Color, fa
 	if not traits.is_empty():
 		_body.add_child(_label("\n".join(traits), 11, GOLD_SOFT))
 
+	var recipe: FusionRecipeDef = fusion_recipe_for(definition.id)
+	if recipe != null:
+		_body.add_child(_fusion_path(recipe, color))
+
 	if not status.is_empty():
 		_body.add_child(HSeparator.new())
 		_body.add_child(_label("\n".join(status), 11, INK))
 	_body.add_child(_label(_t("PIECE_INFO_CLOSE"), 10, MUTED))
 	visible = true
+
+## The recipe that fuses into `piece_id`, or null when no recipe makes it.
+static func fusion_recipe_for(piece_id: String) -> FusionRecipeDef:
+	for recipe: FusionRecipeDef in FusionRecipeDatabase.all_defs():
+		if String(recipe.result_piece_def_id) == piece_id:
+			return recipe
+	return null
+
+## "Fusion: [A] A + [B] B", each ingredient with its portrait.
+func _fusion_path(recipe: FusionRecipeDef, color: int) -> HFlowContainer:
+	var row: HFlowContainer = HFlowContainer.new()
+	row.name = "FusionPath"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("h_separation", 4)
+	row.add_theme_constant_override("v_separation", 2)
+	row.add_child(_inline_label(_t("PIECE_INFO_FUSION"), GOLD))
+	var skins: Node = get_node("/root/PieceSkinManager")
+	for index: int in range(recipe.ingredient_piece_def_ids.size()):
+		var ingredient_id: String = String(recipe.ingredient_piece_def_ids[index])
+		var ingredient: PieceDef = PieceDefDatabase.get_def(ingredient_id)
+		if index > 0:
+			row.add_child(_inline_label("+", MUTED))
+		var icon: TextureRect = TextureRect.new()
+		icon.texture = skins.call("piece_texture", &"white" if color == GameRules.PieceColor.WHITE else &"black", StringName(ingredient_id)) as Texture2D
+		icon.custom_minimum_size = Vector2(20, 20)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(icon)
+		row.add_child(_inline_label(_t(String(ingredient.display_name_key)) if ingredient != null else ingredient_id, INK))
+	return row
+
+func _inline_label(text: String, color: Color) -> Label:
+	var label: Label = Label.new()
+	label.text = text
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.custom_minimum_size = Vector2(0, 20)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 11)
+	label.add_theme_color_override("font_color", color)
+	return label
 
 ## What is true of this piece right now, one line each.
 func status_lines(board: BoardState, square: Vector2i) -> Array[String]:

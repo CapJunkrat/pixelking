@@ -525,6 +525,7 @@ const STRINGS := {
 	"PIECE_INFO_ENEMY": "敌方棋子",
 	"PIECE_INFO_KING": "国王",
 	"PIECE_INFO_CLOSE": "点击任意处关闭。",
+	"PIECE_INFO_FUSION": "融合：",
 	"PIECE_INFO_LEGEND_MOVE": "移动",
 	"PIECE_INFO_LEGEND_ATTACK": "吃子",
 	"PIECE_INFO_LEGEND_BOTH": "两者",

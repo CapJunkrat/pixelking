@@ -555,6 +555,7 @@ const LOCALES := {
 			"PIECE_INFO_ENEMY": "Enemy piece",
 			"PIECE_INFO_KING": "King",
 			"PIECE_INFO_CLOSE": "Tap anywhere to close.",
+			"PIECE_INFO_FUSION": "Fusion:",
 			"PIECE_INFO_LEGEND_MOVE": "Move",
 			"PIECE_INFO_LEGEND_ATTACK": "Capture",
 			"PIECE_INFO_LEGEND_BOTH": "Both",

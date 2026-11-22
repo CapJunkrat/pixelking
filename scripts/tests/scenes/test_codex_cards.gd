@@ -65,6 +65,21 @@ func _run() -> void:
 			if card_rect.size.y > SCREEN.y - 40.0 or card_rect.position.x < 0.0 or card_rect.end.x > SCREEN.x:
 				too_tall.append("%s %.0fx%.0f" % [piece_id, card_rect.size.x, card_rect.size.y])
 		expect(too_tall.is_empty(), "%s: every piece's details fit on one screen %s" % [locale, too_tall])
+		# Fused pieces show their recipe; others show none.
+		details.call("show_definition", PieceDefDatabase.get_def("swift_courier"))
+		var path: Node = details.find_child("FusionPath", true, false)
+		var path_text: String = ""
+		if path != null:
+			for child: Node in path.get_children():
+				if child is Label:
+					path_text += (child as Label).text
+		var assassin: String = str(localization.call("text", "PIECE_ASSASSIN"))
+		var bishop: String = str(localization.call("text", "PIECE_BISHOP"))
+		expect(path != null and assassin in path_text and bishop in path_text, "%s: the Swift Courier shows its fusion path (%s)" % [locale, path_text])
+		details.call("show_definition", PieceDefDatabase.get_def("pawn"))
+		expect(details.find_child("FusionPath", true, false) == null, "%s: a piece no recipe makes shows no fusion path" % locale)
+		for recipe: FusionRecipeDef in FusionRecipeDatabase.all_defs():
+			expect(details.call("fusion_recipe_for", String(recipe.result_piece_def_id)) != null, "%s has a fusion path" % recipe.result_piece_def_id)
 		details.call("close")
 		menu.queue_free()
 		await _frames(2)
