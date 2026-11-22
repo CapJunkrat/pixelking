@@ -14,20 +14,47 @@ func test_battle_reward_generation_remains_deterministic() -> void:
 	assert(first_rng.snapshot_states() == second_rng.snapshot_states())
 	assert(str(first_run.pending_choice.get("type", "")) == "battle_reward")
 	assert(str(first_run.pending_choice.get("title", "")) == RunContentDatabase.battle_reward_table().title)
-	assert((first_run.pending_choice.get("options", []) as Array).size() == 3)
-	# Gold is paid at once; the three options are only extras, never gold.
+	assert((first_run.pending_choice.get("options", []) as Array).size() == 4)
+	# Gold is paid at once; three extras follow, then gold instead of an extra.
 	var table: BattleRewardTableDef = RunContentDatabase.battle_reward_table()
 	assert(first_run.gold >= _base_run(123456).gold + table.normal_gold_min)
 	assert(int(first_run.pending_choice.get("gold_awarded", 0)) == first_run.gold - _base_run(123456).gold)
-	for option: Variant in first_run.pending_choice.get("options", []) as Array:
-		assert(str(((option as Dictionary).get("payload", {}) as Dictionary).get("kind", "")) != "gold")
+	var reward_options: Array = first_run.pending_choice.get("options", []) as Array
+	for index: int in range(3):
+		assert(str(((reward_options[index] as Dictionary).get("payload", {}) as Dictionary).get("kind", "")) != "gold")
+	var take_gold: Dictionary = reward_options[3] as Dictionary
+	assert(str(take_gold.get("id", "")) == "take_gold")
+	assert(str((take_gold.get("payload", {}) as Dictionary).get("kind", "")) == "gold")
+	assert(int((take_gold.get("payload", {}) as Dictionary).get("amount", 0)) == 12, "Act 1 normal battles offer 12 gold instead")
+
+func test_take_gold_amount_grows_with_the_act() -> void:
+	var run_state: RunState = _base_run(777)
+	assert(BattleRewardOfferGenerator.take_gold_amount(run_state, false) == 12)
+	assert(BattleRewardOfferGenerator.take_gold_amount(run_state, true) == 20)
+	run_state.act_index = 2
+	assert(BattleRewardOfferGenerator.take_gold_amount(run_state, false) == 18, "+3 per act past the first")
+	assert(BattleRewardOfferGenerator.take_gold_amount(run_state, true) == 26)
+	run_state.challenger_slots.append(&"lucky_coin")
+	assert(BattleRewardOfferGenerator.take_gold_amount(run_state, false) == 18, "the Lucky Coin does not raise it")
+
+func test_taking_gold_skips_the_piece() -> void:
+	var run_state: RunState = _base_run(31337)
+	var service: RunContentService = RunContentService.new()
+	assert(BattleRewardOfferGenerator.new().generate(run_state, _rng(run_state.run_seed), FusionService.new(), RunRewardService.new(), false) == OK)
+	var roster_before: int = run_state.player_roster.size()
+	var gold_before: int = run_state.gold
+	assert(service.submit(run_state, _rng(run_state.run_seed), MapProgressService.new(), DeploymentService.new(), "take_gold") == OK)
+	assert(run_state.gold == gold_before + 12)
+	assert(run_state.player_roster.size() == roster_before, "taking gold recruits nobody")
+	assert(run_state.pending_choice.is_empty(), "the reward is settled")
 
 func test_elite_reward_offers_three_epic_pieces() -> void:
 	var run_state: RunState = _base_run(424242)
 	var generator: BattleRewardOfferGenerator = BattleRewardOfferGenerator.new()
 	assert(generator.generate(run_state, _rng(run_state.run_seed), FusionService.new(), RunRewardService.new(), true) == OK)
 	var options: Array = run_state.pending_choice.get("options", []) as Array
-	assert(options.size() == 3)
+	assert(options.size() == 4)
+	assert(int(((options.pop_back() as Dictionary).get("payload", {}) as Dictionary).get("amount", 0)) == 20, "elite rewards end with 20 gold instead")
 	var seen: Array[String] = []
 	for option_value: Variant in options:
 		var payload: Dictionary = (option_value as Dictionary).get("payload", {}) as Dictionary

@@ -622,6 +622,7 @@ const CONTENT := {
 	"Camp": "营地",
 	"Choose one extra reward. Offers are saved and cannot be rerolled.": "选择一份额外奖励。选项已保存，无法重新刷新。",
 	"Choose one Epic piece to join your army.": "从三名史诗棋子中选择一名加入你的军队。",
+	"Choose one Epic piece to join your army, or take gold instead.": "从三名史诗棋子中选择一名加入你的军队，或改拿金币。",
 	"Choose one preparation before continuing.": "继续前进前，选择一项准备。",
 	"Cold and clear. Your retry is restored.": "清冽透彻。你的重试机会恢复了。",
 	"Drill your {target}": "训练你的{target}",

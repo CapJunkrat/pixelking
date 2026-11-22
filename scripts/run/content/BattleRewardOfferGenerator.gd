@@ -1,6 +1,21 @@
 class_name BattleRewardOfferGenerator
 extends RefCounted
 
+## The last option of every battle reward: gold instead of a piece or an extra. Elite
+## and Boss rewards pay the elite amount; each act past the first adds ACT_STEP.
+const TAKE_GOLD_NORMAL := 12
+const TAKE_GOLD_ELITE := 20
+const TAKE_GOLD_ACT_STEP := 3
+
+## Gold paid by the "take gold" option. The Lucky Coin does not raise it.
+static func take_gold_amount(run_state: RunState, elite: bool) -> int:
+	var base: int = TAKE_GOLD_ELITE if elite else TAKE_GOLD_NORMAL
+	return base + TAKE_GOLD_ACT_STEP * maxi(0, run_state.act_index)
+
+static func take_gold_option(run_state: RunState, elite: bool) -> Dictionary:
+	var amount: int = take_gold_amount(run_state, elite)
+	return RunChoiceBuilder.option("take_gold", "Take %d Gold" % amount, "gold", {"amount": amount})
+
 const BattleRewardTableDefType = preload("res://scripts/content/BattleRewardTableDef.gd")
 
 func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionService, reward_service: RunRewardService, elite: bool) -> Error:
@@ -42,17 +57,18 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 			offered_relics.append(relic)
 			options.append(RunChoiceBuilder.option("relic_%s" % relic, RunContentDatabase.relic_label(relic), "relic", {"relic_id": String(relic)}))
 			continue
-		# No relic left to offer: another recruit instead (never a gold option).
+		# No relic left to offer: another recruit instead.
 		var extra_id: String = RarityOdds.pick(table.recruit_piece_ids, rng, &"reward_rng", progress)
 		var extra_option_id: String = "piece_%s" % extra_id
 		if RunChoiceBuilder.find_option({"options": options}, extra_option_id).is_empty():
 			options.append(RunChoiceBuilder.option(extra_option_id, "Recruit %s" % reward_service.definition_label(extra_id), "piece", {"piece_def_id": extra_id}))
+	options.append(take_gold_option(run_state, false))
 	var pending: Dictionary = RunChoiceBuilder.pending("battle_reward", table.title, "+%d Gold earned. %s" % [gold_amount, table.description], options, false)
 	pending["gold_awarded"] = gold_amount
 	run_state.pending_choice = pending
 	return OK
 
-const ELITE_DESCRIPTION := "Choose one Epic piece to join your army."
+const ELITE_DESCRIPTION := "Choose one Epic piece to join your army, or take gold instead."
 const ELITE_CHOICES := 3
 
 ## An elite win (or a cleared act) offers three different Epic pieces; pick one.
@@ -63,6 +79,7 @@ func _elite_offer(run_state: RunState, rng: RunRngService, reward_service: RunRe
 		var piece_id: String = pool[rng.pick_index(&"reward_rng", pool.size())]
 		pool.erase(piece_id)
 		options.append(RunChoiceBuilder.option("piece_%s" % piece_id, "Recruit %s" % reward_service.definition_label(piece_id), "piece", {"piece_def_id": piece_id}))
+	options.append(take_gold_option(run_state, true))
 	var pending: Dictionary = RunChoiceBuilder.pending("battle_reward", table.title, "+%d Gold earned. %s" % [gold_amount, ELITE_DESCRIPTION], options, false)
 	pending["gold_awarded"] = gold_amount
 	run_state.pending_choice = pending
