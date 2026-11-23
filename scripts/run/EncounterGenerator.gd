@@ -26,10 +26,12 @@ const MAX_PIECES := 12
 ## Pieces besides the King from Act 2 on, by act (0 = Act 1; later acts use the last
 ## entry): [min, max] for a normal battle, then for an elite one (its captain counted).
 ## Boss armies short of the elite minimum are topped up (fill_boss_army).
+## Tuned with balance_sim: one piece more at every step made Act 2 and later nearly
+## unwinnable for the simulated player.
 const ARMY_SIZE_FROM_ACT: Array = [
-	{"act": 3, "normal": [6, 7], "elite": [7, 8]},
-	{"act": 2, "normal": [5, 6], "elite": [6, 7]},
-	{"act": 1, "normal": [5, 5], "elite": [6, 6]},
+	{"act": 3, "normal": [5, 6], "elite": [6, 7]},
+	{"act": 2, "normal": [4, 5], "elite": [5, 6]},
+	{"act": 1, "normal": [4, 4], "elite": [5, 5]},
 ]
 
 ## [min, max] pieces besides the King for `tier` in `act`; empty in Act 1, which buys
