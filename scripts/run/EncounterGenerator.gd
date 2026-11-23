@@ -1,11 +1,13 @@
 class_name EncounterGenerator
 extends RefCounted
 
-## Builds the enemy army for normal and elite battles from a strength budget that
-## grows with the map layer, instead of one fixed full army. Early battles field a few
-## basic pieces; later ones bring special and rare pieces. The enemy King always has
-## pieces in front of it. The same seed always gives the same army. Everything stands in
-## the enemy's corner (DeploymentState.is_enemy_zone): the top three ranks, right columns.
+## Builds the enemy army for normal and elite battles. In Act 1 pieces are bought from
+## a strength budget that grows with the map layer, so early battles field a few basic
+## pieces. From Act 2 on the army size is set first (ARMY_SIZE_FROM_ACT) and every piece
+## is rolled by the act's rarity odds: with the rarity floor, buying from a budget left
+## Act 2 with only two or three pieces. The enemy King always has pieces in front of
+## it. The same seed always gives the same army. Everything stands in the enemy's corner
+## (DeploymentState.is_enemy_zone): the top three ranks, right columns.
 
 const BOARD_SIZE := 8
 const KING_FILES: Array[int] = [5]
@@ -21,6 +23,22 @@ const LATE_ACT_STEP := 5.0
 const EARLY_CAP_MULTIPLIER := 1.0
 const EARLY_LAYERS := 2
 const MAX_PIECES := 12
+## Pieces besides the King from Act 2 on, by act (0 = Act 1; later acts use the last
+## entry): [min, max] for a normal battle, then for an elite one (its captain counted).
+## Boss armies short of the elite minimum are topped up (fill_boss_army).
+const ARMY_SIZE_FROM_ACT: Array = [
+	{"act": 3, "normal": [6, 7], "elite": [7, 8]},
+	{"act": 2, "normal": [5, 6], "elite": [6, 7]},
+	{"act": 1, "normal": [5, 5], "elite": [6, 6]},
+]
+
+## [min, max] pieces besides the King for `tier` in `act`; empty in Act 1, which buys
+## from the strength budget instead.
+static func army_size(tier: StringName, act: int) -> Array:
+	for step: Dictionary in ARMY_SIZE_FROM_ACT:
+		if act >= int(step["act"]):
+			return step["elite" if tier == &"elite" else "normal"]
+	return []
 
 ## Pieces unlock by how far into the map the battle is (0 = first layer, 1 = last).
 const POOLS := [
@@ -138,6 +156,9 @@ static func generate_at(tier: StringName, stage: float, early: bool, seed_value:
 		pool.erase("pawn")
 	pool = _above_floor(_with_fusions(pool, act), act)
 	var king_file: int = KING_FILES[rng.randi_range(0, KING_FILES.size() - 1)]
+	var size_range: Array = army_size(tier, act)
+	if not size_range.is_empty():
+		return _place_sized_army(tier, act, pool, size_range, king_file, rng)
 	var army: Array[String] = []
 	if tier == &"elite":
 		var captains: Array[String] = _above_floor(ELITE_CAPTAINS, act)
@@ -172,6 +193,27 @@ static func generate_at(tier: StringName, stage: float, early: bool, seed_value:
 			break
 		army.append(pick)
 		remaining -= _value(pick)
+	return _place(army, king_file, guard_slots)
+
+## From Act 2 on: an army of a size drawn from `size_range`, the captain (elite) and
+## the King's single guard included, every other piece rolled by the act's rarity odds
+## with no strength budget. The army gets stronger with the act through its odds.
+static func _place_sized_army(tier: StringName, act: int, pool: Array[String], size_range: Array, king_file: int, rng: RandomNumberGenerator) -> Array[Dictionary]:
+	var target: int = mini(MAX_PIECES, rng.randi_range(int(size_range[0]), int(size_range[1])))
+	var army: Array[String] = []
+	if tier == &"elite":
+		var captains: Array[String] = _above_floor(ELITE_CAPTAINS, act)
+		if captains.is_empty():
+			captains = ELITE_CAPTAINS
+		army.append(captains[rng.randi_range(0, captains.size() - 1)])
+	var guard_slots: Array[int] = []
+	while army.size() < target:
+		var pick: String = _pick_by_rarity(pool, act, -1, rng)
+		if pick.is_empty():
+			break
+		if guard_slots.is_empty():
+			guard_slots.append(army.size())
+		army.append(pick)
 	return _place(army, king_file, guard_slots)
 
 static func rarity_odds(act: int) -> Array:
@@ -229,6 +271,47 @@ static func upgrade_boss_pawns(placements: Array[Dictionary], act: int, seed_val
 			if not pick.is_empty():
 				copy["piece_def_id"] = pick
 		result.append(copy)
+	return result
+
+## From Act 2 on, a Boss army with fewer pieces (besides the King) than the act's
+## elite minimum gets more, rolled by the act's rarity odds, on free squares of the
+## enemy corner nearest the front. Act 1 Bosses keep their army.
+static func fill_boss_army(placements: Array[Dictionary], act: int, seed_value: int) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var taken: Dictionary = {}
+	var count: int = 0
+	for placement: Dictionary in placements:
+		result.append(placement.duplicate(true))
+		taken[DeploymentState.position_from_value(placement.get("position", {}))] = true
+		if str(placement.get("piece_def_id", "")) != "king":
+			count += 1
+	var size_range: Array = army_size(&"elite", act)
+	if size_range.is_empty():
+		return result
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var pool: Array[String] = []
+	for band: Dictionary in POOLS:
+		for id: String in band["ids"]:
+			if id != "pawn":
+				pool.append(id)
+	if act >= 2:
+		pool.append_array(LEGENDARY_ENEMIES)
+	pool = _above_floor(_with_fusions(pool, act), act)
+	var index: int = 0
+	while count < int(size_range[0]):
+		var square: Vector2i = _free(taken, [3, 4, 5, 6, 7], THIRD_RANK)
+		if square.x < 0:
+			square = _free(taken, [3, 4, 5, 6, 7], FRONT_RANK)
+		if square.x < 0:
+			square = _free(taken, [3, 4, 5, 6, 7], BACK_RANK)
+		var pick: String = _pick_by_rarity(pool, act, -1, rng)
+		if square.x < 0 or pick.is_empty():
+			break
+		taken[square] = true
+		result.append({"placement_id": "fill_%d" % index, "piece_def_id": pick, "position": {"x": square.x, "y": square.y}})
+		count += 1
+		index += 1
 	return result
 
 ## `guard_slots`: the indices in `army` of the pieces that stand in front of the King.

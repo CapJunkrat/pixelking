@@ -29,6 +29,9 @@ func ensure_deployment(run_state: RunState) -> Error:
 		# From Act 2 on, a Boss's pieces below the act's rarity floor are swapped for rarer ones.
 		deployment.enemy_placements = EncounterGenerator.upgrade_boss_pawns(
 			deployment.enemy_placements, run_state.act_index, run_state.current_encounter_seed)
+		# ...and from Act 2 on, one short of the act's elite army size is topped up.
+		deployment.enemy_placements = EncounterGenerator.fill_boss_army(
+			deployment.enemy_placements, run_state.act_index, run_state.current_encounter_seed + 1)
 	if encounter.is_boss and run_state.act_index >= RunState.ACT_COUNT:
 		# Each act past the third brings the Boss more reinforcements.
 		deployment.enemy_placements = EncounterGenerator.reinforce(

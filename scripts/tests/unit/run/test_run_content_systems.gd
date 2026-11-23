@@ -134,6 +134,7 @@ func _test_enemy_rarity() -> void:
 	_expect(rare_by_act[2] > rare_by_act[1] and rare_by_act[1] > rare_by_act[0], "each act fields more epic and legendary pieces than the last")
 	_test_enemy_rarity_floor()
 	_test_enemy_fusions()
+	_test_enemy_army_size()
 	var boss: Array[Dictionary] = []
 	for x: int in range(3):
 		boss.append({"placement_id": "p%d" % x, "piece_def_id": "pawn", "position": {"x": 4 + x, "y": 6}})
@@ -153,6 +154,36 @@ func _test_enemy_rarity() -> void:
 	_expect(pawns_one == 3 and act_one[3]["piece_def_id"] == "rook", "Act 1 Bosses keep their army")
 	_expect(pawns_two == 0 and act_two[3]["piece_def_id"] == "rook", "Act 2 Bosses lose every pawn but keep their Rares")
 	_expect(act_four[3]["piece_def_id"] != "rook" and act_four[4]["piece_def_id"] == "king", "Act 4 Bosses swap their Rares too, never the King")
+
+## From Act 2 on the army size is fixed by act, whatever the pieces cost: Act 2 always
+## fields 5 (normal) and 6 (elite) pieces besides the King, later acts more.
+func _test_enemy_army_size() -> void:
+	var sizes_ok: bool = true
+	for act: int in range(1, 5):
+		for tier: StringName in [&"normal", &"elite"]:
+			var size_range: Array = EncounterGenerator.army_size(tier, act)
+			for seed_value: int in range(30):
+				for local: float in [0.0, 0.9]:
+					var army: Array[Dictionary] = EncounterGenerator.generate_at(tier, (float(act) + local) / 3.0, false, seed_value, 8, act)
+					var count: int = army.size() - 1
+					sizes_ok = sizes_ok and count >= int(size_range[0]) and count <= int(size_range[1])
+	_expect(sizes_ok, "from Act 2 on, every generated army has the act's size")
+	_expect(EncounterGenerator.army_size(&"normal", 1) == [5, 5] and EncounterGenerator.army_size(&"elite", 1) == [6, 6], "Act 2 fields 5 pieces (normal) and 6 (elite)")
+	_expect(EncounterGenerator.army_size(&"normal", 2) == [5, 6] and EncounterGenerator.army_size(&"elite", 4) == [7, 8], "later acts field more")
+	_expect(EncounterGenerator.army_size(&"normal", 0).is_empty(), "Act 1 still buys from the strength budget")
+	var small_boss: Array[Dictionary] = [
+		{"placement_id": "k", "piece_def_id": "king", "position": {"x": 5, "y": 7}},
+		{"placement_id": "r", "piece_def_id": "rook", "position": {"x": 5, "y": 6}},
+	]
+	_expect(EncounterGenerator.fill_boss_army(small_boss, 0, 3).size() == 2, "Act 1 Bosses are never topped up")
+	var filled: Array[Dictionary] = EncounterGenerator.fill_boss_army(small_boss, 1, 3)
+	var squares: Dictionary = {}
+	var fill_ok: bool = filled.size() - 1 == 6
+	for placement: Dictionary in filled:
+		var square: Vector2i = DeploymentState.position_from_value(placement.get("position", {}))
+		fill_ok = fill_ok and DeploymentState.is_enemy_zone(square, 8) and not squares.has(square) and EncounterGenerator.meets_rarity_floor(str(placement["piece_def_id"]), 1)
+		squares[square] = true
+	_expect(fill_ok, "an Act 2 Boss army is topped up to 6 pieces on free enemy squares, above the rarity floor")
 
 ## Epic fusion results join enemy armies at Act 3, every fusion result at Act 5, fused
 ## Kings never.
