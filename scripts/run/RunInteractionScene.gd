@@ -32,6 +32,12 @@ var _badge_type: StringName = &"event"
 var _gold_label: Label = null
 var _outcome: PanelContainer = null
 var _vignette: EventVignette = null
+## The card of a piece held down in a fusion recipe (a PieceInfoPanel). Loaded when
+## the screen is built, not named as a type: that card uses the Localization autoload
+## by name, and tests that load this script before the autoloads exist would fail to
+## compile it.
+const PIECE_INFO_SCRIPT := "res://scripts/battle/PieceInfoPanel.gd"
+var _piece_info: Control = null
 
 func _ready() -> void:
 	_build()
@@ -88,6 +94,9 @@ func _build() -> void:
 	_outcome.add_theme_stylebox_override("panel", _box(PANEL, GOLD, 8, 14))
 	layout.add_child(_outcome)
 	layout.move_child(_outcome, scroll.get_index() + 1)
+	_piece_info = (load(PIECE_INFO_SCRIPT) as GDScript).new() as Control
+	_piece_info.name = "PieceInfo"
+	add_child(_piece_info)
 
 func _render() -> void:
 	for child: Node in choices.get_children():
@@ -138,18 +147,24 @@ func _card(option: Dictionary) -> Button:
 		var fill: Color = PANEL_2.lightened(0.07) if state == "hover" else (PANEL if state == "disabled" else PANEL_2)
 		var border: Color = GOLD if state in ["hover", "focus", "pressed"] else LINE
 		card.add_theme_stylebox_override(state, _box(fill, border, 8, 8))
-	card.pressed.connect(_submit.bind(str(option.get("id", ""))))
+	# A fusion recipe is drawn as its three pieces (A + B = result), each held down for
+	# its card; the release that ends a hold does not pick the choice.
+	var recipe_view: FusionRecipeView = _recipe_view(payload) if kind == "fusion" else null
+	if recipe_view != null:
+		card.button_down.connect(recipe_view.reset_hold)
+	card.pressed.connect(_on_card_pressed.bind(str(option.get("id", "")), recipe_view))
 	var row: HBoxContainer = HBoxContainer.new()
 	row.set_anchors_preset(Control.PRESET_FULL_RECT)
 	row.offset_left = 8
 	row.offset_right = -8
 	row.add_theme_constant_override("separation", 10)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var icon: Control = _option_icon(kind, payload)
-	icon.custom_minimum_size = Vector2(50, 50)
-	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(icon)
+	if recipe_view == null:
+		var icon: Control = _option_icon(kind, payload)
+		icon.custom_minimum_size = Vector2(50, 50)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(icon)
 	var text: VBoxContainer = VBoxContainer.new()
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -167,6 +182,8 @@ func _card(option: Dictionary) -> Button:
 	var name_label: Label = _label(title, 14, INK if enabled else MUTED)
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.add_child(name_label)
+	if recipe_view != null:
+		text.add_child(recipe_view)
 	var detail: String = _detail(kind, payload)
 	if not detail.is_empty():
 		var detail_label: Label = _label(detail, 11, MUTED)
@@ -203,8 +220,29 @@ func _card(option: Dictionary) -> Button:
 	var width_factor: float = 1.8 if localization != null and bool(localization.call("is_chinese")) else 1.0
 	var title_lines: int = ceili(float(title.length()) * width_factor / 30.0)
 	var detail_lines: int = ceili(float(detail.length()) * width_factor / 40.0)
-	card.custom_minimum_size.y = maxf(66.0, 16.0 + title_lines * 19.0 + detail_lines * 15.0)
+	var recipe_height: float = FusionRecipeView.PIECE_SIZE + 4.0 if recipe_view != null else 0.0
+	card.custom_minimum_size.y = maxf(66.0, 16.0 + title_lines * 19.0 + detail_lines * 15.0 + recipe_height)
 	return card
+
+func _recipe_view(payload: Dictionary) -> FusionRecipeView:
+	var recipe: FusionRecipeDef = FusionRecipeDatabase.get_def(StringName(str(payload.get("recipe_id", ""))))
+	if recipe == null:
+		return null
+	var view: FusionRecipeView = FusionRecipeView.new()
+	view.setup(recipe, _piece_texture)
+	view.info_requested.connect(_on_recipe_piece_held)
+	view.info_released.connect(func() -> void: _piece_info.call("close"))
+	return view
+
+func _on_recipe_piece_held(piece_def_id: String) -> void:
+	var definition: PieceDef = PieceDefDatabase.get_def(piece_def_id)
+	if definition != null:
+		_piece_info.call("show_definition", definition)
+
+func _on_card_pressed(choice_id: String, recipe_view: FusionRecipeView) -> void:
+	if recipe_view != null and recipe_view.consume_hold():
+		return
+	_submit(choice_id)
 
 func _detail(kind: String, payload: Dictionary) -> String:
 	if payload.has("detail"):
