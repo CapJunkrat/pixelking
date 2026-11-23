@@ -110,6 +110,39 @@ func test_shop_generates_an_immediately_eligible_fusion_recipe() -> void:
 			assert(int(payload.get("price", -1)) == RunContentDatabase.shop_pool().fusion_price)
 	assert(found_recipe)
 
+func test_missing_fusion_materials() -> void:
+	var run_state: RunState = _base_run(424242)
+	assert(ShopOfferGenerator.missing_materials(run_state).is_empty(), "owning only the King starts no recipe")
+	run_state.allocate_piece("pawn", false)
+	var missing: Array[String] = ShopOfferGenerator.missing_materials(run_state)
+	assert("knight" in missing and "king" not in missing and "pawn" not in missing, "a Pawn starts the Lancer: the Knight is missing")
+	run_state.allocate_piece("knight", false)
+	missing = ShopOfferGenerator.missing_materials(run_state)
+	assert("knight" not in missing and "bishop" in missing and "rook" in missing, "a complete recipe needs nothing; the Knight starts others")
+
+func test_shop_favors_missing_materials_even_late() -> void:
+	# Late in Act 3 a Common is rare on the shelf, but a missing one still turns up often.
+	var with_missing: int = 0
+	var without_missing: int = 0
+	for seed_value: int in range(120):
+		for wants_pawn: bool in [true, false]:
+			var run_state: RunState = _base_run(9000 + seed_value)
+			run_state.act_index = 2
+			run_state.gold = 100
+			run_state.allocate_piece("knight" if wants_pawn else "sentry", false)
+			assert(ShopOfferGenerator.new().generate(run_state, _rng(run_state.run_seed), FusionService.new(), RunRewardService.new()) == OK)
+			for option_value: Variant in run_state.pending_choice.get("options", []) as Array:
+				var payload: Dictionary = (option_value as Dictionary).get("payload", {}) as Dictionary
+				if str(payload.get("kind", "")) == "piece" and str(payload.get("piece_def_id", "")) == "pawn":
+					if wants_pawn:
+						with_missing += 1
+					else:
+						without_missing += 1
+	# A Knight leaves four pieces missing (Pawn, Bishop, Rook, Queen), so the Pawn gets
+	# about a tenth of each recruit slot on top of its usual odds: roughly a third of shops.
+	assert(with_missing >= 25, "a missing Pawn is offered in many late shops (%d of 120)" % with_missing)
+	assert(with_missing > without_missing * 3, "far more often than when no recipe needs it (%d vs %d)" % [with_missing, without_missing])
+
 func test_rest_site_uses_catalog_definition() -> void:
 	var run_state: RunState = _base_run(112233)
 	run_state.allocate_piece("pawn", false)
