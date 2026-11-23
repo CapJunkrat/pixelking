@@ -28,11 +28,11 @@ func _run() -> void:
 	log_panel.consume(result.events)
 	_expect(not log_panel.lines.is_empty(), "battle log derives readable lines from BattleEvents")
 	_expect("knight" in log_panel.log_label.text.to_lower(), "battle log describes the moved piece")
-	_expect(BattleBoardView.presentation_kind_for(Content.piece("portal_mage")) == &"teleport", "teleport rules select the portal presentation")
-	_expect(BattleBoardView.presentation_kind_for(Content.piece("manticore")) == &"bent_ray", "bent-ray rules select a turning presentation")
-	_expect(BattleBoardView.presentation_kind_for(Content.piece("ember_bird")) == &"lob", "jumping slide rules select a lob presentation")
-	_expect(BattleBoardView.presentation_kind_for(Content.piece("gorgon")) == &"petrify", "immobilizing traits select a petrify presentation")
-	_expect(BattleBoardView.presentation_kind_for(Content.piece("assassin"), true) == &"chained_capture", "capture-action traits select a chained strike presentation")
+	_expect(BoardEventPresenter.presentation_kind_for(Content.piece("portal_mage")) == &"teleport", "teleport rules select the portal presentation")
+	_expect(BoardEventPresenter.presentation_kind_for(Content.piece("manticore")) == &"bent_ray", "bent-ray rules select a turning presentation")
+	_expect(BoardEventPresenter.presentation_kind_for(Content.piece("ember_bird")) == &"lob", "jumping slide rules select a lob presentation")
+	_expect(BoardEventPresenter.presentation_kind_for(Content.piece("gorgon")) == &"petrify", "immobilizing traits select a petrify presentation")
+	_expect(BoardEventPresenter.presentation_kind_for(Content.piece("assassin"), true) == &"chained_capture", "capture-action traits select a chained strike presentation")
 	var strike_expectations: Dictionary = {
 		"pawn": [PieceDef.StrikeType.BLUNT, PieceDef.WeightClass.LIGHT],
 		"knight": [PieceDef.StrikeType.CRUSH, PieceDef.WeightClass.MEDIUM],

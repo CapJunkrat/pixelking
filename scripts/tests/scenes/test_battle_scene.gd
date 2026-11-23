@@ -88,7 +88,7 @@ func _run() -> void:
 	await process_frame
 	_expect(board_view.inspected_square == Vector2i(1, 7) and battle.selected_square == Vector2i(-1, -1), "tapping an enemy knight shows its reach and selects nothing")
 	_expect(Vector2i(2, 5) in board_view.inspect_moves and board_view.legal_targets.is_empty(), "its moves are listed apart from your own move hints")
-	_expect(board_view.INSPECT_DOT != board_view.MOVE_DOT and board_view.INSPECT_THREAT != board_view.CAPTURE_TINT, "enemy reach is drawn in different colours from your own")
+	_expect(BoardMarkerLayer.INSPECT_DOT != BoardMarkerLayer.MOVE_DOT and BoardMarkerLayer.INSPECT_THREAT != BoardMarkerLayer.CAPTURE_TINT, "enemy reach is drawn in different colours from your own")
 	board_view.press_square(Vector2i(1, 7))
 	await process_frame
 	_expect(board_view.inspected_square == Vector2i(-1, -1), "tapping it again hides its reach")

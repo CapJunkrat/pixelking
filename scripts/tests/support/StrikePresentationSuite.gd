@@ -216,7 +216,7 @@ func _check_core_extras(view: BattleBoardView, layer: Node2D, battle: Node, game
 		await process_frame
 	await process_frame
 	_expect(attacks == ([&"rook", &"king"] as Array[StringName]), "the last capture plays, then the winning King blinks over and strikes the lone King")
-	_expect(BattleBoardView.execution_approach(board_for_execution(), Vector2i(4, 7), Vector2i(4, 0)) == Vector2i(4, 6), "the King appears on the free square next to its victim, nearest to where it stood")
+	_expect(BattleFinalePresenter.execution_approach(board_for_execution(), Vector2i(4, 7), Vector2i(4, 0)) == Vector2i(4, 6), "the King appears on the free square next to its victim, nearest to where it stood")
 
 	# En passant: the victim stands beside the pawn, not on the destination square.
 	view.present_events([
@@ -278,7 +278,7 @@ func _check_core_extras(view: BattleBoardView, layer: Node2D, battle: Node, game
 		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_DESTROYED, 3, 1, {"position": Vector2i(2, 4), "piece_def_id": "knight", "color": GameRules.PieceColor.BLACK, "cause": "pierce"}),
 		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_DESTROYED, 4, 1, {"position": Vector2i(2, 5), "piece_def_id": "rook", "color": GameRules.PieceColor.BLACK, "cause": "pierce"}),
 	] as Array[BattleEvent], 2.0)
-	var echoes: Array = view.get("_echo_strikes")
+	var echoes: Array = view.strikes.echo_strikes()
 	var main: StrikeDirector = view.get_node("StrikeDirector") as StrikeDirector
 	_expect(echoes.size() == 2, "each extra boomerang victim plays its own hit")
 	var aligned: bool = true
