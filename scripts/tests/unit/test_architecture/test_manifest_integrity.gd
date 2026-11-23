@@ -24,7 +24,7 @@ func _run() -> void:
 	_expect(missing_paths.is_empty(), "all manifest paths exist: %s" % [missing_paths])
 	_expect(invalid_kind_paths.is_empty(), "all manifest kinds are supported: %s" % [invalid_kind_paths])
 	_expect(unique_paths.size() == manifest_paths.size(), "manifest contains no duplicate paths")
-	for required_layer: String in ["unit", "integration", "scene", "smoke", "characterization", "e2e"]:
+	for required_layer: String in ["unit", "integration", "scene", "smoke", "e2e"]:
 		_expect(layers.has(required_layer), "manifest includes %s layer" % required_layer)
 	var discovered_paths: Array[String] = []
 	_collect_tests("res://scripts/tests", discovered_paths)

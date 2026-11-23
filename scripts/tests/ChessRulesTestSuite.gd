@@ -29,7 +29,7 @@ func run_all() -> Dictionary:
 	test_royal_tag_does_not_define_the_king()
 	test_black_pawn_double_step_uses_dynamic_board_size()
 	test_basic_standard_moves()
-	test_make_move_rejects_illegal_move()
+	test_apply_move_rejects_illegal_move()
 	test_has_any_legal_move_uses_explicit_color()
 	test_castling_success_on_small_board()
 	test_castling_requires_clear_path_and_same_color()
@@ -144,8 +144,8 @@ func test_royal_tag_does_not_define_the_king() -> void:
 	var board := _empty_board()
 	_place_kings(board, Vector2i(0, 0), Vector2i(4, 4))
 	board.set_piece(Vector2i(1, 1), ChessPiece.new(royal_guard_definition, GameRules.PieceColor.WHITE))
-	var result := board.make_move(Vector2i(1, 1), Vector2i(1, 2))
-	_assert(result["success"], "Royal non-king piece can move normally")
+	var result := BattleTestFixture.play(board, Vector2i(1, 1), Vector2i(1, 2))
+	_assert(result.success, "Royal non-king piece can move normally")
 	_assert(board.king_pos[GameRules.PieceColor.WHITE] == Vector2i(0, 0), "moving a Royal non-king does not change tracked king position")
 
 func test_black_pawn_double_step_uses_dynamic_board_size() -> void:
@@ -161,17 +161,17 @@ func test_basic_standard_moves() -> void:
 	var board := BoardState.new(8)
 	var moves := board.get_legal_moves(Vector2i(4, 1))
 	_assert(Vector2i(4, 2) in moves and Vector2i(4, 3) in moves, "test_basic_standard_moves assertion 1")
-	var result := board.make_move(Vector2i(4, 1), Vector2i(4, 3))
-	_assert(result["success"] and board.turn == GameRules.PieceColor.BLACK, "test_basic_standard_moves assertion 2")
+	var result := BattleTestFixture.play(board, Vector2i(4, 1), Vector2i(4, 3))
+	_assert(result.success and board.turn == GameRules.PieceColor.BLACK, "test_basic_standard_moves assertion 2")
 
-func test_make_move_rejects_illegal_move() -> void:
-	_log("\n-- test_make_move_rejects_illegal_move --")
+func test_apply_move_rejects_illegal_move() -> void:
+	_log("\n-- test_apply_move_rejects_illegal_move --")
 	var board := BoardState.new(8)
 	var original_piece := board.get_piece(Vector2i(0, 1))
-	var result := board.make_move(Vector2i(0, 1), Vector2i(0, 5))
-	_assert(not result["success"] and result["error"] == "illegal_move", "test_make_move_rejects_illegal_move assertion 1")
-	_assert(board.get_piece(Vector2i(0, 1)) == original_piece and board.get_piece(Vector2i(0, 5)) == null, "test_make_move_rejects_illegal_move assertion 2")
-	_assert(board.turn == GameRules.PieceColor.WHITE, "test_make_move_rejects_illegal_move assertion 3")
+	var result := BattleTestFixture.play(board, Vector2i(0, 1), Vector2i(0, 5))
+	_assert(not result.success and result.error == "illegal_move", "test_apply_move_rejects_illegal_move assertion 1")
+	_assert(board.get_piece(Vector2i(0, 1)) == original_piece and board.get_piece(Vector2i(0, 5)) == null, "test_apply_move_rejects_illegal_move assertion 2")
+	_assert(board.turn == GameRules.PieceColor.WHITE, "test_apply_move_rejects_illegal_move assertion 3")
 
 func test_has_any_legal_move_uses_explicit_color() -> void:
 	_log("\n-- test_has_any_legal_move_uses_explicit_color --")
@@ -186,8 +186,8 @@ func test_castling_success_on_small_board() -> void:
 	_log("\n-- test_castling_success_on_small_board --")
 	var board := _castle_board()
 	_assert(Vector2i(4, 0) in board.get_legal_moves(Vector2i(2, 0)), "test_castling_success_on_small_board assertion 1")
-	var result := board.make_move(Vector2i(2, 0), Vector2i(4, 0))
-	_assert(result["success"] and result["castled"], "test_castling_success_on_small_board assertion 2")
+	var result := BattleTestFixture.play(board, Vector2i(2, 0), Vector2i(4, 0))
+	_assert(result.success and result.castled, "test_castling_success_on_small_board assertion 2")
 	_assert(board.get_piece(Vector2i(4, 0)).def.id == "king", "test_castling_success_on_small_board assertion 3")
 	_assert(board.get_piece(Vector2i(2, 0)).def.id == "rook", "test_castling_success_on_small_board assertion 4")
 
@@ -231,28 +231,28 @@ func test_castling_rejects_attacked_destination() -> void:
 func test_en_passant_is_capture() -> void:
 	_log("\n-- test_en_passant_is_capture --")
 	var board := BoardState.new(8)
-	board.make_move(Vector2i(4, 1), Vector2i(4, 3))
-	board.make_move(Vector2i(0, 6), Vector2i(0, 5))
-	board.make_move(Vector2i(4, 3), Vector2i(4, 4))
-	board.make_move(Vector2i(3, 6), Vector2i(3, 4))
-	var result := board.make_move(Vector2i(4, 4), Vector2i(3, 5))
-	_assert(result["success"] and result["en_passant_capture"], "test_en_passant_is_capture assertion 1")
-	_assert(result["captured"] and board.last_move_was_capture, "test_en_passant_is_capture assertion 2")
+	BattleTestFixture.play(board, Vector2i(4, 1), Vector2i(4, 3))
+	BattleTestFixture.play(board, Vector2i(0, 6), Vector2i(0, 5))
+	BattleTestFixture.play(board, Vector2i(4, 3), Vector2i(4, 4))
+	BattleTestFixture.play(board, Vector2i(3, 6), Vector2i(3, 4))
+	var result := BattleTestFixture.play(board, Vector2i(4, 4), Vector2i(3, 5))
+	_assert(result.success and result.en_passant_capture, "test_en_passant_is_capture assertion 1")
+	_assert(result.captured and board.last_move_was_capture, "test_en_passant_is_capture assertion 2")
 
 func test_promotion_validation() -> void:
 	_log("\n-- test_promotion_validation --")
 	var invalid_board := _empty_board()
 	_place_kings(invalid_board, Vector2i(2, 0), Vector2i(4, 4))
 	invalid_board.set_piece(Vector2i(0, 3), _piece("pawn", GameRules.PieceColor.WHITE))
-	var invalid := invalid_board.make_move(Vector2i(0, 3), Vector2i(0, 4), "king")
-	_assert(not invalid["success"] and invalid["error"] == "invalid_promotion", "test_promotion_validation assertion 1")
+	var invalid := BattleTestFixture.play(invalid_board, Vector2i(0, 3), Vector2i(0, 4), "king")
+	_assert(not invalid.success and invalid.error == "invalid_promotion", "test_promotion_validation assertion 1")
 	_assert(invalid_board.get_piece(Vector2i(0, 3)).def.id == "pawn", "test_promotion_validation assertion 2")
 
 	var valid_board := _empty_board()
 	_place_kings(valid_board, Vector2i(2, 0), Vector2i(4, 4))
 	valid_board.set_piece(Vector2i(0, 3), _piece("pawn", GameRules.PieceColor.WHITE))
-	var valid := valid_board.make_move(Vector2i(0, 3), Vector2i(0, 4), "knight")
-	_assert(valid["success"] and valid["promoted"], "test_promotion_validation assertion 3")
+	var valid := BattleTestFixture.play(valid_board, Vector2i(0, 3), Vector2i(0, 4), "knight")
+	_assert(valid.success and valid.promoted, "test_promotion_validation assertion 3")
 	_assert(valid_board.get_piece(Vector2i(0, 4)).def.id == "knight", "test_promotion_validation assertion 4")
 
 func test_pin_prevents_illegal_move() -> void:

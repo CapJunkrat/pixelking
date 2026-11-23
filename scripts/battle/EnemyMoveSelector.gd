@@ -100,7 +100,7 @@ func _choose_medium(board: BoardState, color: int) -> Dictionary:
 static func blockades_opponent(after: BoardState, color: int) -> bool:
 	var enemy: int = GameRules.opposite(color)
 	var board: BoardState = after.clone()
-	board._hand_turn_to(enemy)
+	board.hand_turn_to(enemy)
 	board.process_revivals(enemy)
 	return board.is_blockaded(enemy)
 
@@ -112,7 +112,7 @@ static func blockades_opponent(after: BoardState, color: int) -> bool:
 func worst_reply_loss(after: BoardState, color: int) -> int:
 	var enemy: int = GameRules.opposite(color)
 	var board: BoardState = after.clone()
-	board._hand_turn_to(enemy)
+	board.hand_turn_to(enemy)
 	board.process_revivals(enemy)
 	var worst: int = 0
 	for reply: Array in board._capture_replies(enemy):
@@ -120,14 +120,14 @@ func worst_reply_loss(after: BoardState, color: int) -> int:
 		if attacker == null:
 			continue
 		var replied: BoardState = board.clone()
-		var outcome: Dictionary = replied._apply_move(reply[0], reply[1], "queen", true)
-		if not bool(outcome.get("success", false)):
+		var outcome: MoveOutcome = replied.simulate_move(reply[0], reply[1])
+		if not outcome.success:
 			continue
-		if bool(outcome.get("king_captured", false)) and int(outcome.get("captured_color", -1)) == color:
+		if outcome.king_captured and outcome.captured_color == color:
 			return KING_LOSS
 		var gain: int = 0
 		var attacker_lost: bool = false
-		for entry: Dictionary in outcome.get("removed", []):
+		for entry: Dictionary in outcome.removed:
 			var value: int = _value_of(str(entry.get("piece_def_id", "")))
 			if int(entry.get("color", enemy)) == color:
 				gain += value * 10
@@ -136,7 +136,7 @@ func worst_reply_loss(after: BoardState, color: int) -> int:
 				attacker_lost = attacker_lost or int(entry.get("instance_id", 0)) == attacker.instance_id
 		if gain <= worst:
 			continue
-		var attacker_square: Vector2i = outcome.get("landing", reply[1])
+		var attacker_square: Vector2i = outcome.landing
 		var survivor: ChessPiece = replied.get_piece(attacker_square)
 		if not attacker_lost and survivor != null and survivor.instance_id == attacker.instance_id and replied.is_square_attacked(attacker_square, color):
 			gain -= _piece_value(survivor) * 10
@@ -148,22 +148,20 @@ func worst_reply_loss(after: BoardState, color: int) -> int:
 func _score_move(board: BoardState, from: Vector2i, to: Vector2i, color: int, rough_safety: bool) -> Dictionary:
 	var score := 0
 	var captured := board.get_piece(to)
-	# A plain simulated step: the full checkmate search behind make_move() made every
-	# enemy turn cost seconds, and a capture of the King already scores highest here.
+	# A plain simulated step; a capture of the King already scores highest here.
 	var simulation := board.clone()
-	var result := simulation._apply_move(from, to, "queen", true)
-	if not result.get("success", false):
+	var result: MoveOutcome = simulation.simulate_move(from, to)
+	if not result.success:
 		return {"valid": false, "score": -1000000000}
-	if result.get("king_captured", false) and int(result.get("captured_color", -1)) != color:
+	if result.king_captured and result.captured_color != color:
 		return {"valid": true, "score": 100000000, "board": simulation, "capture": true, "wins": true}
 	# Everything the action removed: a boomerang or a blast can take several pieces,
 	# and a blast can also catch our own.
-	var removed: Array = result.get("removed", [])
-	for entry: Dictionary in removed:
+	for entry: Dictionary in result.removed:
 		var value: int = _value_of(str(entry.get("piece_def_id", "")))
 		score += value * 10 if int(entry.get("color", color)) != color else -value * 10
 	# Ranged shots leave the shooter where it stood.
-	var landing: Vector2i = result.get("landing", to)
+	var landing: Vector2i = result.landing
 	var enemy: int = GameRules.opposite(color)
 	if simulation.has_king(enemy) and simulation.is_square_attacked(simulation.king_pos[enemy], color):
 		score += 700
@@ -181,7 +179,7 @@ func _score_move(board: BoardState, from: Vector2i, to: Vector2i, color: int, ro
 	var source_piece: ChessPiece = board.get_piece(from)
 	if captured != null and source_piece != null and source_piece.def.extra_move_on_capture:
 		score += 250
-	return {"valid": true, "score": score, "board": simulation, "capture": captured != null or not removed.is_empty(), "wins": false}
+	return {"valid": true, "score": score, "board": simulation, "capture": captured != null or not result.removed.is_empty(), "wins": false}
 
 func _value_of(def_id: String) -> int:
 	var definition: PieceDef = PieceDefDatabase.get_def(def_id)

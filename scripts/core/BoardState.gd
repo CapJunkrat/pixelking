@@ -301,23 +301,23 @@ static var _shadow_safety_cache: Dictionary = {}
 
 func _shadow_action_safe_uncached(piece: ChessPiece, from: Vector2i, to: Vector2i) -> bool:
 	var after: BoardState = clone()
-	var outcome: Dictionary = after._apply_move(from, to, "queen", true)
-	if not bool(outcome.get("success", false)):
+	var outcome: MoveOutcome = after.simulate_move(from, to)
+	if not outcome.success:
 		return false
-	var landing: Vector2i = outcome.get("landing", to)
+	var landing: Vector2i = outcome.landing
 	var survivor: ChessPiece = after.get_piece(landing)
 	if survivor == null or survivor.instance_id != piece.instance_id:
 		return false
 	if has_king(piece.color) and not after.has_king(piece.color):
 		return false
-	if bool(outcome.get("king_captured", false)):
+	if outcome.king_captured:
 		# Taking the enemy King ends the battle; there is no reply to fear.
 		return true
 	if survivor.shell_left > 0:
 		# One enemy reply can only break the shell.
 		return true
 	var enemy: int = GameRules.opposite(piece.color)
-	after._hand_turn_to(enemy)
+	after.hand_turn_to(enemy)
 	after.process_revivals(enemy)
 	return not after.is_square_attacked(landing, enemy)
 
@@ -372,32 +372,32 @@ func evaluate_landing(from: Vector2i, to: Vector2i) -> Dictionary:
 	var color: int = piece.color
 	var enemy: int = GameRules.opposite(color)
 	var after: BoardState = clone()
-	var result: Dictionary = after._apply_move(from, to, "queen", true)
-	if not bool(result.get("success", false)):
+	var result: MoveOutcome = after.simulate_move(from, to)
+	if not result.success:
 		return safety
-	var landing: Vector2i = result.get("landing", to)
+	var landing: Vector2i = result.landing
 	safety["landing"] = landing
-	after._hand_turn_to(enemy)
+	after.hand_turn_to(enemy)
 	var mover: ChessPiece = after.get_piece(landing)
 	if mover == null or mover.instance_id != piece.instance_id or (has_king(color) and not after.has_king(color)):
 		safety["lethal"] = true
 		return safety
-	if bool(result.get("king_captured", false)):
+	if result.king_captured:
 		# The authoritative battle ends here, before any invented enemy reply.
 		return safety
 	var all_answered: bool = true
 	for reply: Array in after._capture_replies(enemy):
 		var attacker: ChessPiece = after.get_piece(reply[0])
 		var replied: BoardState = after.clone()
-		var outcome: Dictionary = replied._apply_move(reply[0], reply[1], "queen", true)
-		if not bool(outcome.get("success", false)):
+		var outcome: MoveOutcome = replied.simulate_move(reply[0], reply[1])
+		if not outcome.success:
 			continue
-		var takes_king: bool = bool(outcome.get("king_captured", false)) and int(outcome.get("captured_color", -1)) == color
-		if takes_king or _lists_instance(outcome.get("removed", []), mover.instance_id):
+		var takes_king: bool = outcome.king_captured and outcome.captured_color == color
+		if takes_king or outcome.removed_instance(mover.instance_id):
 			safety["lethal"] = true
 			if all_answered and (takes_king or not replied._can_take_instance(color, attacker.instance_id)):
 				all_answered = false
-		elif _lists_instance(outcome.get("shells", []), mover.instance_id):
+		elif outcome.shelled_instance(mover.instance_id):
 			safety["shell"] = true
 	if bool(safety["lethal"]):
 		safety["protected"] = all_answered
@@ -405,11 +405,21 @@ func evaluate_landing(from: Vector2i, to: Vector2i) -> Dictionary:
 		safety["protected"] = after._guards_square(landing, color)
 	return safety
 
-## The board as it stands when `color` is to move next.
-func _hand_turn_to(color: int) -> void:
+## A look-ahead copy as it stands when `color` is to move next. Only for simulations
+## (AI, move safety): a real battle passes the turn with pass_turn(), from
+## BattleCommandProcessor alone.
+func hand_turn_to(color: int) -> void:
 	turn = color
 	turn_serial += 1
 	bonus_instance_id = 0
+
+## Hands the turn to the other side. The only place a real battle's turn moves on;
+## BattleCommandProcessor decides when (never in the middle of a bonus action).
+func pass_turn() -> void:
+	turn = GameRules.opposite(turn)
+	turn_serial += 1
+	bonus_instance_id = 0
+	actions_this_turn = 0
 
 ## Every move of `color` that strikes an enemy piece: [[from, to], ...].
 func _capture_replies(color: int, geometry_only: bool = false) -> Array:
@@ -437,14 +447,14 @@ func _can_take_instance(color: int, instance_id: int) -> bool:
 				target = Vector2i(x, y)
 	if target.x < 0:
 		return true
-	_hand_turn_to(color)
+	hand_turn_to(color)
 	var replies: Array = _capture_replies(color)
 	# Direct strikes at the attacker first; a boomerang or splash may also reach it.
 	replies.sort_custom(func(left: Array, right: Array) -> bool: return left[1] == target and right[1] != target)
 	for reply: Array in replies:
 		var trial: BoardState = clone()
-		var outcome: Dictionary = trial._apply_move(reply[0], reply[1], "queen", true)
-		if bool(outcome.get("success", false)) and _lists_instance(outcome.get("removed", []), instance_id):
+		var outcome: MoveOutcome = trial.simulate_move(reply[0], reply[1])
+		if outcome.success and outcome.removed_instance(instance_id):
 			return true
 	return false
 
@@ -458,12 +468,6 @@ func _guards_square(square: Vector2i, color: int) -> bool:
 	trial.set_piece(square, intruder)
 	return trial._can_take_instance(color, -1)
 
-static func _lists_instance(entries: Array, instance_id: int) -> bool:
-	for entry: Dictionary in entries:
-		if int(entry.get("instance_id", 0)) == instance_id:
-			return true
-	return false
-
 func get_legal_moves(pos: Vector2i) -> Array[Vector2i]:
 	return get_legal_moves_for_color(pos, turn)
 
@@ -474,7 +478,7 @@ func get_legal_moves_for_color(pos: Vector2i, color: int) -> Array[Vector2i]:
 	var legal: Array[Vector2i] = []
 	for target: Vector2i in MoveGenerator.generate_pseudo_legal(self, pos):
 		var simulation: BoardState = clone()
-		simulation._apply_move(pos, target, "queen", true)
+		simulation.simulate_move(pos, target)
 		if not simulation.is_in_check(piece.color):
 			legal.append(target)
 	return legal
@@ -549,59 +553,33 @@ func is_blockaded(color: int) -> bool:
 	var other: int = GameRules.opposite(color)
 	return has_any_executable_move(other) or can_recover_by_waiting(other)
 
-func make_move(from: Vector2i, to: Vector2i, promotion_id: String = "queen") -> Dictionary:
-	var result: Dictionary = _empty_move_result()
+## Plays one action for the side to move: checks it, moves the piece and resolves
+## everything it sets off (captures, shells, deaths, eggs, growth, promotion). The turn
+## does not pass here: BattleCommandProcessor decides whether the side keeps a bonus
+## action or hands the turn over (pass_turn), and judges check and the battle's end.
+func apply_move(from: Vector2i, to: Vector2i, promotion_id: String = "queen") -> MoveOutcome:
 	var piece: ChessPiece = get_piece(from)
 	if piece == null:
-		result["error"] = "no_piece"
-		return result
+		return MoveOutcome.refused(&"no_piece")
 	if piece.color != turn:
-		result["error"] = "wrong_turn"
-		return result
+		return MoveOutcome.refused(&"wrong_turn")
 	if to not in get_executable_moves(from):
-		result["error"] = "illegal_move"
-		return result
+		return MoveOutcome.refused(&"illegal_move")
 	if piece.def.is_pawn and to.y == _promotion_rank(piece.color):
 		if promotion_id not in VALID_PROMOTIONS:
-			result["error"] = "invalid_promotion"
-			return result
+			return MoveOutcome.refused(&"invalid_promotion")
 	return _apply_move(from, to, promotion_id, false)
 
-func _empty_move_result() -> Dictionary:
-	return {
-		"success": false,
-		"error": "",
-		"captured": false,
-		"king_captured": false,
-		"captured_color": -1,
-		"en_passant_capture": false,
-		"castled": false,
-		"promoted": false,
-		"check": false,
-		"checkmate": false,
-		"stalemate": false,
-	}
+## The same action on a look-ahead copy (AI, move safety): not checked against the
+## rules, no history kept, and pieces it creates get preview instance ids.
+func simulate_move(from: Vector2i, to: Vector2i, promotion_id: String = "queen") -> MoveOutcome:
+	return _apply_move(from, to, promotion_id, true)
 
-func _empty_capture_fields(result: Dictionary) -> void:
-	result["action_kind"] = ""
-	result["landing"] = Vector2i(-1, -1)
-	result["ranged"] = false
-	result["removed"] = []
-	result["shells"] = []
-	result["shielded"] = []
-	result["swapped_with_king"] = false
-	result["evolved_into"] = ""
-	result["learned"] = ""
-	result["form_changed"] = ""
-	result["eggs_laid"] = []
-
-func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: bool) -> Dictionary:
+func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: bool) -> MoveOutcome:
 	var piece: ChessPiece = get_piece(from)
-	var result: Dictionary = _empty_move_result()
-	_empty_capture_fields(result)
 	if piece == null:
-		result["error"] = "no_piece"
-		return result
+		return MoveOutcome.refused(&"no_piece")
+	var result: MoveOutcome = MoveOutcome.new()
 	_simulating = simulate
 	var moving_color: int = piece.color
 	var moving_def: PieceDef = piece.def
@@ -611,15 +589,15 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 	var kind: StringName = &"" if castling else MoveGenerator.action_kind(self, from, to)
 	var serial: int = turn_serial
 	var landing: Vector2i = to
-	result["action_kind"] = String(kind)
-	result["moved_def_id"] = moving_def.id
+	result.action_kind = kind
+	result.moved_def_id = moving_def.id
 	if castling:
 		set_piece(from, target_piece)
 		set_piece(to, piece)
 		piece.has_moved = true
 		target_piece.has_moved = true
 		king_pos[moving_color] = to
-		result["castled"] = true
+		result.castled = true
 	elif kind == SwapWithKingMovementRule.ABILITY and target_piece != null and target_piece.def.is_king:
 		set_piece(from, target_piece)
 		set_piece(to, piece)
@@ -627,7 +605,7 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 		piece.used_abilities[kind] = true
 		piece.has_moved = true
 		target_piece.has_moved = true
-		result["swapped_with_king"] = true
+		result.swapped_with_king = true
 	else:
 		if not kind.is_empty() and kind not in [&"ranged", SlideMovementRule.SMASH, ShadowStepMovementRule.STEP, ShadowStepMovementRule.STRIKE]:
 			piece.used_abilities[kind] = true
@@ -635,14 +613,14 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 		if kind == SlideMovementRule.SMASH:
 			# The rock shatters and the piece steps onto its square.
 			break_rock(to)
-			result["rock_broken"] = to
+			result.rock_broken = to
 		if kind == RangedAttackRule.ACTION:
 			landing = from
-			result["ranged"] = true
+			result.ranged = true
 			victim_died = _resolve_shot(piece, from, to, result, serial)
 		elif is_pawn_move and target_piece == null and to == en_passant_target and to != Vector2i(-1, -1):
-			result["en_passant_capture"] = true
-			result["captured"] = true
+			result.en_passant_capture = true
+			result.captured = true
 			_kill(Vector2i(to.x, from.y), &"capture", result, serial)
 			victim_died = true
 		elif target_piece != null and target_piece.color != moving_color:
@@ -650,10 +628,10 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 				# The shell (or a hard egg) takes the blow; the attacker bounces back.
 				landing = from
 			else:
-				result["captured"] = true
+				result.captured = true
 				victim_died = true
 		if landing != from:
-			if victim_died and not bool(result["en_passant_capture"]):
+			if victim_died and not result.en_passant_capture:
 				# Lift the victim first so the attacker can stand there during its death effects.
 				var victim: ChessPiece = get_piece(to)
 				set_piece(to, null)
@@ -680,48 +658,38 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 			promoted.has_moved = true
 			promoted.origin = piece.origin
 			set_piece(landing, promoted)
-			result["promoted"] = true
+			result.promoted = true
 		elif alive and not piece.def.promotes_to.is_empty() and landing.y == _promotion_rank(moving_color):
 			var promoted_def: PieceDef = PieceDefDatabase.get_def(piece.def.promotes_to)
 			if promoted_def != null:
 				piece.def = promoted_def
-				result["promoted"] = true
+				result.promoted = true
 		elif alive and not piece.def.alternate_form_id.is_empty():
 			var form: PieceDef = PieceDefDatabase.get_def(piece.def.alternate_form_id)
 			if form != null:
 				piece.def = form
-				result["form_changed"] = form.id
+				result.form_changed = form.id
 		if alive and piece.def.is_king:
 			king_pos[moving_color] = landing
 	if not moving_def.has_movement_rule(&"mimic_last_move"):
 		last_moved_def_id[moving_color] = moving_def.id
-	result["landing"] = landing if not bool(result["swapped_with_king"]) else to
+	result.landing = landing if not result.swapped_with_king else to
 	if is_pawn_move and abs(to.y - from.y) == 2 and landing == to:
 		en_passant_target = Vector2i(from.x, floori((from.y + to.y) / 2.0))
 	else:
 		en_passant_target = Vector2i(-1, -1)
-	result["success"] = true
+	result.success = true
 	if not simulate:
-		last_move_was_capture = bool(result["captured"])
+		last_move_was_capture = result.captured
 		move_history.append({"from": from, "to": to, "piece_id": moving_def.id, "color": moving_color})
-		turn = GameRules.opposite(turn)
-		turn_serial += 1
-		bonus_instance_id = 0
-		actions_this_turn = 0
-		if has_king(turn):
-			result["check"] = is_in_check(turn)
-			if bool(result["check"]):
-				result["checkmate"] = is_checkmate(turn)
-			else:
-				result["stalemate"] = is_stalemate(turn)
 	return result
 
 ## A shot from `from` at `to`; the shooter stays put. Breaks a rock, or hits the
 ## target (every enemy on the line for a boomerang), with splash around each kill.
 ## Returns whether anything died.
-func _resolve_shot(shooter: ChessPiece, from: Vector2i, to: Vector2i, result: Dictionary, serial: int) -> bool:
+func _resolve_shot(shooter: ChessPiece, from: Vector2i, to: Vector2i, result: MoveOutcome, serial: int) -> bool:
 	if break_rock(to):
-		result["rock_broken"] = to
+		result.rock_broken = to
 		return false
 	var squares: Array[Vector2i] = [to]
 	var rule: RangedAttackRule = MoveGenerator.ranged_rule(self, from, to) as RangedAttackRule
@@ -736,7 +704,7 @@ func _resolve_shot(shooter: ChessPiece, from: Vector2i, to: Vector2i, result: Di
 			continue
 		any_died = true
 		if square == to:
-			result["captured"] = true
+			result.captured = true
 		_kill(square, &"capture" if square == to else &"pierce", result, serial)
 		if shooter.def.splash_on_ranged_capture:
 			for offset: Vector2i in NEIGHBORS:
@@ -746,7 +714,7 @@ func _resolve_shot(shooter: ChessPiece, from: Vector2i, to: Vector2i, result: Di
 	return any_died
 
 ## A blow that a shell can absorb (explosions, splash).
-func _hit(pos: Vector2i, cause: StringName, result: Dictionary, serial: int) -> void:
+func _hit(pos: Vector2i, cause: StringName, result: MoveOutcome, serial: int) -> void:
 	var occupant: ChessPiece = get_piece(pos)
 	if occupant == null or occupant.def.is_king:
 		return
@@ -755,18 +723,18 @@ func _hit(pos: Vector2i, cause: StringName, result: Dictionary, serial: int) -> 
 	_kill(pos, cause, result, serial)
 
 ## A shell layer takes the blow, or a hard egg shrugs it off and hatches 2 turns later.
-func _absorbs_blow(victim: ChessPiece, pos: Vector2i, result: Dictionary) -> bool:
+func _absorbs_blow(victim: ChessPiece, pos: Vector2i, result: MoveOutcome) -> bool:
 	if victim.shell_left > 0:
 		victim.shell_left -= 1
-		result["shells"].append({"position": pos, "instance_id": victim.instance_id, "left": victim.shell_left})
+		result.shells.append({"position": pos, "instance_id": victim.instance_id, "left": victim.shell_left})
 		return true
 	if victim.def.egg_hardened:
 		victim.hatch_serial += EGG_DELAY_SERIALS
-		result["shells"].append({"position": pos, "instance_id": victim.instance_id, "left": 0, "egg_delayed": true, "turns_left": egg_turns_left(victim)})
+		result.shells.append({"position": pos, "instance_id": victim.instance_id, "left": 0, "egg_delayed": true, "turns_left": egg_turns_left(victim)})
 		return true
 	return false
 
-func _kill(pos: Vector2i, cause: StringName, result: Dictionary, serial: int) -> void:
+func _kill(pos: Vector2i, cause: StringName, result: MoveOutcome, serial: int) -> void:
 	var victim: ChessPiece = get_piece(pos)
 	if victim == null:
 		return
@@ -774,14 +742,14 @@ func _kill(pos: Vector2i, cause: StringName, result: Dictionary, serial: int) ->
 	_resolve_death(victim, pos, cause, result, serial)
 
 ## Bookkeeping and on-death abilities of a piece already lifted off the board.
-func _resolve_death(victim: ChessPiece, pos: Vector2i, cause: StringName, result: Dictionary, serial: int) -> void:
+func _resolve_death(victim: ChessPiece, pos: Vector2i, cause: StringName, result: MoveOutcome, serial: int) -> void:
 	if victim == null:
 		return
 	if victim.def.is_king:
-		result["king_captured"] = true
-		result["captured_color"] = victim.color
+		result.king_captured = true
+		result.captured_color = victim.color
 		king_pos.erase(victim.color)
-	result["removed"].append({
+	result.removed.append({
 		"position": pos,
 		"piece_def_id": victim.def.id,
 		"instance_id": victim.instance_id,
@@ -798,16 +766,16 @@ func _resolve_death(victim: ChessPiece, pos: Vector2i, cause: StringName, result
 			var ally: ChessPiece = get_piece(pos + offset)
 			if ally != null and ally.color == victim.color:
 				ally.shield_until_serial = maxi(ally.shield_until_serial, serial + 3)
-				result["shielded"].append(pos + offset)
+				result.shielded.append(pos + offset)
 	if victim.def.explodes_when_captured:
 		for offset: Vector2i in [Vector2i.ZERO] + NEIGHBORS:
 			_hit(pos + offset, &"explosion", result, serial)
 
 ## Growth of the piece that made a capture: run-wide count, learning and evolution.
-func _record_capture(piece: ChessPiece, result: Dictionary) -> void:
+func _record_capture(piece: ChessPiece, result: MoveOutcome) -> void:
 	piece.capture_count += 1
 	var victim_id: String = ""
-	for entry: Dictionary in result["removed"]:
+	for entry: Dictionary in result.removed:
 		if str(entry.get("cause", "")) == "capture":
 			victim_id = str(entry.get("piece_def_id", ""))
 			break
@@ -818,13 +786,13 @@ func _record_capture(piece: ChessPiece, result: Dictionary) -> void:
 			piece.learned_def_ids.append(learned_id)
 			while piece.learned_def_ids.size() > piece.def.learn_capacity:
 				piece.learned_def_ids.remove_at(0)
-			result["learned"] = learned_id
+			result.learned = learned_id
 	while piece.def.evolve_at_captures > 0 and piece.capture_count >= piece.def.evolve_at_captures:
 		var next: PieceDef = PieceDefDatabase.get_def(piece.def.evolves_into)
 		if next == null or next == piece.def:
 			break
 		piece.def = next
-		result["evolved_into"] = next.id
+		result.evolved_into = next.id
 	growth[str(piece.instance_id)] = {
 		"def_id": piece.def.run_form_id(),
 		"capture_count": piece.capture_count,
@@ -840,7 +808,7 @@ func _action_piece(definition: PieceDef, color: int) -> ChessPiece:
 
 ## A fallen reviving piece leaves an egg on its side's free square nearest the
 ## owner's bottom-left corner. With no free square left it is gone for good.
-func _lay_egg(victim: ChessPiece, serial: int, result: Dictionary) -> void:
+func _lay_egg(victim: ChessPiece, serial: int, result: MoveOutcome) -> void:
 	var egg_def: PieceDef = PieceDefDatabase.get_def(victim.def.egg_def_id)
 	var square: Vector2i = egg_square(victim.color)
 	if egg_def == null or square.x < 0:
@@ -850,7 +818,7 @@ func _lay_egg(victim: ChessPiece, serial: int, result: Dictionary) -> void:
 	egg.hatch_serial = serial + 2 * victim.def.revive_after_turns + 1
 	egg.has_moved = true
 	set_piece(square, egg)
-	result["eggs_laid"].append({"position": square, "piece_def_id": egg_def.id, "instance_id": egg.instance_id, "victim_instance_id": victim.instance_id, "color": victim.color, "turns_left": egg_turns_left(egg, serial + 1)})
+	result.eggs_laid.append({"position": square, "piece_def_id": egg_def.id, "instance_id": egg.instance_id, "victim_instance_id": victim.instance_id, "color": victim.color, "turns_left": egg_turns_left(egg, serial + 1)})
 
 ## The free square closest to `color`'s own bottom-left corner (White: a1, Black: h8).
 func egg_square(color: int) -> Vector2i:

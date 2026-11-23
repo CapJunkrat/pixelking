@@ -96,7 +96,6 @@
 - `integration/`：跨服务事务、Run/Battle 边界、持久化恢复与 Autoload 协作。
 - `scenes/`：静态节点契约、信号连接、输入锁和一个主要交互；不得重复验证底层规则排列组合。
 - `smoke/`：Autoload、Catalog 引用、字体、图标、皮肤和本地化资源可加载性。
-- `characterization/`：只锁定尚未删除的旧接口；必须标注删除目标，不得成为新增功能的测试位置。
 - `e2e/`：完整玩家旅程，只保留少量黄金路径和关键失败路径。
 - `runner/`：统一入口、显式清单和 Node 方法适配器，不承载业务断言。
 
@@ -106,7 +105,7 @@
 
 测试公共准备统一放在 `support/`：`RunTestFixture` 负责 Draft/地图/战斗准备，`BattleTestFixture` 负责权威棋盘，`TestSaveSandbox` 负责 `.save/.tmp/.bak` 隔离清理，`SceneTreeTestCase` 负责一致的断言和退出码。禁止在新测试中复制整段 Run 准备或存档清理流程。
 
-已建立专项覆盖：`BattleTurnCoordinator` 设置暂停/恢复、连续事件批次与 Timer 失效；Battle → Run 结算保存失败及重复提交；场景路由注册一致性；Catalog ID、旧/当前/未来内容版本；典型 Android 比例的安全区换算及主要场景挂载。真实设备的厂商 Cutout 返回值仍属于 APK 设备验收，不由 headless 测试伪造。旧 `EventBus` 顺序仅保留在 `characterization/test_legacy_battle_events.gd`，删除兼容总线时应同时删除该测试。
+已建立专项覆盖：`BattleTurnCoordinator` 设置暂停/恢复、连续事件批次与 Timer 失效；Battle → Run 结算保存失败及重复提交；场景路由注册一致性；Catalog ID、旧/当前/未来内容版本；典型 Android 比例的安全区换算及主要场景挂载。真实设备的厂商 Cutout 返回值仍属于 APK 设备验收，不由 headless 测试伪造。
 
 ## 特殊棋子规则
 

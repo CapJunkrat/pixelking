@@ -166,7 +166,6 @@ func force_finish(winner: int, draw: bool, reason: StringName = &"debug_forced")
 	var outcome: BattleOutcome = BattleOutcome.completed(winner, draw, reason)
 	var result: BattleCommandResult = BattleCommandResult.new()
 	result.success = true
-	result.legacy_result = {"success": true, "forced_finish": true}
 	_complete_battle(result.events, action_id, outcome)
 	return result
 
@@ -192,7 +191,6 @@ func _execute_use_item(action: UseItemAction, action_id: int) -> BattleCommandRe
 	challenger_items.remove_at(action.slot_index)
 	var result: BattleCommandResult = BattleCommandResult.new()
 	result.success = true
-	result.legacy_result = {"success": true, "item_used": true}
 	result.events.append(_event(EVENT_ACTION_STARTED, action_id, {
 		"action_type": "use_item",
 		"actor_color": action.actor_color,
@@ -272,22 +270,21 @@ func _execute_move(action: MoveAction, action_id: int) -> BattleCommandResult:
 		captured_piece = board.get_piece(capture_position)
 
 	var prior_actions: int = board.actions_this_turn
-	var move_result: Dictionary = board.make_move(action.from, action.to, action.promotion_id)
-	if not bool(move_result.get("success", false)):
-		var error_code: StringName = StringName(str(move_result.get("error", "invalid_move")))
-		var rejected: BattleCommandResult = _rejected(action_id, error_code)
-		rejected.legacy_result = move_result.duplicate(true)
+	var move: MoveOutcome = board.apply_move(action.from, action.to, action.promotion_id)
+	if not move.success:
+		var rejected: BattleCommandResult = _rejected(action_id, move.error if not move.error.is_empty() else &"invalid_move")
+		rejected.move_outcome = move
 		return rejected
 
 	consecutive_skips = 0
 	var result: BattleCommandResult = BattleCommandResult.new()
 	result.success = true
-	result.legacy_result = move_result.duplicate(true)
+	result.move_outcome = move
 	result.events.append(_event(EVENT_ACTION_STARTED, action_id, {
 		"action_type": "move",
 		"actor_color": action.actor_color,
 	}))
-	var landing: Vector2i = move_result.get("landing", action.to)
+	var landing: Vector2i = move.landing
 	result.events.append(_event(EVENT_PIECE_MOVED, action_id, {
 		"from": action.from,
 		"to": landing if board.in_bounds(landing) else action.to,
@@ -295,10 +292,10 @@ func _execute_move(action: MoveAction, action_id: int) -> BattleCommandResult:
 		"piece_def_id": moving_piece.get_id() if moving_piece != null else "",
 		"instance_id": moving_piece.instance_id if moving_piece != null else 0,
 		"color": action.actor_color,
-		"action_kind": str(move_result.get("action_kind", "")),
-		"ranged": bool(move_result.get("ranged", false)),
+		"action_kind": String(move.action_kind),
+		"ranged": move.ranged,
 	}))
-	if bool(move_result.get("captured", false)) and captured_piece != null:
+	if move.captured and captured_piece != null:
 		result.events.append(_event(EVENT_PIECE_CAPTURED, action_id, {
 			"position": capture_position,
 			"piece_def_id": captured_piece.get_id(),
@@ -306,19 +303,18 @@ func _execute_move(action: MoveAction, action_id: int) -> BattleCommandResult:
 			"color": captured_piece.color,
 			"was_king": captured_piece.def.is_king,
 		}))
-	_append_ability_events(result.events, action_id, action, move_result)
-	if bool(move_result.get("castled", false)):
+	_append_ability_events(result.events, action_id, action, move)
+	if move.castled:
 		result.events.append(_event(EVENT_CASTLED, action_id, {"from": action.from, "to": action.to}))
-	if bool(move_result.get("promoted", false)):
+	if move.promoted:
 		result.events.append(_event(EVENT_PROMOTED, action_id, {
 			"position": action.to,
 			"piece_def_id": action.promotion_id,
 			"color": action.actor_color,
 		}))
 	_settle_effects(result.events, action_id, action.actor_color)
-	_refresh_legacy_terminal_flags(result.legacy_result)
 	# moving_piece.def may have changed form; the ability belongs to the piece that acted.
-	var acted_def: PieceDef = PieceDefDatabase.get_def(str(move_result.get("moved_def_id", ""))) if move_result.has("moved_def_id") else null
+	var acted_def: PieceDef = PieceDefDatabase.get_def(move.moved_def_id) if not move.moved_def_id.is_empty() else null
 	if acted_def == null and moving_piece != null:
 		acted_def = moving_piece.def
 	var bonus_candidate: bool = (
@@ -328,125 +324,129 @@ func _execute_move(action: MoveAction, action_id: int) -> BattleCommandResult:
 		and board.get_piece(landing) == moving_piece
 		and (
 			acted_def.extra_move_always
-			or (acted_def.extra_move_on_capture and bool(move_result.get("captured", false)))
+			or (acted_def.extra_move_on_capture and move.captured)
 			or (pending_bonus_color == action.actor_color and prior_actions == 0)
 		)
 	)
 	if prior_actions == 0 and pending_bonus_color == action.actor_color:
 		pending_bonus_color = -1
-	if bonus_candidate and _try_execution(result.events, action_id):
+	if not bonus_candidate:
+		_hand_over_turn(result.events, action_id)
+		return result
+	if _try_execution(result.events, action_id):
+		board.pass_turn()
 		result.events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
 		return result
-	if bonus_candidate:
-		# Terminal rules are evaluated while the captured side owns the response turn.
-		# Only rules that end a battle at once apply here (a King taken, checkmate, a
-		# lone King): the other side has not really been handed the turn yet, so a
-		# stalemate or a blockade waits until it is (after the bonus action, an early
-		# end of turn, or right away when the bonus action has nowhere to go).
-		_try_last_stand(result.events, action_id)
-		var outcome: BattleOutcome = outcome_evaluator.evaluate(board, player_color, turn_limit)
-		if outcome.finished and outcome.reason != &"stalemate":
-			result.events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
-			if outcome.reason == &"checkmate":
-				result.events.append(_event(EVENT_CHECK_DECLARED, action_id, {"color": board.turn, "checkmate": true}))
-			_complete_battle(result.events, action_id, outcome)
-		else:
-			if board.is_in_check(board.turn):
-				result.events.append(_event(EVENT_CHECK_DECLARED, action_id, {"color": board.turn, "checkmate": false}))
-			board.turn = action.actor_color
-			board.turn_serial = maxi(0, board.turn_serial - 1)
-			board.actions_this_turn = prior_actions + 1
-			board.bonus_instance_id = moving_piece.instance_id
-			if board.get_executable_moves(landing).is_empty():
-				# Nothing left to do with the bonus action: the turn simply passes.
-				_pass_turn()
-				result.events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
-				_append_revivals(result.events, action_id)
-				_append_terminal_events(result.events, action_id)
-				return result
-			result.legacy_result["extra_move_granted"] = true
-			result.events.append(_event(EVENT_EXTRA_MOVE_GRANTED, action_id, {
-				"color": action.actor_color,
-				"instance_id": moving_piece.instance_id,
-			}))
-			result.events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
-	else:
+	# Before granting the bonus action, only the rules that end a battle at once apply
+	# (a King taken, checkmate, a lone King). They are judged on a copy handed over to
+	# the other side, as it would stand if the turn passed now; the real board keeps
+	# its turn. A stalemate or a blockade waits until the turn really passes (after the
+	# bonus action, an early end of turn, or right away when the bonus action has
+	# nowhere to go).
+	var handed: BoardState = board.clone_runtime()
+	handed.pass_turn()
+	_try_last_stand(result.events, action_id, handed)
+	var outcome: BattleOutcome = outcome_evaluator.evaluate(handed, player_color, turn_limit)
+	if outcome.finished and outcome.reason != &"stalemate":
+		board.pass_turn()
 		result.events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
-		_append_revivals(result.events, action_id)
-		_append_terminal_events(result.events, action_id)
+		if outcome.reason == &"checkmate":
+			result.events.append(_event(EVENT_CHECK_DECLARED, action_id, {"color": board.turn, "checkmate": true}))
+		_complete_battle(result.events, action_id, outcome)
+		return result
+	if handed.is_in_check(handed.turn):
+		result.events.append(_event(EVENT_CHECK_DECLARED, action_id, {"color": handed.turn, "checkmate": false}))
+	board.actions_this_turn = prior_actions + 1
+	board.bonus_instance_id = moving_piece.instance_id
+	if board.get_executable_moves(landing).is_empty():
+		# Nothing left to do with the bonus action: the turn simply passes.
+		_hand_over_turn(result.events, action_id)
+		return result
+	result.events.append(_event(EVENT_EXTRA_MOVE_GRANTED, action_id, {
+		"color": action.actor_color,
+		"instance_id": moving_piece.instance_id,
+	}))
+	result.events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
 	return result
 
 func _execute_end_turn(action: BattleAction, action_id: int) -> BattleCommandResult:
 	if not can_end_turn(action.actor_color):
 		return _rejected(action_id, &"no_bonus_action")
-	_pass_turn()
 	consecutive_skips = 0
 	var result: BattleCommandResult = BattleCommandResult.new()
 	result.success = true
-	result.legacy_result = {"success": true, "turn_ended": true}
 	result.events.append(_event(EVENT_ACTION_STARTED, action_id, {"action_type": "end_turn", "actor_color": action.actor_color}))
 	result.events.append(_event(EVENT_TURN_ENDED_EARLY, action_id, {"color": action.actor_color}))
-	result.events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
-	_append_revivals(result.events, action_id)
-	_append_terminal_events(result.events, action_id)
+	_hand_over_turn(result.events, action_id)
 	return result
 
-func _pass_turn() -> void:
-	board.turn = GameRules.opposite(board.turn)
-	board.turn_serial += 1
-	board.bonus_instance_id = 0
-	board.actions_this_turn = 0
+## Passes the turn to the other side and resolves what that brings: pieces due back
+## return, then the battle's end (or a turn that cannot be played) is judged for the
+## side now to move. Every real turn change goes through here.
+func _hand_over_turn(events: Array[BattleEvent], action_id: int) -> void:
+	board.pass_turn()
+	events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
+	_append_revivals(events, action_id)
+	_append_terminal_events(events, action_id)
 
 func _append_revivals(events: Array[BattleEvent], action_id: int) -> void:
 	for revived: Dictionary in board.process_revivals(board.turn):
 		events.append(_event(EVENT_PIECE_REVIVED, action_id, revived))
 
-func _append_ability_events(events: Array[BattleEvent], action_id: int, action: MoveAction, move_result: Dictionary) -> void:
-	for entry: Dictionary in move_result.get("removed", []):
+func _append_ability_events(events: Array[BattleEvent], action_id: int, action: MoveAction, move: MoveOutcome) -> void:
+	for entry: Dictionary in move.removed:
 		if str(entry.get("cause", "")) != "capture":
 			events.append(_event(EVENT_PIECE_DESTROYED, action_id, entry))
-	for entry: Dictionary in move_result.get("shells", []):
+	for entry: Dictionary in move.shells:
 		events.append(_event(EVENT_SHELL_BROKEN, action_id, entry))
-	for entry: Dictionary in move_result.get("eggs_laid", []):
+	for entry: Dictionary in move.eggs_laid:
 		events.append(_event(EVENT_EGG_LAID, action_id, entry))
-	if move_result.has("rock_broken"):
-		events.append(_event(EVENT_ROCK_BROKEN, action_id, {"position": move_result["rock_broken"]}))
-	var shielded: Array = move_result.get("shielded", [])
-	if not shielded.is_empty():
-		events.append(_event(EVENT_SHIELD_GRANTED, action_id, {"positions": shielded}))
-	if bool(move_result.get("swapped_with_king", false)):
+	if move.rock_broken != MoveOutcome.NO_SQUARE:
+		events.append(_event(EVENT_ROCK_BROKEN, action_id, {"position": move.rock_broken}))
+	if not move.shielded.is_empty():
+		events.append(_event(EVENT_SHIELD_GRANTED, action_id, {"positions": move.shielded}))
+	if move.swapped_with_king:
 		events.append(_event(EVENT_KING_SWAPPED, action_id, {"from": action.from, "to": action.to, "color": action.actor_color}))
-	var landing: Vector2i = move_result.get("landing", action.to)
-	if not str(move_result.get("learned", "")).is_empty():
-		events.append(_event(EVENT_MOVE_LEARNED, action_id, {"position": landing, "learned": str(move_result.get("learned", ""))}))
-	if not str(move_result.get("evolved_into", "")).is_empty():
-		events.append(_event(EVENT_PIECE_EVOLVED, action_id, {"position": landing, "piece_def_id": str(move_result.get("evolved_into", "")), "color": action.actor_color}))
-	if not str(move_result.get("form_changed", "")).is_empty():
-		events.append(_event(EVENT_FORM_CHANGED, action_id, {"position": landing, "piece_def_id": str(move_result.get("form_changed", "")), "color": action.actor_color}))
+	var landing: Vector2i = move.landing
+	if not move.learned.is_empty():
+		events.append(_event(EVENT_MOVE_LEARNED, action_id, {"position": landing, "learned": move.learned}))
+	if not move.evolved_into.is_empty():
+		events.append(_event(EVENT_PIECE_EVOLVED, action_id, {"position": landing, "piece_def_id": move.evolved_into, "color": action.actor_color}))
+	if not move.form_changed.is_empty():
+		events.append(_event(EVENT_FORM_CHANGED, action_id, {"position": landing, "piece_def_id": move.form_changed, "color": action.actor_color}))
 
 ## Shield King: the first time it would be checkmated, every non-King piece giving
-## check is destroyed instead and the battle goes on.
-func _try_last_stand(events: Array[BattleEvent], action_id: int) -> void:
-	var color: int = board.turn
-	if not board.has_king(color):
+## check is destroyed instead and the battle goes on. `judged` is the position as the
+## side to move sees it: the board itself, or during a bonus action a copy already
+## handed over to the other side (whose turn count decides who is frozen). The
+## pieces fall on the board, and on that copy too so it is judged further as it is.
+func _try_last_stand(events: Array[BattleEvent], action_id: int, judged: BoardState = null) -> void:
+	var view: BoardState = judged if judged != null else board
+	var color: int = view.turn
+	if not view.has_king(color):
 		return
-	var king_square: Vector2i = board.king_pos[color]
-	var king: ChessPiece = board.get_piece(king_square)
-	if king == null or not king.def.survives_checkmate_once or king.has_used(&"last_stand") or not board.is_checkmate(color):
+	var king_square: Vector2i = view.king_pos[color]
+	var king: ChessPiece = view.get_piece(king_square)
+	if king == null or not king.def.survives_checkmate_once or king.has_used(&"last_stand") or not view.is_checkmate(color):
 		return
 	var attackers: Array[Vector2i] = []
-	for x: int in range(board.board_size):
-		for y: int in range(board.board_size):
+	for x: int in range(view.board_size):
+		for y: int in range(view.board_size):
 			var square: Vector2i = Vector2i(x, y)
-			var occupant: ChessPiece = board.get_piece(square)
-			if occupant != null and occupant.color != color and not occupant.def.is_king and king_square in MoveGenerator.get_attack_squares(board, square):
+			var occupant: ChessPiece = view.get_piece(square)
+			if occupant != null and occupant.color != color and not occupant.def.is_king and king_square in MoveGenerator.get_attack_squares(view, square):
 				attackers.append(square)
-	king.used_abilities[&"last_stand"] = true
 	var removed: Array = []
 	for square: Vector2i in attackers:
 		var occupant: ChessPiece = board.get_piece(square)
 		removed.append({"position": square, "piece_def_id": occupant.def.id, "instance_id": occupant.instance_id, "color": occupant.color})
-		board.set_piece(square, null)
+	var boards: Array[BoardState] = [board]
+	if view != board:
+		boards.append(view)
+	for target: BoardState in boards:
+		target.get_piece(king_square).used_abilities[&"last_stand"] = true
+		for square: Vector2i in attackers:
+			target.set_piece(square, null)
 	events.append(_event(EVENT_LAST_STAND, action_id, {"position": king_square, "color": color, "removed": removed}))
 
 func _settle_effects(events: Array[BattleEvent], action_id: int, acting_color: int) -> void:
@@ -494,11 +494,6 @@ func _apply_effect(effect: BattleEffect) -> Array[BattleEffect]:
 			pending_bonus_color = effect.owner_color
 	return generated
 
-func _refresh_legacy_terminal_flags(move_result: Dictionary) -> void:
-	move_result["check"] = board.is_in_check(board.turn)
-	move_result["checkmate"] = board.is_checkmate(board.turn) if bool(move_result["check"]) else false
-	move_result["stalemate"] = board.is_stalemate(board.turn) and board.has_any_executable_move(board.turn) if not bool(move_result["check"]) else false
-
 func _append_terminal_events(events: Array[BattleEvent], action_id: int) -> void:
 	if _try_execution(events, action_id):
 		return
@@ -525,12 +520,9 @@ func _resolve_stuck_turn(events: Array[BattleEvent], action_id: int) -> void:
 				_complete_battle(events, action_id, BattleOutcome.completed(-1, true, &"stalemate"))
 				return
 			events.append(_event(EVENT_TURN_SKIPPED, action_id, {"color": board.turn}))
-			_pass_turn()
 			consecutive_skips += 1
-			events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
-			_append_revivals(events, action_id)
 			# The recursion stops: a second skip in a row draws the battle above.
-			_append_terminal_events(events, action_id)
+			_hand_over_turn(events, action_id)
 		&"blockade":
 			_complete_battle(events, action_id, BattleOutcome.completed(GameRules.opposite(board.turn), false, &"blockade"))
 		&"draw":

@@ -163,13 +163,13 @@ func _quiesce(board: BoardState, color: int, alpha: int, beta: int, left: int, p
 func _play(board: BoardState, move: Array, color: int) -> Array:
 	_nodes += 1
 	var after: BoardState = board.clone()
-	var result: Dictionary = after._apply_move(move[0], move[1], "queen", true)
-	if not bool(result.get("success", false)):
+	var result: MoveOutcome = after.simulate_move(move[0], move[1])
+	if not result.success:
 		return [after, -1]
-	if bool(result.get("king_captured", false)):
-		return [after, int(result.get("captured_color", -1))]
+	if result.king_captured:
+		return [after, result.captured_color]
 	var enemy: int = GameRules.opposite(color)
-	after._hand_turn_to(enemy)
+	after.hand_turn_to(enemy)
 	after.process_revivals(enemy)
 	return [after, -1]
 

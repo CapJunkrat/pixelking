@@ -8,7 +8,6 @@ func _init() -> void:
 	await process_frame
 
 	var game_state: Node = root.get_node("GameState")
-	var event_bus: Node = root.get_node("EventBus")
 	var settings_manager: Node = root.get_node("SettingsManager")
 	var audio_manager: Node = root.get_node("AudioManager")
 	var run_manager: Node = root.get_node("RunManager")
@@ -23,12 +22,6 @@ func _init() -> void:
 	else:
 		print("[PASS] GameState autoload and initial board are ready")
 
-	if event_bus == null:
-		print("[FAIL] EventBus autoload was not found")
-		ok = false
-	else:
-		print("[PASS] EventBus autoload is ready")
-
 	if settings_manager == null or audio_manager == null or run_manager == null:
 		print("[FAIL] SettingsManager, AudioManager, or RunManager autoload was not found")
 		ok = false
@@ -40,10 +33,13 @@ func _init() -> void:
 			print("[PASS] RunManager starts without creating an unwanted Run")
 
 	var got_signal: Array[bool] = [false]
-	event_bus.move_made.connect(func(_from: Vector2i, _to: Vector2i, _result: Dictionary) -> void: got_signal[0] = true)
+	game_state.battle_events_emitted.connect(func(events: Array[BattleEvent]) -> void:
+		for event: BattleEvent in events:
+			if event.event_type == BattleCommandProcessor.EVENT_PIECE_MOVED:
+				got_signal[0] = true)
 	var success: bool = game_state.call("try_move", Vector2i(1, 0), Vector2i(0, 2))
 	if success and got_signal[0]:
-		print("[PASS] GameState.try_move executes a move and emits move_made")
+		print("[PASS] GameState.try_move executes a move and publishes piece_moved")
 	else:
 		print("[FAIL] Move execution or signal emission failed (success=%s, signal=%s)" % [success, got_signal[0]])
 		ok = false

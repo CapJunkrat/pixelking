@@ -15,3 +15,12 @@ static func minimal_kings_board(turn: int = GameRules.PieceColor.WHITE) -> Board
 	board.place_piece_for_setup(Vector2i(4, 4), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.BLACK))
 	board.finalize_setup(turn)
 	return board
+
+## Plays a move on a bare board and passes the turn, the way a battle hands it over
+## after an ordinary move (no bonus actions, no end-of-battle judgement). For rule
+## tests that step through several moves without a BattleCommandProcessor.
+static func play(board: BoardState, from: Vector2i, to: Vector2i, promotion_id: String = "queen") -> MoveOutcome:
+	var outcome: MoveOutcome = board.apply_move(from, to, promotion_id)
+	if outcome.success:
+		board.pass_turn()
+	return outcome

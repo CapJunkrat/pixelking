@@ -107,7 +107,7 @@ func _test_assassin_bonus_action() -> void:
 	board.finalize_setup(GameRules.PieceColor.WHITE)
 	var processor: BattleCommandProcessor = BattleCommandProcessor.new(board)
 	var first: BattleCommandResult = processor.execute(MoveAction.new(Vector2i(2, 2), Vector2i(2, 3), GameRules.PieceColor.WHITE))
-	expect(first.success and board.turn == GameRules.PieceColor.WHITE and bool(first.legacy_result.get("extra_move_granted", false)), "Assassin capture retains action authority")
+	expect(first.success and board.turn == GameRules.PieceColor.WHITE and first.has_event(BattleCommandProcessor.EVENT_EXTRA_MOVE_GRANTED), "Assassin capture retains action authority")
 	expect(_has_event(first.events, BattleCommandProcessor.EVENT_EXTRA_MOVE_GRANTED) and board.turn_serial == 0, "Assassin emits bonus event without advancing side-turn serial")
 	expect(not processor.execute(MoveAction.new(Vector2i(0, 0), Vector2i(0, 1), GameRules.PieceColor.WHITE)).success, "only the Assassin may use its bonus action")
 	var second: BattleCommandResult = processor.execute(MoveAction.new(Vector2i(2, 3), Vector2i(3, 3), GameRules.PieceColor.WHITE))
@@ -121,7 +121,7 @@ func _test_assassin_bonus_action() -> void:
 	terminal_board.finalize_setup(GameRules.PieceColor.WHITE)
 	var terminal_processor: BattleCommandProcessor = BattleCommandProcessor.new(terminal_board)
 	var terminal_capture: BattleCommandResult = terminal_processor.execute(MoveAction.new(Vector2i(2, 2), Vector2i(2, 3), GameRules.PieceColor.WHITE))
-	expect(terminal_processor.status.is_finished() and not bool(terminal_capture.legacy_result.get("extra_move_granted", false)), "terminal King capture suppresses Assassin bonus action")
+	expect(terminal_processor.status.is_finished() and not terminal_capture.has_event(BattleCommandProcessor.EVENT_EXTRA_MOVE_GRANTED), "terminal King capture suppresses Assassin bonus action")
 
 func _piece_board(piece_id: StringName) -> BoardState:
 	var board: BoardState = BoardState.new(8, false)

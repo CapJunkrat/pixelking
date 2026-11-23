@@ -159,12 +159,8 @@ func try_use_item(slot_index: int, target_position: Vector2i = Vector2i(-1, -1))
 		_commit_staged_item_plan.bind(plan)
 	)
 	if consume_error != OK:
+		push_warning("Saving the used item failed: %s" % error_string(consume_error))
 		last_command_result = command_processor.reject_external(&"run_item_persistence_failed")
-		last_command_result.legacy_result = {
-			"success": false,
-			"error": "run_item_persistence_failed",
-			"run_error": consume_error,
-		}
 		_publish_command_result(last_command_result)
 		return false
 	_publish_command_result(last_command_result)
@@ -212,10 +208,7 @@ func force_debug_victory() -> bool:
 func try_end_turn() -> bool:
 	if board == null or command_processor == null or not command_processor.can_end_turn(player_color):
 		return false
-	var result: BattleCommandResult = execute_battle_action(EndTurnAction.new(player_color))
-	if result.success:
-		EventBus.turn_changed.emit(board.turn)
-	return result.success
+	return execute_battle_action(EndTurnAction.new(player_color)).success
 
 func try_move(from: Vector2i, to: Vector2i, promotion_id: String = "queen") -> bool:
 	if board == null:
@@ -223,19 +216,4 @@ func try_move(from: Vector2i, to: Vector2i, promotion_id: String = "queen") -> b
 	var moving_piece: ChessPiece = board.get_piece(from)
 	var actor_color: int = moving_piece.color if moving_piece != null else board.turn
 	var action: MoveAction = MoveAction.new(from, to, actor_color, promotion_id)
-	var command_result: BattleCommandResult = execute_battle_action(action)
-	if not command_result.success:
-		return false
-	var result: Dictionary = command_result.legacy_result
-
-	# Compatibility bridge for presentation code while battle-local domain events
-	# become the authoritative Phase F stream.
-	EventBus.move_made.emit(from, to, result)
-	EventBus.turn_changed.emit(board.turn)
-	if bool(result.get("checkmate", false)):
-		EventBus.checkmate.emit(board.turn)
-	elif bool(result.get("stalemate", false)):
-		EventBus.stalemate.emit(board.turn)
-	elif bool(result.get("check", false)):
-		EventBus.check_declared.emit(board.turn)
-	return true
+	return execute_battle_action(action).success

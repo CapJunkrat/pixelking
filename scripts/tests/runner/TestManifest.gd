@@ -78,7 +78,6 @@ const TESTS = [
 	{"path": "res://scripts/tests/smoke/test_piece_skin.gd", "layer": "smoke", "domain": "assets", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/smoke/test_scene_routes.gd", "layer": "smoke", "domain": "navigation", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/smoke/test_ui_theme_font.gd", "layer": "smoke", "domain": "assets", "kind": "scene_tree"},
-	{"path": "res://scripts/tests/characterization/test_legacy_battle_events.gd", "layer": "characterization", "domain": "legacy", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/e2e/test_complete_run_flow.gd", "layer": "e2e", "domain": "run", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/e2e/test_debug_victory.gd", "layer": "e2e", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/e2e/test_main_menu_run_flow.gd", "layer": "e2e", "domain": "run", "kind": "scene_tree"},

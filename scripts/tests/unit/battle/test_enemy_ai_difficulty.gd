@@ -41,7 +41,7 @@ func _test_medium_never_opens_its_king() -> void:
 	var medium := _choose(board, "medium")
 	expect(not medium.is_empty() and not _same(medium, bait), "Medium never leaves its King to be taken")
 	var after := board.clone()
-	after._apply_move(medium["from"], medium["to"], "queen", true)
+	after.simulate_move(medium["from"], medium["to"])
 	expect(EnemyMoveSelector.new().worst_reply_loss(after, B) < EnemyMoveSelector.KING_LOSS, "Medium's move keeps its King safe")
 
 ## A guarded pawn taken by a Rook is answered by a recapture: the reply only counts as
@@ -70,7 +70,7 @@ func _test_shadow_king_threats() -> void:
 	if medium.is_empty():
 		return
 	var after := board.clone()
-	after._apply_move(medium["from"], medium["to"], "queen", true)
+	after.simulate_move(medium["from"], medium["to"])
 	expect(selector.worst_reply_loss(after, B) == 0, "Medium takes its pieces out of the Shadow King's reach (%s -> %s)" % [medium["from"], medium["to"]])
 
 ## A full board is the slowest case: Medium must still answer quickly.
@@ -96,7 +96,7 @@ func _test_hard_avoids_what_medium_avoids() -> void:
 	hard = _choose(shadow, "hard")
 	var after := shadow.clone()
 	if not hard.is_empty():
-		after._apply_move(hard["from"], hard["to"], "queen", true)
+		after.simulate_move(hard["from"], hard["to"])
 	expect(not hard.is_empty() and EnemyMoveSelector.new().worst_reply_loss(after, B) == 0, "Hard keeps its pieces out of the Shadow King's reach")
 
 ## The Rook can step between two White Knights on the same rank: White saves one, Black
