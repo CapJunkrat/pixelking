@@ -55,6 +55,7 @@ const TESTS = [
 	{"path": "res://scripts/tests/scenes/test_piece_info.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/scenes/test_variant_king_presentation.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/scenes/test_strike_presentation.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree"},
+	{"path": "res://scripts/tests/scenes/test_strike_golden_trace.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/scenes/test_strike_special_pieces.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree", "slow": true},
 	{"path": "res://scripts/tests/scenes/test_strike_new_pieces_1.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree", "slow": true},
 	{"path": "res://scripts/tests/scenes/test_strike_new_pieces_2.gd", "layer": "scene", "domain": "battle", "kind": "scene_tree", "slow": true},
