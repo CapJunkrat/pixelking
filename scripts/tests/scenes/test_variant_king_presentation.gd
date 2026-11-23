@@ -25,11 +25,11 @@ func _run() -> void:
 		BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_CAPTURED, 2, 1, {"position": target, "piece_def_id": "pawn", "color": GameRules.PieceColor.BLACK}),
 	] as Array[BattleEvent], 8.0)
 	var director: StrikeDirector = view.get_node("StrikeDirector") as StrikeDirector
-	_expect(director.is_playing() and director._a.is_equal_approx(director._dest), "shadow strike targets the victim but final position is its origin")
-	var fading: StrikeDirector.Pose = director._compute_pose(1.23)
+	_expect(director.is_playing() and director.stage.a.is_equal_approx(director.stage.dest), "shadow strike targets the victim but final position is its origin")
+	var fading: StrikePose = director.compute_pose(1.23)
 	_expect(fading.alpha < 0.4, "shadow strike fades out near the victim before returning, rather than sliding home")
-	var returned: StrikeDirector.Pose = director._compute_pose(1.42)
-	_expect(Vector2(returned.x, returned.z).distance_to(Vector2(director._a.x, director._a.z)) < 0.01 and returned.alpha > 0.5, "shadow strike reappears at its origin before presentation completes")
+	var returned: StrikePose = director.compute_pose(1.42)
+	_expect(Vector2(returned.x, returned.z).distance_to(Vector2(director.stage.a.x, director.stage.a.z)) < 0.01 and returned.alpha > 0.5, "shadow strike reappears at its origin before presentation completes")
 	var guard: int = 0
 	while view.is_presenting() and guard < 800:
 		await process_frame

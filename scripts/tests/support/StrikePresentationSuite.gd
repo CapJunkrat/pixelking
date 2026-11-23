@@ -210,8 +210,8 @@ func _check_core_extras(view: BattleBoardView, layer: Node2D, battle: Node, game
 	var attacks: Array[StringName] = []
 	var guard: int = 0
 	while view.is_presenting() and guard < 1200:
-		if director.is_playing() and (attacks.is_empty() or attacks[-1] != director._attack_id):
-			attacks.append(director._attack_id)
+		if director.is_playing() and (attacks.is_empty() or attacks[-1] != director.stage.attack_id):
+			attacks.append(director.stage.attack_id)
 		guard += 1
 		await process_frame
 	await process_frame
@@ -283,7 +283,7 @@ func _check_core_extras(view: BattleBoardView, layer: Node2D, battle: Node, game
 	_expect(echoes.size() == 2, "each extra boomerang victim plays its own hit")
 	var aligned: bool = true
 	for echo: Variant in echoes:
-		aligned = aligned and is_equal_approx((echo as StrikeDirector)._impact_time, main._impact_time)
+		aligned = aligned and is_equal_approx((echo as StrikeDirector).stage.impact_time, main.stage.impact_time)
 	_expect(aligned, "every boomerang victim is hit at the same moment")
 	await _settle(view)
 	_expect(not view.is_presenting(), "the boomerang presentation finishes")

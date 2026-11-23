@@ -81,7 +81,7 @@ func present(events: Array[BattleEvent], speed: float) -> void:
 		for entry: Dictionary in pierced:
 			view.strikes.play_echo(data, entry, strike_speed)
 		# A Powder Keg goes off when it bursts; any other blast when the blow lands.
-		view.blasts.trigger = &"split" if NewPieceStrikes.victim_reaction(StringName(str(capture_event.payload.get("piece_def_id", "")))) == &"keg" else &"impact"
+		view.blasts.trigger = &"split" if StrikeLibrary.victim_reaction(StringName(str(capture_event.payload.get("piece_def_id", "")))) == &"keg" else &"impact"
 		return
 	if not pierced.is_empty():
 		var fallback: Array[Dictionary] = []

@@ -18,12 +18,12 @@ enum StrikeType {
 	BLUNT,
 	PIERCE,
 	CRUSH,
-	## Special pieces with their own victim reactions (see StrikeDirector.reaction_for).
+	## Special pieces with their own victim reactions (see StrikeLibrary.reaction_for).
 	VOID,
 	GRAB,
 	VENOM,
 	ARCANE,
-	## Hit types of the pieces from plan §27 (see NewPieceStrikes).
+	## Hit types of the pieces from plan §27 (see StrikeLibrary.reaction_for).
 	DEVOUR,
 	HOLY,
 	RESONANCE,
