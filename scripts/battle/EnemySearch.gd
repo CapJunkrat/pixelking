@@ -113,6 +113,10 @@ func _negamax(board: BoardState, color: int, depth: int, alpha: int, beta: int, 
 		return _quiesce(board, color, alpha, beta, QUIESCENCE_DEPTH, ply)
 	var moves: Array = _ordered(board, _moves(board, color))
 	if moves.is_empty():
+		# Locked down for good (a blockade) loses like a lost King. The player's items
+		# are not known here, so a blockade they could break is still scored as won.
+		if board.is_blockaded(color):
+			return -(MATE - ply)
 		return _evaluate(board, color)
 	for move: Array in moves:
 		var child: Array = _play(board, move, color)

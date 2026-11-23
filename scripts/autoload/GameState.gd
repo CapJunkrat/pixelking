@@ -207,7 +207,8 @@ func force_debug_victory() -> bool:
 	_publish_command_result(result)
 	return result.success
 
-## Gives up the remaining bonus action (assassin, courier) and passes the turn.
+## Gives up the remaining bonus action (assassin, courier), or a turn in which no piece
+## can move, and passes the turn.
 func try_end_turn() -> bool:
 	if board == null or command_processor == null or not command_processor.can_end_turn(player_color):
 		return false

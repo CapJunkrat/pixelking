@@ -193,7 +193,8 @@ func refresh(board: BoardState, player_color: int) -> void:
 	_style_turn()
 	round_label.text = _text("BATTLE_ROUND") % (floori(float(board.move_history.size()) / 2.0) + 1)
 	if end_turn_button != null:
-		end_turn_button.visible = _your_turn and board.bonus_instance_id != 0
+		# Also shown when the player cannot move at all (only an item could help).
+		end_turn_button.visible = _your_turn and (board.bonus_instance_id != 0 or not board.has_any_executable_move(player_color))
 
 ## Teal pill on your turn, a muted coral one while the enemy thinks.
 func _style_turn() -> void:

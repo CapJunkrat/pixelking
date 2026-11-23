@@ -23,6 +23,7 @@ const TESTS = [
 	{"path": "res://scripts/tests/unit/battle/test_battle_events.gd", "layer": "unit", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/battle/test_battle_presentation.gd", "layer": "unit", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/battle/test_battle_terminal_authority.gd", "layer": "unit", "domain": "battle", "kind": "scene_tree"},
+	{"path": "res://scripts/tests/unit/battle/test_blockade.gd", "layer": "unit", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/battle/test_battle_turn_coordinator.gd", "layer": "unit", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/battle/test_enemy_ai_difficulty.gd", "layer": "unit", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/run/test_events_and_rest.gd", "layer": "unit", "domain": "run", "kind": "scene_tree"},

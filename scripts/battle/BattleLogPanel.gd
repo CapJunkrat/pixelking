@@ -291,6 +291,9 @@ func _format_event(event: BattleEvent) -> String:
 			return ""
 		BattleCommandProcessor.EVENT_CHECK_DECLARED:
 			return "" if bool(data.get("checkmate", false)) else "  [color=#%s]%s[/color]" % [ENEMY.to_html(false), _text("LOG_CHECK")]
+		BattleCommandProcessor.EVENT_TURN_SKIPPED:
+			var yours: bool = int(data.get("color", 0)) == _player_color()
+			return "[color=#%s]%s[/color]" % [(TEAL if yours else ENEMY).to_html(false), _text("LOG_TURN_SKIPPED_YOURS" if yours else "LOG_TURN_SKIPPED_ENEMY")]
 		_:
 			return ""
 
@@ -306,12 +309,12 @@ func _hatchling(egg_id: String) -> String:
 func _who(piece_id: String, color: int) -> String:
 	var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
 	var name: String = _text(String(definition.display_name_key)) if definition != null else piece_id
-	var player_color: int = GameRules.PieceColor.WHITE
-	var game_state: Node = get_node_or_null("/root/GameState")
-	if game_state != null:
-		player_color = int(game_state.get("player_color"))
-	var yours: bool = color == player_color
+	var yours: bool = color == _player_color()
 	return "[color=#%s]%s[/color]" % [(TEAL if yours else ENEMY).to_html(false), (_text("LOG_YOUR") if yours else _text("LOG_ENEMY")) % name]
+
+func _player_color() -> int:
+	var game_state: Node = get_node_or_null("/root/GameState")
+	return int(game_state.get("player_color")) if game_state != null else GameRules.PieceColor.WHITE
 
 func _square(value: Variant) -> String:
 	if value is Vector2i:

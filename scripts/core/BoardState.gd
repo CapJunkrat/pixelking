@@ -494,6 +494,61 @@ func is_checkmate(color: int) -> bool:
 func is_stalemate(color: int) -> bool:
 	return has_king(color) and not is_in_check(color) and not has_any_legal_move(color)
 
+## Whether `color` can act at all: any move the battle would accept, even one that
+## leaves its own King in danger. Unlike has_any_legal_move, this is what a side that
+## is frozen or turned to stone runs out of.
+func has_any_executable_move(color: int) -> bool:
+	for x: int in range(board_size):
+		for y: int in range(board_size):
+			var piece: ChessPiece = grid[x][y]
+			if piece != null and piece.color == color and not get_executable_moves_for_color(Vector2i(x, y), color).is_empty():
+				return true
+	return false
+
+## Whether `color`, unable to act now, gets an action back just by waiting: a timed
+## freeze runs out, an egg hatches or a fallen piece returns. Played out on a copy
+## moved forward to the last of those turns, with everything else left as it is
+## now; whatever the other side does in between is judged again on later turns, so
+## this only says that waiting can help, not that it will.
+func can_recover_by_waiting(color: int) -> bool:
+	var horizon: int = turn_serial
+	for x: int in range(board_size):
+		for y: int in range(board_size):
+			var piece: ChessPiece = grid[x][y]
+			if piece == null or piece.color != color:
+				continue
+			horizon = maxi(horizon, piece.frozen_until_serial)
+			if piece.def.is_egg and piece.hatch_piece != null:
+				horizon = maxi(horizon, piece.hatch_serial)
+	for entry: Dictionary in pending_revivals:
+		var waiting: ChessPiece = entry.get("piece") as ChessPiece
+		if waiting != null and waiting.color == color:
+			horizon = maxi(horizon, int(entry.get("ready_serial", 0)))
+	if horizon <= turn_serial:
+		return false
+	# `color` moves on every other serial, counted from a serial where it is to move.
+	var own_serial: int = turn_serial if turn == color else turn_serial + 1
+	if horizon < own_serial:
+		horizon = own_serial
+	if (horizon - own_serial) % 2 != 0:
+		horizon += 1
+	var future: BoardState = clone()
+	future.turn = color
+	future.turn_serial = horizon
+	future.bonus_instance_id = 0
+	future.process_revivals(color)
+	return future.has_any_executable_move(color)
+
+## Whether `color`, to move, is locked down for good while the other side can still
+## play on: not in check, no action now and none that waiting would bring back. Items
+## are not counted here; the battle checks the player's items before calling this a
+## blockade (BattleCommandProcessor).
+func is_blockaded(color: int) -> bool:
+	if not has_king(color) or is_in_check(color) or has_any_executable_move(color) or can_recover_by_waiting(color):
+		return false
+	var other: int = GameRules.opposite(color)
+	return has_any_executable_move(other) or can_recover_by_waiting(other)
+
 func make_move(from: Vector2i, to: Vector2i, promotion_id: String = "queen") -> Dictionary:
 	var result: Dictionary = _empty_move_result()
 	var piece: ChessPiece = get_piece(from)

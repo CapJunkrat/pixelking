@@ -18,6 +18,8 @@ const DIFFICULTIES: Array[String] = [DIFFICULTY_EASY, DIFFICULTY_MEDIUM, DIFFICU
 const MEDIUM_CANDIDATES := 12
 ## What losing the King costs in the reply check: more than any material.
 const KING_LOSS := 10000000
+## A move that blockades the opponent wins the battle: just below taking the King.
+const BLOCKADE_WIN := 90000000
 
 var difficulty: String = DIFFICULTY_EASY
 ## Hard's time budget per move, in milliseconds.
@@ -83,12 +85,24 @@ func _choose_medium(board: BoardState, color: int) -> Dictionary:
 		if index >= MEDIUM_CANDIDATES and not bool(entry["capture"]):
 			continue
 		var score: int = int(entry["score"])
-		if not bool(entry["wins"]):
+		if not bool(entry["wins"]) and blockades_opponent(entry["board"] as BoardState, color):
+			score = BLOCKADE_WIN
+		elif not bool(entry["wins"]):
 			score -= worst_reply_loss(entry["board"] as BoardState, color)
 		if score > best_score:
 			best_score = score
 			best_move = {"from": entry["from"], "to": entry["to"], "score": score}
 	return best_move
+
+## Whether, on `after` (the board right after `color` moved), the opponent is handed a
+## turn in which it is locked down for good: the battle ends in a blockade win. The
+## player's items are not considered, as in the Hard search.
+static func blockades_opponent(after: BoardState, color: int) -> bool:
+	var enemy: int = GameRules.opposite(color)
+	var board: BoardState = after.clone()
+	board._hand_turn_to(enemy)
+	board.process_revivals(enemy)
+	return board.is_blockaded(enemy)
 
 ## On `after` (the board right after `color` moved), the most the opponent can win with
 ## one capturing reply: the value of what it removes from `color`, minus what it loses

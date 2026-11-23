@@ -32,7 +32,11 @@ func present(player_won: bool, draw: bool, run_result: BattleRunResult, summary:
 		detail_text = _text("BATTLE_DEFEAT_DETAIL")
 	if summary != null and not summary.reason.is_empty():
 		var reason_key: String = "RESULT_REASON_%s" % String(summary.reason).to_upper()
-		var reason_text: String = _text(reason_key)
+		# A reason may read differently for the winner and the loser (a blockade).
+		var sided_key: String = reason_key + ("_WIN" if player_won else "_LOSS")
+		var reason_text: String = _text(sided_key) if not draw else sided_key
+		if reason_text == sided_key:
+			reason_text = _text(reason_key)
 		if reason_text != reason_key:
 			detail_text = reason_text
 	if run_result != null:

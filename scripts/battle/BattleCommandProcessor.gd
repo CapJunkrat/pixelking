@@ -28,6 +28,9 @@ const EVENT_EGG_LAID: StringName = &"egg_laid"
 const EVENT_LAST_STAND: StringName = &"last_stand"
 const EVENT_ROCK_BROKEN: StringName = &"rock_broken"
 const EVENT_TURN_ENDED_EARLY: StringName = &"turn_ended_early"
+## A side that could not act but will be able to later (a timed freeze, an egg, a
+## returning piece) lost its turn: {color}.
+const EVENT_TURN_SKIPPED: StringName = &"turn_skipped"
 ## A side lost its last piece besides the King: the other King strikes it down at once.
 const EVENT_KING_EXECUTION: StringName = &"king_execution"
 ## Kings cannot be captured before this turn serial (two turns for each side).
@@ -49,6 +52,9 @@ var _next_sequence: int = 1
 var _item_used_turn_key: int = -1
 ## The side whose next move earns a bonus action (Second Wind, Glass Feather); -1 = none.
 var pending_bonus_color: int = -1
+## Turns skipped in a row because the side to move could not act. A skip right after
+## the other side's skip means neither can act: the battle is drawn.
+var consecutive_skips: int = 0
 
 func _init(
 	p_board: BoardState = null,
@@ -121,8 +127,12 @@ func reject_external(error_code: StringName) -> BattleCommandResult:
 	_next_action_id += 1
 	return _rejected(action_id, error_code)
 
+## Ends a turn early: to give up a bonus action, or when the player cannot move at all
+## (they may still hold an item that would free a piece, and choose not to use it).
 func can_end_turn(actor_color: int) -> bool:
-	return not status.is_finished() and board != null and board.turn == actor_color and board.bonus_instance_id != 0
+	if status.is_finished() or board == null or board.turn != actor_color:
+		return false
+	return board.bonus_instance_id != 0 or (actor_color == player_color and not board.has_any_executable_move(actor_color))
 
 func evaluate_terminal_state() -> BattleCommandResult:
 	if status.is_finished():
@@ -136,13 +146,16 @@ func evaluate_terminal_state() -> BattleCommandResult:
 		saved.events = stand
 		return saved
 	var outcome: BattleOutcome = outcome_evaluator.evaluate(board, player_color, turn_limit)
-	if not outcome.finished:
-		return null
 	var action_id: int = _next_action_id
-	_next_action_id += 1
 	var result: BattleCommandResult = BattleCommandResult.new()
 	result.success = true
-	_complete_battle(result.events, action_id, outcome)
+	if outcome.finished:
+		_complete_battle(result.events, action_id, outcome)
+	else:
+		_resolve_stuck_turn(result.events, action_id)
+	if result.events.is_empty():
+		return null
+	_next_action_id += 1
 	return result
 
 func force_finish(winner: int, draw: bool, reason: StringName = &"debug_forced") -> BattleCommandResult:
@@ -175,6 +188,7 @@ func _execute_use_item(action: UseItemAction, action_id: int) -> BattleCommandRe
 		effect_payload
 	))
 	_item_used_turn_key = board.turn_serial
+	consecutive_skips = 0
 	challenger_items.remove_at(action.slot_index)
 	var result: BattleCommandResult = BattleCommandResult.new()
 	result.success = true
@@ -241,6 +255,7 @@ func _clone_runtime(staged_board: BoardState, staged_items: Array[ChallengerItem
 	copy._next_sequence = _next_sequence
 	copy._item_used_turn_key = _item_used_turn_key
 	copy.pending_bonus_color = pending_bonus_color
+	copy.consecutive_skips = consecutive_skips
 	copy.event_history.assign(event_history)
 	copy.effect_queue = effect_queue.clone_runtime()
 	copy.status = status.clone_runtime()
@@ -264,6 +279,7 @@ func _execute_move(action: MoveAction, action_id: int) -> BattleCommandResult:
 		rejected.legacy_result = move_result.duplicate(true)
 		return rejected
 
+	consecutive_skips = 0
 	var result: BattleCommandResult = BattleCommandResult.new()
 	result.success = true
 	result.legacy_result = move_result.duplicate(true)
@@ -323,9 +339,13 @@ func _execute_move(action: MoveAction, action_id: int) -> BattleCommandResult:
 		return result
 	if bonus_candidate:
 		# Terminal rules are evaluated while the captured side owns the response turn.
+		# Only rules that end a battle at once apply here (a King taken, checkmate, a
+		# lone King): the other side has not really been handed the turn yet, so a
+		# stalemate or a blockade waits until it is (after the bonus action, an early
+		# end of turn, or right away when the bonus action has nowhere to go).
 		_try_last_stand(result.events, action_id)
 		var outcome: BattleOutcome = outcome_evaluator.evaluate(board, player_color, turn_limit)
-		if outcome.finished:
+		if outcome.finished and outcome.reason != &"stalemate":
 			result.events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
 			if outcome.reason == &"checkmate":
 				result.events.append(_event(EVENT_CHECK_DECLARED, action_id, {"color": board.turn, "checkmate": true}))
@@ -360,6 +380,7 @@ func _execute_end_turn(action: BattleAction, action_id: int) -> BattleCommandRes
 	if not can_end_turn(action.actor_color):
 		return _rejected(action_id, &"no_bonus_action")
 	_pass_turn()
+	consecutive_skips = 0
 	var result: BattleCommandResult = BattleCommandResult.new()
 	result.success = true
 	result.legacy_result = {"success": true, "turn_ended": true}
@@ -476,7 +497,7 @@ func _apply_effect(effect: BattleEffect) -> Array[BattleEffect]:
 func _refresh_legacy_terminal_flags(move_result: Dictionary) -> void:
 	move_result["check"] = board.is_in_check(board.turn)
 	move_result["checkmate"] = board.is_checkmate(board.turn) if bool(move_result["check"]) else false
-	move_result["stalemate"] = board.is_stalemate(board.turn) if not bool(move_result["check"]) else false
+	move_result["stalemate"] = board.is_stalemate(board.turn) and board.has_any_executable_move(board.turn) if not bool(move_result["check"]) else false
 
 func _append_terminal_events(events: Array[BattleEvent], action_id: int) -> void:
 	if _try_execution(events, action_id):
@@ -490,6 +511,63 @@ func _append_terminal_events(events: Array[BattleEvent], action_id: int) -> void
 		return
 	if board.is_in_check(board.turn):
 		events.append(_event(EVENT_CHECK_DECLARED, action_id, {"color": board.turn, "checkmate": false}))
+	_resolve_stuck_turn(events, action_id)
+
+## The side to move cannot act at all (BattleOutcomeEvaluator.stuck_turn_ruling): skip
+## its turn when waiting helps, end the battle on a blockade or when nobody can act,
+## or leave the turn to the player when an item would free a piece.
+func _resolve_stuck_turn(events: Array[BattleEvent], action_id: int) -> void:
+	if status.is_finished():
+		return
+	match outcome_evaluator.stuck_turn_ruling(board, _item_escape):
+		&"wait":
+			if consecutive_skips > 0:
+				_complete_battle(events, action_id, BattleOutcome.completed(-1, true, &"stalemate"))
+				return
+			events.append(_event(EVENT_TURN_SKIPPED, action_id, {"color": board.turn}))
+			_pass_turn()
+			consecutive_skips += 1
+			events.append(_event(EVENT_TURN_CHANGED, action_id, {"turn": board.turn}))
+			_append_revivals(events, action_id)
+			# The recursion stops: a second skip in a row draws the battle above.
+			_append_terminal_events(events, action_id)
+		&"blockade":
+			_complete_battle(events, action_id, BattleOutcome.completed(GameRules.opposite(board.turn), false, &"blockade"))
+		&"draw":
+			_complete_battle(events, action_id, BattleOutcome.completed(-1, true, &"stalemate"))
+
+## Whether one of the player's items, used now on any target it accepts, would leave
+## `color` with a move (or win outright). Each try runs on a staged copy; inside it the
+## item is spent for the turn, so the copy never asks this again.
+func _item_escape(color: int) -> bool:
+	if color != player_color or board.turn != color:
+		return false
+	for slot_index: int in range(challenger_items.size()):
+		if not can_use_item(slot_index, color):
+			continue
+		var targets: Array[Vector2i] = []
+		match item_target(challenger_items[slot_index]):
+			"enemy", "ally":
+				var want_enemy: bool = item_target(challenger_items[slot_index]) == "enemy"
+				for x: int in range(board.board_size):
+					for y: int in range(board.board_size):
+						var occupant: ChessPiece = board.get_piece(Vector2i(x, y))
+						if occupant != null and (occupant.color != color) == want_enemy:
+							targets.append(Vector2i(x, y))
+			_:
+				targets.append(Vector2i(-1, -1))
+		for target: Vector2i in targets:
+			var plan: BattleItemUsePlan = stage_item_use(UseItemAction.new(slot_index, color, target))
+			if plan == null or not plan.is_valid():
+				continue
+			var staged_status: BattleStatus = plan.staged_processor.status
+			if staged_status.is_finished():
+				if staged_status.winner == color:
+					return true
+				continue
+			if plan.staged_board.turn == color and plan.staged_board.has_any_executable_move(color):
+				return true
+	return false
 
 ## When one side has nothing left but its King while the other still has an army, the
 ## lone King falls where it stands and the battle ends at once. Nothing moves: the
