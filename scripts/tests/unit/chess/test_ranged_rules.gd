@@ -85,7 +85,7 @@ func _test_boomerang() -> void:
 	var guarded: BoardState = _board({Vector2i(4, 1): [&"ranger", W], Vector2i(4, 3): [&"king", B], Vector2i(3, 3): [&"pawn", B], Vector2i(4, 4): [&"knight", B], Vector2i(0, 0): [&"king", W]})
 	BattleTestFixture.play(guarded, Vector2i(4, 1), Vector2i(4, 4))
 	expect(guarded.has_king(B) and guarded.get_piece(Vector2i(4, 4)) == null, "the boomerang passes a guarded King and hits the enemy behind it")
-	var ranger: PieceDef = PieceDefDatabase.get_def("ranger")
+	var ranger: PieceDef = Content.piece("ranger")
 	expect(ranger.rarity == PieceDef.Rarity.EPIC, "the Ranger is Epic")
 
 func _test_rocks() -> void:
@@ -183,4 +183,4 @@ func _moves(board: BoardState, square: Vector2i) -> Array[Vector2i]:
 	return board.get_executable_moves_for_color(square, piece.color)
 
 func _piece(piece_id: StringName, color: int) -> ChessPiece:
-	return ChessPiece.new(PieceDefDatabase.get_def(piece_id), color)
+	return ChessPiece.new(Content.piece(piece_id), color)

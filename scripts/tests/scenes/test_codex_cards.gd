@@ -25,7 +25,7 @@ func _run() -> void:
 		expect(cards.size() == AchievementCatalog.codex_piece_ids().size(), "%s: a card for every codex piece (%d)" % [locale, cards.size()])
 		var ranks: Array[int] = []
 		for card: Node in cards:
-			ranks.append(PieceDefDatabase.get_def(str(card.name).trim_prefix("Codex_")).rarity)
+			ranks.append(Content.piece(str(card.name).trim_prefix("Codex_")).rarity)
 		var sorted_ranks: Array[int] = ranks.duplicate()
 		sorted_ranks.sort()
 		sorted_ranks.reverse()
@@ -59,14 +59,14 @@ func _run() -> void:
 		# Every piece's details fit on one screen.
 		var too_tall: Array[String] = []
 		for piece_id: String in AchievementCatalog.codex_piece_ids():
-			details.call("show_definition", PieceDefDatabase.get_def(piece_id))
+			details.call("show_definition", Content.piece(piece_id))
 			await _frames(2)
 			var card_rect: Rect2 = (details.find_child("Card", true, false) as Control).get_global_rect()
 			if card_rect.size.y > SCREEN.y - 40.0 or card_rect.position.x < 0.0 or card_rect.end.x > SCREEN.x:
 				too_tall.append("%s %.0fx%.0f" % [piece_id, card_rect.size.x, card_rect.size.y])
 		expect(too_tall.is_empty(), "%s: every piece's details fit on one screen %s" % [locale, too_tall])
 		# Fused pieces show their recipe; others show none.
-		details.call("show_definition", PieceDefDatabase.get_def("swift_courier"))
+		details.call("show_definition", Content.piece("swift_courier"))
 		var path: Node = details.find_child("FusionPath", true, false)
 		var path_text: String = ""
 		if path != null:
@@ -76,9 +76,9 @@ func _run() -> void:
 		var assassin: String = str(localization.call("text", "PIECE_ASSASSIN"))
 		var bishop: String = str(localization.call("text", "PIECE_BISHOP"))
 		expect(path != null and assassin in path_text and bishop in path_text, "%s: the Swift Courier shows its fusion path (%s)" % [locale, path_text])
-		details.call("show_definition", PieceDefDatabase.get_def("pawn"))
+		details.call("show_definition", Content.piece("pawn"))
 		expect(details.find_child("FusionPath", true, false) == null, "%s: a piece no recipe makes shows no fusion path" % locale)
-		for recipe: FusionRecipeDef in FusionRecipeDatabase.all_defs():
+		for recipe: FusionRecipeDef in Content.recipes():
 			expect(details.call("fusion_recipe_for", String(recipe.result_piece_def_id)) != null, "%s has a fusion path" % recipe.result_piece_def_id)
 		details.call("close")
 		menu.queue_free()

@@ -13,7 +13,7 @@ func generate(run_state: RunState, rng: RunRngService, reward_service: RunReward
 	var event_id: StringName = pick_event(run_state, rng)
 	if event_id.is_empty():
 		return ERR_DOES_NOT_EXIST
-	var definition: EventDefType = RunContentDatabase.event_def(event_id)
+	var definition: EventDefType = Content.event(event_id)
 	if definition == null:
 		return ERR_DOES_NOT_EXIST
 	var seen: Array = run_state.run_statistics.get(SEEN_KEY, []) as Array
@@ -32,14 +32,14 @@ func generate(run_state: RunState, rng: RunRngService, reward_service: RunReward
 
 ## An event not yet met this Run whose layer has been reached; any event once all are seen.
 func pick_event(run_state: RunState, rng: RunRngService) -> StringName:
-	var all_ids: Array[StringName] = RunContentDatabase.event_ids()
+	var all_ids: Array[StringName] = Content.event_ids()
 	if all_ids.is_empty():
 		return &""
 	var seen: Array = run_state.run_statistics.get(SEEN_KEY, []) as Array
 	var layer: int = _layer(run_state)
 	var fresh: Array[StringName] = []
 	for id: StringName in all_ids:
-		var definition: EventDefType = RunContentDatabase.event_def(id)
+		var definition: EventDefType = Content.event(id)
 		if definition != null and String(id) not in seen and layer >= definition.min_layer:
 			fresh.append(id)
 	var pool: Array[StringName] = fresh if not fresh.is_empty() else all_ids
@@ -95,10 +95,10 @@ func _resolve_effect(effect: Dictionary, run_state: RunState, rng: RunRngService
 	var result: Dictionary = effect.duplicate(true)
 	match str(effect.get("kind", "nothing")):
 		"random_item":
-			var items: Array[StringName] = RunContentDatabase.consumable_ids()
+			var items: Array[StringName] = Content.consumable_ids()
 			result["kind"] = "item"
 			result["item_id"] = String(items[rng.pick_index(&"event_rng", items.size())]) if not items.is_empty() else ""
-			result["reward_name"] = RunContentDatabase.item_label(StringName(str(result["item_id"])))
+			result["reward_name"] = ContentText.item_name(StringName(str(result["item_id"])))
 			# With every slot full the option stays open: choosing it first asks which
 			# relic or item to give up (SlotReplaceService).
 		"random_relic":
@@ -110,7 +110,7 @@ func _resolve_effect(effect: Dictionary, run_state: RunState, rng: RunRngService
 			else:
 				result["kind"] = "relic"
 				result["relic_id"] = String(relic)
-				result["reward_name"] = RunContentDatabase.relic_label(relic)
+				result["reward_name"] = ContentText.item_name(relic)
 		"random_piece":
 			var pool: Array[String] = reward_service.piece_pool(str(effect.get("pool", "common")))
 			result["kind"] = "piece"
@@ -160,14 +160,14 @@ func _resolve_effect(effect: Dictionary, run_state: RunState, rng: RunRngService
 		"lose_item":
 			var owned: Array[StringName] = []
 			for slot: StringName in run_state.challenger_slots:
-				var item: ChallengerItemDef = ChallengerItemDatabase.get_def(slot)
+				var item: ChallengerItemDef = Content.challenger_item(slot)
 				if item != null and item.is_consumable():
 					owned.append(slot)
 			if owned.is_empty():
 				result["blocked"] = "You carry no battle item to give."
 			else:
 				result["item_id"] = String(owned[rng.pick_index(&"event_rng", owned.size())])
-				result["lost"] = RunContentDatabase.item_label(StringName(str(result["item_id"])))
+				result["lost"] = ContentText.item_name(StringName(str(result["item_id"])))
 		"lose_retry":
 			if run_state.retries_left <= 0:
 				result["blocked"] = "You have no retry left to give."
@@ -195,7 +195,7 @@ func _weakest_piece(run_state: RunState) -> PieceInstanceState:
 		if piece.is_king:
 			continue
 		count += 1
-		var definition: PieceDef = PieceDefDatabase.get_def(String(piece.piece_def_id))
+		var definition: PieceDef = Content.piece(String(piece.piece_def_id))
 		var value: int = definition.base_value if definition != null else 1000
 		if value < best_value:
 			best_value = value

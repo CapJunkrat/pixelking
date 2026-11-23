@@ -107,13 +107,13 @@ func _prepare_battle_deployment(run_state: RunState) -> DeploymentService:
 		var selected_id: StringName = available[0]
 		for node_id: StringName in available:
 			var candidate: MapNodeState = run_state.map_state.get_node(node_id)
-			if MapNodeDefDatabase.get_def(candidate.node_type_id).is_battle:
+			if Content.map_node(candidate.node_type_id).is_battle:
 				selected_id = node_id
 				break
 		assert(progress.select_node(run_state, rng, selected_id) == OK)
 		run_state.phase = RunPhase.NODE_SELECTED
 		var selected: MapNodeState = run_state.map_state.get_node(selected_id)
-		if MapNodeDefDatabase.get_def(selected.node_type_id).is_battle:
+		if Content.map_node(selected.node_type_id).is_battle:
 			var deployment_service: DeploymentService = DeploymentService.new()
 			assert(deployment_service.ensure_deployment(run_state) == OK)
 			run_state.phase = RunPhase.DEPLOYMENT

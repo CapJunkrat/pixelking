@@ -21,11 +21,11 @@ func _init() -> void:
 	if localization.text(String(GameRules.color_key(GameRules.PieceColor.BLACK))) != "Black":
 		push_error("Black color localization is unavailable")
 		ok = false
-	if localization.text(String(PieceDefDatabase.get_def("king").display_name_key)) != "King":
+	if localization.text(String(Content.piece("king").display_name_key)) != "King":
 		push_error("Piece display-name localization is unavailable")
 		ok = false
 	for piece_id: StringName in [&"assassin", &"royal_guard", &"catapult", &"bowman", &"portal_mage", &"unicorn_cavalry", &"centaur", &"manticore", &"gryphon", &"gorgon"]:
-		var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
+		var definition: PieceDef = Content.piece(piece_id)
 		if definition == null or localization.text(String(definition.display_name_key)) == String(definition.display_name_key):
 			push_error("New piece localization is unavailable: %s" % piece_id)
 			ok = false

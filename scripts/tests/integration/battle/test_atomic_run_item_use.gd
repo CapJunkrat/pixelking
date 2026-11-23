@@ -83,7 +83,7 @@ func _run() -> void:
 
 func _first_enemy_non_king_position(deployment: DeploymentState) -> Vector2i:
 	for placement: Dictionary in deployment.enemy_placements:
-		var definition: PieceDef = PieceDefDatabase.get_def(str(placement.get("piece_def_id", "")))
+		var definition: PieceDef = Content.piece(str(placement.get("piece_def_id", "")))
 		if definition != null and not definition.is_king:
 			return DeploymentState.position_from_value(placement.get("position", {}))
 	return Vector2i(-1, -1)

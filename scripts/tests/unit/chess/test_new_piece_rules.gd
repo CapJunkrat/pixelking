@@ -193,8 +193,8 @@ func _test_revival() -> void:
 	expect(board.get_piece(Vector2i(0, 0)) != null and board.get_piece(Vector2i(0, 0)).def.id == "ember_bird", "its start square is taken, so it revives in the bottom-left corner")
 
 func _test_revive_limits() -> void:
-	var phoenix: ChessPiece = ChessPiece.new(PieceDefDatabase.get_def("flame_phoenix"), W)
-	var bird: ChessPiece = ChessPiece.new(PieceDefDatabase.get_def("ember_bird"), W)
+	var phoenix: ChessPiece = ChessPiece.new(Content.piece("flame_phoenix"), W)
+	var bird: ChessPiece = ChessPiece.new(Content.piece("ember_bird"), W)
 	expect(phoenix.def.revive_after_turns == 2 and bird.def.revive_after_turns == 2, "Phoenix and Ember Bird eggs both hatch after 2 turns")
 	expect(phoenix.revives_left < 0 and bird.revives_left == 1, "the Phoenix lays an egg every time, the Ember Bird only once")
 	var board: BoardState = _board({Vector2i(3, 3): [&"flame_phoenix", W], Vector2i(4, 0): [&"king", W], Vector2i(7, 7): [&"king", B], Vector2i(3, 6): [&"rook", B]}, B)
@@ -210,7 +210,7 @@ func _test_revive_limits() -> void:
 				if piece != null and piece.def.is_egg:
 					board.set_piece(Vector2i(x, y), null)
 		board.set_piece(Vector2i(3, 3), reborn)
-		var rook: ChessPiece = ChessPiece.new(PieceDefDatabase.get_def("rook"), B)
+		var rook: ChessPiece = ChessPiece.new(Content.piece("rook"), B)
 		board.set_piece(Vector2i(3, 6), rook)
 		board.turn = B
 	expect(reborn.revives_left < 0, "the Phoenix never runs out of eggs")
@@ -228,7 +228,7 @@ func _test_squire_levels() -> void:
 	squire.capture_count = 1
 	BattleTestFixture.play(board, Vector2i(3, 3), Vector2i(4, 5))
 	expect(squire.def.id == "squire_lv3", "a Squire grows a level with every capture")
-	expect(PieceDefDatabase.get_def("squire").evolve_at_captures == 1 and PieceDefDatabase.get_def("squire_lv2").evolve_at_captures == 2 and PieceDefDatabase.get_def("squire_lv3").evolve_at_captures == 3, "Squire levels need 1, 2 and 3 captures in all")
+	expect(Content.piece("squire").evolve_at_captures == 1 and Content.piece("squire_lv2").evolve_at_captures == 2 and Content.piece("squire_lv3").evolve_at_captures == 3, "Squire levels need 1, 2 and 3 captures in all")
 
 func _test_courier() -> void:
 	var board: BoardState = _board({Vector2i(2, 2): [&"swift_courier", W], Vector2i(0, 0): [&"king", W], Vector2i(7, 7): [&"king", B], Vector2i(6, 6): [&"pawn", B]})
@@ -263,7 +263,7 @@ func _test_kings() -> void:
 	var mate: BattleCommandResult = processor.execute(MoveAction.new(Vector2i(7, 4), Vector2i(7, 0), B))
 	expect(_has(mate.events, BattleCommandProcessor.EVENT_LAST_STAND) and not processor.status.is_finished(), "the Shield King survives its first checkmate")
 	expect(board.get_piece(Vector2i(7, 0)) == null, "the checking Rook is destroyed")
-	expect(PieceDefDatabase.get_def("war_king").has_movement_rule(&"castling") == false, "fused Kings cannot castle")
+	expect(Content.piece("war_king").has_movement_rule(&"castling") == false, "fused Kings cannot castle")
 
 func _test_run_growth() -> void:
 	var state: PieceInstanceState = PieceInstanceState.new(7, &"squire", false)
@@ -320,7 +320,7 @@ func _moves(board: BoardState, square: Vector2i, color: int = -1) -> Array[Vecto
 	return board.get_executable_moves_for_color(square, piece.color if color < 0 else color)
 
 func _piece(piece_id: StringName, color: int) -> ChessPiece:
-	return ChessPiece.new(PieceDefDatabase.get_def(piece_id), color)
+	return ChessPiece.new(Content.piece(piece_id), color)
 
 func _has(events: Array[BattleEvent], event_type: StringName) -> bool:
 	for event: BattleEvent in events:

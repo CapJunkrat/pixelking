@@ -62,7 +62,7 @@ func _guarantee_candidates(
 func _weighted_filler_type(template: MapTemplateDef, rng: RunRngService) -> StringName:
 	var total_weight: int = 0
 	for node_type_id: StringName in template.filler_node_type_ids:
-		var definition: MapNodeDef = MapNodeDefDatabase.get_def(node_type_id)
+		var definition: MapNodeDef = Content.map_node(node_type_id)
 		if definition != null:
 			total_weight += definition.generation_weight
 	if total_weight <= 0:
@@ -70,7 +70,7 @@ func _weighted_filler_type(template: MapTemplateDef, rng: RunRngService) -> Stri
 	var roll: int = rng.randi_range(RNG_STREAM, 1, total_weight)
 	var cursor: int = 0
 	for node_type_id: StringName in template.filler_node_type_ids:
-		var definition: MapNodeDef = MapNodeDefDatabase.get_def(node_type_id)
+		var definition: MapNodeDef = Content.map_node(node_type_id)
 		if definition == null:
 			continue
 		cursor += definition.generation_weight

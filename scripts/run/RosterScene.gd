@@ -207,7 +207,7 @@ func _render() -> void:
 	reserve_count.text = "%d/%d" % [reserve.size(), RunState.MAX_RESERVE_PIECES]
 	_clear(item_row)
 	for index: int in range(maxi(RunState.MAX_CHALLENGER_SLOTS, run.challenger_slots.size())):
-		item_row.add_child(_item_tile(ChallengerItemDatabase.get_def(run.challenger_slots[index]) if index < run.challenger_slots.size() else null))
+		item_row.add_child(_item_tile(Content.challenger_item(run.challenger_slots[index]) if index < run.challenger_slots.size() else null))
 	_render_detail()
 
 func _piece_tile(piece: PieceInstanceState, on_line: bool) -> Button:
@@ -222,7 +222,7 @@ func _piece_tile(piece: PieceInstanceState, on_line: bool) -> Button:
 		for state: String in ["normal", "hover", "pressed", "disabled"]:
 			tile.add_theme_stylebox_override(state, empty)
 		return tile
-	var definition: PieceDef = PieceDefDatabase.get_def(String(piece.piece_def_id))
+	var definition: PieceDef = Content.piece(String(piece.piece_def_id))
 	tile.name = "Piece_%d" % piece.instance_id
 	tile.set_meta("instance_id", piece.instance_id)
 	tile.tooltip_text = _piece_name(piece)
@@ -285,7 +285,7 @@ func _render_detail() -> void:
 	if selected.begins_with("piece:"):
 		_render_piece_detail(run_manager.current_run.get_piece_state(int(selected.trim_prefix("piece:"))))
 	elif selected.begins_with("item:"):
-		_render_item_detail(ChallengerItemDatabase.get_def(StringName(selected.trim_prefix("item:"))))
+		_render_item_detail(Content.challenger_item(StringName(selected.trim_prefix("item:"))))
 	else:
 		var hint: Label = _label(_text("ROSTER_SUBTITLE"), 12, MUTED)
 		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -296,7 +296,7 @@ func _render_detail() -> void:
 func _render_piece_detail(piece: PieceInstanceState) -> void:
 	if piece == null:
 		return
-	var definition: PieceDef = PieceDefDatabase.get_def(String(piece.piece_def_id))
+	var definition: PieceDef = Content.piece(String(piece.piece_def_id))
 	if definition == null:
 		return
 	var on_line: bool = piece.instance_id in run_manager.current_run.active_piece_ids
@@ -447,7 +447,7 @@ func _icon(texture: Texture2D) -> Texture2D:
 	return cropped
 
 func _piece_name(piece: PieceInstanceState) -> String:
-	var definition: PieceDef = PieceDefDatabase.get_def(String(piece.piece_def_id))
+	var definition: PieceDef = Content.piece(String(piece.piece_def_id))
 	return _text(String(definition.display_name_key)) if definition != null else String(piece.piece_def_id)
 
 func _text(key: String) -> String:

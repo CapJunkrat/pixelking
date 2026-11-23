@@ -62,13 +62,13 @@ func _run() -> void:
 func _capture(view: BattleBoardView, attacker: String, victim: String, landing: Vector2i, target: Vector2i, shell: bool, path: String) -> void:
 	var board: BoardState = BoardState.new()
 	board.clear_for_setup()
-	board.place_piece_for_setup(Vector2i(4, 0), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.WHITE))
-	board.place_piece_for_setup(Vector2i(4, 7), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.BLACK))
+	board.place_piece_for_setup(Vector2i(4, 0), ChessPiece.new(Content.piece("king"), GameRules.PieceColor.WHITE))
+	board.place_piece_for_setup(Vector2i(4, 7), ChessPiece.new(Content.piece("king"), GameRules.PieceColor.BLACK))
 	if shell:
-		board.place_piece_for_setup(FROM, ChessPiece.new(PieceDefDatabase.get_def(attacker), GameRules.PieceColor.WHITE))
-		board.place_piece_for_setup(target, ChessPiece.new(PieceDefDatabase.get_def(victim), GameRules.PieceColor.BLACK))
+		board.place_piece_for_setup(FROM, ChessPiece.new(Content.piece(attacker), GameRules.PieceColor.WHITE))
+		board.place_piece_for_setup(target, ChessPiece.new(Content.piece(victim), GameRules.PieceColor.BLACK))
 	else:
-		board.place_piece_for_setup(landing, ChessPiece.new(PieceDefDatabase.get_def(attacker), GameRules.PieceColor.WHITE))
+		board.place_piece_for_setup(landing, ChessPiece.new(Content.piece(attacker), GameRules.PieceColor.WHITE))
 	(view.get_node("StrikeDirector") as StrikeDirector).stop()
 	view.refresh(board)
 	await process_frame

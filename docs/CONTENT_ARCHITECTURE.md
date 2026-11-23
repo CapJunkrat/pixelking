@@ -10,7 +10,7 @@
 - `res://assets/`：纹理、字体、音频、Shader 等表现资产。
 - `res://resources/content/`：棋子、动作档案、配方、挑战者物品、奖励表、商店池、事件、休息点、地图与 Encounter 定义。
 - `res://scripts/content/`：Catalog schema、Registry、验证及内容配置类型。
-- `res://scripts/data/*Database.gd`：旧调用方的兼容查询门面，不得重新构造具体内容。
+- `res://scripts/content/Content.gd`：唯一的内容查询入口（按稳定 ID 查棋子、配方、物品、事件、地图节点、Encounter 与 Run 表），只转发到 Registry，不得重新构造具体内容；`ContentText.gd` 负责内容的本地化名称。
 - `res://scripts/run/content/`：按奖励、候选生成、融合、阵容和战斗结果拆分的 Run 内容领域服务。
 - `res://scripts/run/RunContentService.gd`：仅保留兼容门面和薄分发，不得重新吸收具体规则或展示构造。
 - `res://scripts/run/`：流程、资格、随机抽取、事务与效果执行，不得拥有具体内容池。
@@ -30,7 +30,7 @@
 2. 使用唯一、非空的稳定 ID；
 3. 加入 `default_catalog.tres` 的显式引用数组；
 4. 使用已有本地化 Key 和显式资产引用；
-5. 不在 Database、RunContentService 或 UI 中增加该内容的具体 ID；
+5. 不在 Content、RunContentService 或 UI 中增加该内容的具体 ID；
 6. 通过 `unit/content/test_content_catalog.gd` 的交叉引用验证；
 7. 通过相关规则、确定性、完整 Run 与 Android 导出验证。
 
@@ -80,7 +80,7 @@
 
 ## 融合事务
 
-- `FusionRecipeDatabase` 只负责配方查询；资格、容量和执行统一归 `FusionService`。
+- `Content.recipe()` 只负责配方查询；资格、容量和执行统一归 `FusionService`。
 - `FusionPlan` 必须保存精确素材实例 ID、产物、来源候选、价格和原始 pending choice。
 - 玩家选择图纸后先保存 `fusion_confirmation`，确认前不得消耗素材或扣除金币。
 - 取消必须原样恢复原奖励或商店候选，禁止重新抽取 RNG。

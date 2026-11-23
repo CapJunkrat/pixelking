@@ -1,8 +1,8 @@
 class_name RunContentService
 extends RefCounted
 
-## Compatibility facade and thin interaction coordinator.
-## Concrete behavior lives in focused services under scripts/run/content.
+## Starts and resolves the interactive map nodes (shop, event, rest, rewards) and
+## routes each choice to the focused service under scripts/run/content that owns it.
 
 ## Node interactions the player may walk away from without choosing.
 const LEAVABLE_TYPES: Array[String] = ["shop", "event", "rest"]

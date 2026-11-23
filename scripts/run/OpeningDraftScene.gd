@@ -168,7 +168,7 @@ func _apply_card_transform(index: int, target_position: Vector2, target_rotation
 		pivot.scale = target_scale
 
 func _render_candidate(button: Button, piece_def_id: String) -> void:
-	var definition: PieceDef = PieceDefDatabase.get_def(piece_def_id)
+	var definition: PieceDef = Content.piece(piece_def_id)
 	button.disabled = definition == null
 	button.set_meta("piece_def_id", piece_def_id)
 	var portrait: TextureRect = button.get_node("Content/Portrait") as TextureRect
@@ -209,7 +209,7 @@ func _render_selected_roster(run_state: RunState) -> void:
 		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		portrait.texture = PieceSkinManager.piece_texture(&"white", piece.piece_def_id)
-		portrait.tooltip_text = Localization.text(String(PieceDefDatabase.get_def(String(piece.piece_def_id)).display_name_key))
+		portrait.tooltip_text = Localization.text(String(Content.piece(String(piece.piece_def_id)).display_name_key))
 		selected_roster.add_child(portrait)
 
 func _on_card_preview_pressed(index: int) -> void:
@@ -259,7 +259,7 @@ func _stop_candidate_info() -> void:
 func _on_info_timer_timeout() -> void:
 	if pending_info_index < 0 or pending_info_index >= candidate_ids.size():
 		return
-	var definition: PieceDef = PieceDefDatabase.get_def(candidate_ids[pending_info_index])
+	var definition: PieceDef = Content.piece(candidate_ids[pending_info_index])
 	if definition == null:
 		return
 	(info_popup.get_node("Content/NameLabel") as Label).text = Localization.text(String(definition.display_name_key))

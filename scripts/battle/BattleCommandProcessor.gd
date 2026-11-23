@@ -314,7 +314,7 @@ func _execute_move(action: MoveAction, action_id: int) -> BattleCommandResult:
 		}))
 	_settle_effects(result.events, action_id, action.actor_color)
 	# moving_piece.def may have changed form; the ability belongs to the piece that acted.
-	var acted_def: PieceDef = PieceDefDatabase.get_def(move.moved_def_id) if not move.moved_def_id.is_empty() else null
+	var acted_def: PieceDef = Content.piece(move.moved_def_id) if not move.moved_def_id.is_empty() else null
 	if acted_def == null and moving_piece != null:
 		acted_def = moving_piece.def
 	var bonus_candidate: bool = (

@@ -27,7 +27,7 @@ func _init() -> void:
 	var bishop: RefCounted = restored.call("allocate_piece", "bishop", false) as RefCounted
 	_expect(int(bishop.get("instance_id")) == 3, "restored allocator never reuses piece IDs")
 
-	var prior_piece: ChessPiece = ChessPiece.new(PieceDefDatabase.get_def("queen"), GameRules.PieceColor.WHITE)
+	var prior_piece: ChessPiece = ChessPiece.new(Content.piece("queen"), GameRules.PieceColor.WHITE)
 	var second_state: RefCounted = state_script.new() as RefCounted
 	second_state.call("initialize_new", 922337203685477000, "standard")
 	var second_king: RefCounted = second_state.call("allocate_piece", "king", true) as RefCounted

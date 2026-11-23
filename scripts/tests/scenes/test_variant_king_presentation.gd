@@ -15,9 +15,9 @@ func _run() -> void:
 	var target: Vector2i = Vector2i(2, 5)
 	var board: BoardState = BoardState.new(8, false)
 	board.clear_for_setup()
-	board.place_piece_for_setup(from, ChessPiece.new(PieceDefDatabase.get_def("shadow_king"), GameRules.PieceColor.WHITE))
-	board.place_piece_for_setup(Vector2i(7, 7), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.BLACK))
-	board.place_piece_for_setup(Vector2i(6, 6), ChessPiece.new(PieceDefDatabase.get_def("knight"), GameRules.PieceColor.BLACK))
+	board.place_piece_for_setup(from, ChessPiece.new(Content.piece("shadow_king"), GameRules.PieceColor.WHITE))
+	board.place_piece_for_setup(Vector2i(7, 7), ChessPiece.new(Content.piece("king"), GameRules.PieceColor.BLACK))
+	board.place_piece_for_setup(Vector2i(6, 6), ChessPiece.new(Content.piece("knight"), GameRules.PieceColor.BLACK))
 	view.refresh(board)
 	var before: String = "\n".join(BattleRecord.snapshot_lines(board))
 	view.present_events([

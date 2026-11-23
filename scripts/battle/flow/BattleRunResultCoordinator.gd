@@ -8,7 +8,7 @@ func integrate(manager: AppRunManager, player_won: bool, draw: bool = false) -> 
 		return result
 	result.has_active_run = true
 	var current: MapNodeState = manager.current_map_node()
-	var definition: MapNodeDef = MapNodeDefDatabase.get_def(current.node_type_id) if current != null else null
+	var definition: MapNodeDef = Content.map_node(current.node_type_id) if current != null else null
 	if definition == null or not definition.is_battle:
 		return result
 	var error: Error = manager.apply_battle_draw() if draw else manager.apply_battle_outcome(player_won)

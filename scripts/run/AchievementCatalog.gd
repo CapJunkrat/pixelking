@@ -41,7 +41,7 @@ const SMALL_ARMY := 3
 static func total_for(stat: String) -> int:
 	match stat:
 		"bosses":
-			return EncounterDefDatabase.boss_ids().size()
+			return Content.boss_ids().size()
 		"codex":
 			return codex_piece_ids().size()
 	return 0
@@ -49,8 +49,8 @@ static func total_for(stat: String) -> int:
 ## Codex pages: every piece that is not an egg.
 static func codex_piece_ids() -> Array[String]:
 	var ids: Array[String] = []
-	for piece_id: String in PieceDefDatabase.all_ids():
-		var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
+	for piece_id: String in Content.piece_ids():
+		var definition: PieceDef = Content.piece(piece_id)
 		if definition != null and not definition.is_egg:
 			ids.append(piece_id)
 	return ids

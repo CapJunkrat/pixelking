@@ -10,7 +10,7 @@ func ensure_deployment(run_state: RunState) -> Error:
 		# Development saves from the former 5x5 prototype are safely rebuilt.
 		run_state.deployment_state = null
 	var current: MapNodeState = run_state.map_state.get_node(run_state.current_node_id)
-	var encounter: EncounterDef = EncounterDefDatabase.for_node(run_state, current)
+	var encounter: EncounterDef = EncounterGenerator.encounter_for_node(run_state, current)
 	if encounter == null:
 		return ERR_DOES_NOT_EXIST
 	var deployment: DeploymentState = DeploymentState.new()
@@ -119,11 +119,11 @@ func _can_deploy(run_state: RunState) -> bool:
 	if run_state.resolved_node_payloads.has(String(run_state.current_node_id)):
 		return false
 	var current: MapNodeState = run_state.map_state.get_node(run_state.current_node_id)
-	var node_definition: MapNodeDef = MapNodeDefDatabase.get_def(current.node_type_id) if current != null else null
+	var node_definition: MapNodeDef = Content.map_node(current.node_type_id) if current != null else null
 	return (
 		node_definition != null
 		and node_definition.is_battle
-		and EncounterDefDatabase.has_def(node_definition.encounter_def_id)
+		and Content.encounter(node_definition.encounter_def_id) != null
 		and not run_state.current_encounter_id.is_empty()
 	)
 

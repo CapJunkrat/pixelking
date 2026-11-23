@@ -54,7 +54,7 @@ func is_valid(run_state: RunState) -> bool:
 	var enemy_king_count: int = 0
 	for placement: Dictionary in enemy_placements:
 		var piece_def_id: String = str(placement.get("piece_def_id", ""))
-		var definition: PieceDef = PieceDefDatabase.get_def(piece_def_id)
+		var definition: PieceDef = Content.piece(piece_def_id)
 		var position: Vector2i = _position_from_value(placement.get("position", {}))
 		if definition == null or position == Vector2i(-1, -1) or not _is_enemy_square(position) or enemy_occupied.has(position):
 			return false

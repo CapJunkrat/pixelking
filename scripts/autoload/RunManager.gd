@@ -503,7 +503,7 @@ func consume_challenger_item(slot_index: int, expected_item_id: StringName, befo
 		return ERR_DOES_NOT_EXIST
 	if not _phase_is([RunPhase.BATTLE_ACTIVE]):
 		return ERR_UNAVAILABLE
-	var item_definition: ChallengerItemDef = ChallengerItemDatabase.get_def(expected_item_id)
+	var item_definition: ChallengerItemDef = Content.challenger_item(expected_item_id)
 	if item_definition == null or not item_definition.is_consumable():
 		return ERR_INVALID_DATA
 	var transaction: Dictionary = _clone_transaction()
@@ -757,7 +757,7 @@ func _append_pending_visible_piece_ids(target: Array[String], pending: Dictionar
 		_append_visible_piece_id(target, str(payload.get("piece_def_id", "")))
 		var recipe_id: StringName = StringName(str(payload.get("recipe_id", "")))
 		if not recipe_id.is_empty():
-			var recipe: FusionRecipeDef = FusionRecipeDatabase.get_def(recipe_id)
+			var recipe: FusionRecipeDef = Content.recipe(recipe_id)
 			if recipe != null:
 				_append_visible_piece_id(target, String(recipe.result_piece_def_id))
 	var plan_value: Variant = pending.get("plan", {})
@@ -769,7 +769,7 @@ func _append_pending_visible_piece_ids(target: Array[String], pending: Dictionar
 			_append_pending_visible_piece_ids(target, original_value as Dictionary)
 
 func _append_visible_piece_id(target: Array[String], piece_id: String) -> void:
-	if not piece_id.is_empty() and PieceDefDatabase.has_def(piece_id) and piece_id not in target:
+	if not piece_id.is_empty() and Content.piece(piece_id) != null and piece_id not in target:
 		target.append(piece_id)
 
 func _initialize_services() -> void:

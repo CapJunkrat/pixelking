@@ -12,7 +12,7 @@ func ensure_map(run_state: RunState, rng: RunRngService) -> Error:
 		return ERR_UNAVAILABLE
 	if run_state.map_state != null:
 		return OK if run_state.map_state.is_valid() else ERR_INVALID_DATA
-	var generated: MapState = map_generator.generate(MapTemplateDatabase.standard(), rng, run_state.act_index)
+	var generated: MapState = map_generator.generate(Content.standard_map_template(), rng, run_state.act_index)
 	if generated == null:
 		return ERR_CANT_CREATE
 	run_state.map_state = generated
@@ -69,7 +69,7 @@ func select_node(run_state: RunState, rng: RunRngService, node_id: StringName) -
 		return ERR_DOES_NOT_EXIST
 	run_state.current_node_id = node_id
 	run_state.visited_node_ids.append(node_id)
-	var node_definition: MapNodeDef = MapNodeDefDatabase.get_def(selected.node_type_id)
+	var node_definition: MapNodeDef = Content.map_node(selected.node_type_id)
 	if node_definition != null and node_definition.is_battle:
 		run_state.current_encounter_id = StringName("encounter.%s.layer_%d" % [selected.node_type_id, selected.layer_index])
 		run_state.current_encounter_seed = rng.randi(ENCOUNTER_RNG_STREAM)

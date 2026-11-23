@@ -3,7 +3,7 @@ extends SceneTree
 var failed: bool = false
 
 func _init() -> void:
-	var template: MapTemplateDef = MapTemplateDatabase.standard()
+	var template: MapTemplateDef = Content.standard_map_template()
 	_expect(template != null and template.is_valid(), "standard map template is data-driven and valid")
 	_expect(_all_node_definitions_public(), "every map node definition exposes full public information")
 
@@ -58,7 +58,7 @@ func _generate(seed_value: int) -> Dictionary:
 	rng.initialize(seed_value)
 	var states_before: Dictionary = rng.snapshot_states()
 	var generator: MapGenerator = MapGenerator.new()
-	var map_state: MapState = generator.generate(MapTemplateDatabase.standard(), rng)
+	var map_state: MapState = generator.generate(Content.standard_map_template(), rng)
 	return {
 		"map": map_state,
 		"states_before": states_before,
@@ -66,10 +66,10 @@ func _generate(seed_value: int) -> Dictionary:
 	}
 
 func _all_node_definitions_public() -> bool:
-	for definition: MapNodeDef in MapNodeDefDatabase.all_defs():
+	for definition: MapNodeDef in Content.map_nodes():
 		if definition == null or not definition.is_valid():
 			return false
-	return MapNodeDefDatabase.all_defs().size() == 6
+	return Content.map_nodes().size() == 6
 
 func _normal_layer_widths_are_valid(map_state: MapState) -> bool:
 	for layer_index: int in range(map_state.total_layers - 1):

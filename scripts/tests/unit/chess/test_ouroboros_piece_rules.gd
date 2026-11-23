@@ -11,7 +11,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	for piece_id: StringName in NEW_IDS:
-		expect(PieceDefDatabase.get_def(piece_id) != null, "catalog resolves %s" % piece_id)
+		expect(Content.piece(piece_id) != null, "catalog resolves %s" % piece_id)
 	_test_royal_guard()
 	_test_catapult()
 	_test_bowman()
@@ -130,7 +130,7 @@ func _piece_board(piece_id: StringName) -> BoardState:
 	return board
 
 func _piece(piece_id: StringName, color: int) -> ChessPiece:
-	return ChessPiece.new(PieceDefDatabase.get_def(piece_id), color)
+	return ChessPiece.new(Content.piece(piece_id), color)
 
 func _has_event(events: Array[BattleEvent], event_type: StringName) -> bool:
 	for event: BattleEvent in events:

@@ -129,7 +129,7 @@ func _check_reaction_table() -> void:
 	_expect(StrikeDirector.resolve_attack(&"centaur", slash, Vector2i(2, 2), Vector2i(3, 4)) == [&"knight", crush], "a hybrid making a knight move stomps like a knight")
 	_expect(StrikeDirector.resolve_attack(&"centaur", slash, Vector2i(2, 2), Vector2i(5, 5)) == [&"centaur", slash], "a hybrid on its line keeps its own attack")
 	for special: String in SPECIAL_MOVES:
-		var definition: PieceDef = PieceDefDatabase.get_def(special)
+		var definition: PieceDef = Content.piece(special)
 		_expect(StrikeDirector.can_play(StringName(special), definition.strike_type), "%s has a strike animation" % special)
 
 func _check_standard(view: BattleBoardView, layer: Node2D) -> void:
@@ -165,7 +165,7 @@ func _check_special(view: BattleBoardView, layer: Node2D) -> void:
 
 func _check_new(view: BattleBoardView, layer: Node2D, game_state: Node) -> void:
 	for attacker: String in _new_attackers():
-		var definition: PieceDef = PieceDefDatabase.get_def(attacker)
+		var definition: PieceDef = Content.piece(attacker)
 		_expect(StrikeDirector.can_play(StringName(definition.art_key()), definition.strike_type), "%s has a strike animation" % attacker)
 		var landing: Vector2i = NEW_MOVES[attacker][0]
 		var target: Vector2i = NEW_MOVES[attacker][1]
@@ -184,10 +184,10 @@ func _check_new(view: BattleBoardView, layer: Node2D, game_state: Node) -> void:
 	for shelled: String in SHELL_VICTIMS:
 		var shell_board: BoardState = BoardState.new()
 		shell_board.clear_for_setup()
-		shell_board.place_piece_for_setup(Vector2i(4, 0), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.WHITE))
-		shell_board.place_piece_for_setup(Vector2i(4, 7), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.BLACK))
-		shell_board.place_piece_for_setup(Vector2i(2, 2), ChessPiece.new(PieceDefDatabase.get_def("rook"), GameRules.PieceColor.WHITE))
-		shell_board.place_piece_for_setup(Vector2i(2, 5), ChessPiece.new(PieceDefDatabase.get_def(shelled), GameRules.PieceColor.BLACK))
+		shell_board.place_piece_for_setup(Vector2i(4, 0), ChessPiece.new(Content.piece("king"), GameRules.PieceColor.WHITE))
+		shell_board.place_piece_for_setup(Vector2i(4, 7), ChessPiece.new(Content.piece("king"), GameRules.PieceColor.BLACK))
+		shell_board.place_piece_for_setup(Vector2i(2, 2), ChessPiece.new(Content.piece("rook"), GameRules.PieceColor.WHITE))
+		shell_board.place_piece_for_setup(Vector2i(2, 5), ChessPiece.new(Content.piece(shelled), GameRules.PieceColor.BLACK))
 		view.refresh(shell_board)
 		view.present_events([
 			BattleEvent.new(BattleCommandProcessor.EVENT_PIECE_MOVED, 1, 1, {"from": Vector2i(2, 2), "to": Vector2i(2, 2), "target": Vector2i(2, 5), "piece_def_id": "rook", "color": GameRules.PieceColor.WHITE}),
@@ -291,10 +291,10 @@ func _check_core_extras(view: BattleBoardView, layer: Node2D, battle: Node, game
 	# A piece held by a gorgon petrifies from the feet up, then stays stone without replaying.
 	var held: BoardState = BoardState.new()
 	held.clear_for_setup()
-	held.place_piece_for_setup(Vector2i(4, 0), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.WHITE))
-	held.place_piece_for_setup(Vector2i(4, 7), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.BLACK))
-	held.place_piece_for_setup(Vector2i(3, 3), ChessPiece.new(PieceDefDatabase.get_def("gorgon"), GameRules.PieceColor.WHITE))
-	held.place_piece_for_setup(Vector2i(4, 4), ChessPiece.new(PieceDefDatabase.get_def("knight"), GameRules.PieceColor.BLACK))
+	held.place_piece_for_setup(Vector2i(4, 0), ChessPiece.new(Content.piece("king"), GameRules.PieceColor.WHITE))
+	held.place_piece_for_setup(Vector2i(4, 7), ChessPiece.new(Content.piece("king"), GameRules.PieceColor.BLACK))
+	held.place_piece_for_setup(Vector2i(3, 3), ChessPiece.new(Content.piece("gorgon"), GameRules.PieceColor.WHITE))
+	held.place_piece_for_setup(Vector2i(4, 4), ChessPiece.new(Content.piece("knight"), GameRules.PieceColor.BLACK))
 	view.refresh(held)
 	var stone_sprite: Sprite2D = view.standing_sprites().get(Vector2i(4, 4)) as Sprite2D
 	var stone: ShaderMaterial = stone_sprite.material as ShaderMaterial if stone_sprite != null else null
@@ -332,7 +332,7 @@ func _finish() -> void:
 func board_for_execution() -> BoardState:
 	var board: BoardState = BoardState.new(8, false)
 	board.clear_for_setup()
-	board.place_piece_for_setup(Vector2i(4, 0), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.WHITE))
-	board.place_piece_for_setup(Vector2i(3, 6), ChessPiece.new(PieceDefDatabase.get_def("pawn"), GameRules.PieceColor.WHITE))
+	board.place_piece_for_setup(Vector2i(4, 0), ChessPiece.new(Content.piece("king"), GameRules.PieceColor.WHITE))
+	board.place_piece_for_setup(Vector2i(3, 6), ChessPiece.new(Content.piece("pawn"), GameRules.PieceColor.WHITE))
 	board.finalize_setup(GameRules.PieceColor.WHITE)
 	return board

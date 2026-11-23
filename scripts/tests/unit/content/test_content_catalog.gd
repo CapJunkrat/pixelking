@@ -23,11 +23,11 @@ func test_default_catalog_is_valid_and_resource_backed() -> void:
 	assert(registry.map_template(&"standard_region") != null)
 	assert(registry.ordered_encounters().size() == 11)
 	for act: int in range(3):
-		assert(EncounterDefDatabase.bosses_for_act(act).size() == 3)
-	assert(EncounterDefDatabase.bosses_for_act(3).size() == 9)
+		assert(EncounterGenerator.bosses_for_act(act).size() == 3)
+	assert(EncounterGenerator.bosses_for_act(3).size() == 9)
 	# Journeys have no last act; Bosses past Act 3 bring reinforcements.
-	assert(EncounterDefDatabase.boss_ids().size() == 9)
-	for boss: EncounterDef in EncounterDefDatabase.bosses_for_act(0) + EncounterDefDatabase.bosses_for_act(1) + EncounterDefDatabase.bosses_for_act(2):
+	assert(Content.boss_ids().size() == 9)
+	for boss: EncounterDef in EncounterGenerator.bosses_for_act(0) + EncounterGenerator.bosses_for_act(1) + EncounterGenerator.bosses_for_act(2):
 		assert(boss.is_valid())
 		var reinforced: Array[Dictionary] = EncounterGenerator.reinforce(boss.enemy_placements, 12, 77)
 		assert(reinforced.size() > boss.enemy_placements.size())

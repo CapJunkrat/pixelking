@@ -276,7 +276,7 @@ func _test_shadow_command_payload() -> void:
 	expect(BattleRecord.snapshot_lines(mutual) == before, "Repeated mutual Shadow queries do not mutate real state")
 
 func _piece(id: String, color: int) -> ChessPiece:
-	return ChessPiece.new(PieceDefDatabase.get_def(id), color)
+	return ChessPiece.new(Content.piece(id), color)
 
 func _board(specs: Dictionary, color: int = W) -> BoardState:
 	var board := BoardState.new(8, false)

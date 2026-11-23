@@ -12,8 +12,8 @@ func _run() -> void:
 	var reward: RunRewardService = RunRewardService.new()
 	var generator: EventOfferGenerator = EventOfferGenerator.new()
 	var content: RunContentService = RunContentService.new()
-	for event_id: StringName in RunContentDatabase.event_ids():
-		var definition: EventDef = RunContentDatabase.event_def(event_id)
+	for event_id: StringName in Content.event_ids():
+		var definition: EventDef = Content.event(event_id)
 		_expect(definition.options.size() >= 2, "%s offers at least two choices" % event_id)
 
 	var run: RunState = _run_state()
@@ -69,7 +69,7 @@ func _test_event_content(generator: EventOfferGenerator, content: RunContentServ
 	_expect(not bool(sell_none["enabled"]), "giving up an item needs an item")
 	run.challenger_slots.append(&"holy_water")
 	var sell: Dictionary = generator._resolve_option({"id": "sell", "label": "Sell your {lost}", "detail": "x", "kind": "gold", "amount": 20, "pay": [{"kind": "lose_item"}]}, run, rng, reward)
-	_expect(bool(sell["enabled"]) and RunContentDatabase.item_label(&"holy_water") in str(sell["label"]), "the card names the item it takes")
+	_expect(bool(sell["enabled"]) and ContentText.item_name(&"holy_water") in str(sell["label"]), "the card names the item it takes")
 	content._apply_chance_effect(run, rng, sell["payload"] as Dictionary)
 	_expect(&"holy_water" not in run.challenger_slots and run.gold == 105, "the item is given up for the gold")
 
@@ -90,17 +90,17 @@ func _test_event_content(generator: EventOfferGenerator, content: RunContentServ
 	var traded: PieceInstanceState = run.get_piece_state(int(trade_payload["instance_id"]))
 	_expect(bool(trade["enabled"]) and traded != null and not traded.is_king, "the trade offers your cheapest piece")
 	content._apply_chance_effect(run, rng, trade_payload)
-	_expect(PieceDefDatabase.get_def(String(traded.piece_def_id)).rarity != PieceDef.Rarity.COMMON, "the traded piece comes back rare")
+	_expect(Content.piece(String(traded.piece_def_id)).rarity != PieceDef.Rarity.COMMON, "the traded piece comes back rare")
 
 	# Every event opens with resolved texts, and none repeats until all have been met.
 	var tour: RunState = _run_state()
 	tour.gold = 200
 	var met: Array[String] = []
 	var first_layer: int = 0
-	for event_id: StringName in RunContentDatabase.event_ids():
-		if RunContentDatabase.event_def(event_id).min_layer == 0:
+	for event_id: StringName in Content.event_ids():
+		if Content.event(event_id).min_layer == 0:
 			first_layer += 1
-	_expect(first_layer >= 6 and first_layer < RunContentDatabase.event_ids().size(), "some events wait for later layers")
+	_expect(first_layer >= 6 and first_layer < Content.event_ids().size(), "some events wait for later layers")
 	for _index: int in range(first_layer):
 		_expect(generator.generate(tour, rng, reward) == OK, "an event opens")
 		var id: String = str(tour.pending_choice.get("event_id", ""))

@@ -223,8 +223,8 @@ func _button(text: String, fill: Color, border: Color, font: Color) -> Button:
 func _render() -> void:
 	var run: RunState = run_manager.current_run
 	var node: MapNodeState = run_manager.current_map_node()
-	var node_def: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id) if node != null else null
-	var encounter: EncounterDef = EncounterDefDatabase.for_current(run)
+	var node_def: MapNodeDef = Content.map_node(node.node_type_id) if node != null else null
+	var encounter: EncounterDef = EncounterGenerator.encounter_for_current(run)
 	if node_def != null:
 		var tier_color: Color = TIER_COLORS.get(node_def.id, GOLD)
 		var tier_name: String = _text(String(node_def.display_name_key))
@@ -294,7 +294,7 @@ func _render_pattern() -> void:
 			_render_pattern()
 			return
 		piece_id = String(own.piece_def_id)
-	var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
+	var definition: PieceDef = Content.piece(piece_id)
 	if definition == null:
 		return
 	var enemy: bool = own == null
@@ -390,7 +390,7 @@ func _preview_board() -> BoardState:
 		if piece != null:
 			board.place_piece_for_setup(deployment.player_position(instance_id), piece.to_chess_piece(GameRules.PieceColor.WHITE))
 	for placement: Dictionary in deployment.enemy_placements:
-		var definition: PieceDef = PieceDefDatabase.get_def(str(placement.get("piece_def_id", "")))
+		var definition: PieceDef = Content.piece(str(placement.get("piece_def_id", "")))
 		if definition != null:
 			board.place_piece_for_setup(DeploymentState.position_from_value(placement.get("position", {})), ChessPiece.new(definition, GameRules.PieceColor.BLACK))
 	if not board.finalize_setup(GameRules.PieceColor.BLACK):
@@ -410,7 +410,7 @@ func _render_items() -> void:
 		slot.expand_icon = true
 		slot.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		slot.add_theme_constant_override("icon_max_width", 24)
-		var item: ChallengerItemDef = ChallengerItemDatabase.get_def(slots[index]) if index < slots.size() else null
+		var item: ChallengerItemDef = Content.challenger_item(slots[index]) if index < slots.size() else null
 		var chosen: bool = item != null and focus_id == "item:%s" % item.id
 		var border: Color = GOLD if chosen else (Color(GOLD, 0.45) if item != null and not item.is_consumable() else LINE)
 		for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
@@ -424,7 +424,7 @@ func _render_items() -> void:
 		item_strip.add_child(slot)
 
 func _render_item_card(item_id: StringName) -> void:
-	var item: ChallengerItemDef = ChallengerItemDatabase.get_def(item_id)
+	var item: ChallengerItemDef = Content.challenger_item(item_id)
 	if item == null:
 		return
 	var row: HBoxContainer = HBoxContainer.new()
@@ -811,7 +811,7 @@ func _texture(color: StringName, piece_id: String) -> Texture2D:
 	return piece_skin_manager.call("piece_texture", color, StringName(piece_id)) as Texture2D
 
 func _piece_name(piece_id: String) -> String:
-	var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
+	var definition: PieceDef = Content.piece(piece_id)
 	return _text(String(definition.display_name_key)) if definition != null else piece_id
 
 func _text(key: String) -> String:

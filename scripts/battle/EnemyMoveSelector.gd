@@ -182,7 +182,7 @@ func _score_move(board: BoardState, from: Vector2i, to: Vector2i, color: int, ro
 	return {"valid": true, "score": score, "board": simulation, "capture": captured != null or not result.removed.is_empty(), "wins": false}
 
 func _value_of(def_id: String) -> int:
-	var definition: PieceDef = PieceDefDatabase.get_def(def_id)
+	var definition: PieceDef = Content.piece(def_id)
 	if definition == null:
 		return 0
 	return 20000 if definition.is_king else maxi(1, definition.base_value) * 100

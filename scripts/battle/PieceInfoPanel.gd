@@ -146,7 +146,7 @@ func _fill(definition: PieceDef, color: int, subtitle: String, accent: Color, fa
 
 ## The recipe that fuses into `piece_id`, or null when no recipe makes it.
 static func fusion_recipe_for(piece_id: String) -> FusionRecipeDef:
-	for recipe: FusionRecipeDef in FusionRecipeDatabase.all_defs():
+	for recipe: FusionRecipeDef in Content.recipes():
 		if String(recipe.result_piece_def_id) == piece_id:
 			return recipe
 	return null
@@ -162,7 +162,7 @@ func _fusion_path(recipe: FusionRecipeDef, color: int) -> HFlowContainer:
 	var skins: Node = get_node("/root/PieceSkinManager")
 	for index: int in range(recipe.ingredient_piece_def_ids.size()):
 		var ingredient_id: String = String(recipe.ingredient_piece_def_ids[index])
-		var ingredient: PieceDef = PieceDefDatabase.get_def(ingredient_id)
+		var ingredient: PieceDef = Content.piece(ingredient_id)
 		if index > 0:
 			row.add_child(_inline_label("+", MUTED))
 		var icon: TextureRect = TextureRect.new()
@@ -217,7 +217,7 @@ func status_lines(board: BoardState, square: Vector2i) -> Array[String]:
 	if not piece.learned_def_ids.is_empty():
 		var names: Array[String] = []
 		for id: String in piece.learned_def_ids:
-			var learned: PieceDef = PieceDefDatabase.get_def(id)
+			var learned: PieceDef = Content.piece(id)
 			names.append(_t(String(learned.display_name_key)) if learned != null else id)
 		lines.append(_t("PIECE_INFO_LEARNED") % ", ".join(names))
 	return lines

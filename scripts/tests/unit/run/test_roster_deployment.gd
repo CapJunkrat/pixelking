@@ -94,7 +94,7 @@ func _advance_to_battle(run_state: RunState, rng: RunRngService, progress: MapPr
 		var available: Array[StringName] = progress.available_node_ids(run_state)
 		for node_id: StringName in available:
 			var node: MapNodeState = run_state.map_state.get_node(node_id)
-			if MapNodeDefDatabase.get_def(node.node_type_id).is_battle:
+			if Content.map_node(node.node_type_id).is_battle:
 				progress.select_node(run_state, rng, node_id)
 				run_state.phase = RunPhase.NODE_SELECTED
 				return node_id

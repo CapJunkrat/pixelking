@@ -90,7 +90,7 @@ func _check_born_pieces(game_state: Node) -> void:
 	var code: String = str(game_state.call("battle_code", [] as Array[String]))
 	expect(BattleRecord.decode_text(code).contains("ember_bird"), "the code holds the line-up")
 	for _burn: int in range(500):
-		ChessPiece.new(PieceDefDatabase.get_def("pawn"), GameRules.PieceColor.WHITE)
+		ChessPiece.new(Content.piece("pawn"), GameRules.PieceColor.WHITE)
 	var report: Dictionary = BattleRecord.decode(code).replay()
 	expect(int(report["first_mismatch"]) == -1, "a battle with an egg laid replays exactly after other ids were used (first mismatch %d of %d)" % [int(report["first_mismatch"]), (report["steps"] as Array).size()])
 

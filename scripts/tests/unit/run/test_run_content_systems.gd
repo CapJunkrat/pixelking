@@ -18,7 +18,7 @@ func _test_fusion() -> void:
 	var run_state: RunState = _base_run()
 	run_state.allocate_piece("pawn", false)
 	run_state.allocate_piece("knight", false)
-	var recipe: FusionRecipeDef = FusionRecipeDatabase.get_def(&"pawn_knight_lancer")
+	var recipe: FusionRecipeDef = Content.recipe(&"pawn_knight_lancer")
 	var service: FusionService = FusionService.new()
 	var plan: FusionPlan = service.create_plan(run_state, &"pawn_knight_lancer")
 	_expect(recipe != null and plan != null, "fusion service plans exact owned ingredients")
@@ -68,10 +68,10 @@ func _test_defeat_and_retry() -> void:
 	_expect(migrated.retries_left == 1, "old saves with spare defeats migrate to one retry")
 
 func _test_motion_profiles() -> void:
-	for id: String in PieceDefDatabase.all_ids():
-		var definition: PieceDef = PieceDefDatabase.get_def(id)
+	for id: String in Content.piece_ids():
+		var definition: PieceDef = Content.piece(id)
 		_expect(definition.motion_profile != null and definition.motion_profile.is_valid(), "%s has a reusable visual MotionProfile" % id)
-	_expect(PieceDefDatabase.get_def("lancer").motion_profile == PieceMotionProfileDatabase.get_profile(&"knight"), "fusion pieces inherit an existing profile")
+	_expect(Content.piece("lancer").motion_profile == Content.motion_profile(&"knight"), "fusion pieces inherit an existing profile")
 
 class FakeProgress extends MapProgressService:
 	var resolved: Dictionary = {}
@@ -128,7 +128,7 @@ func _test_enemy_rarity() -> void:
 				var id: String = str(placement["piece_def_id"])
 				if id == "pawn":
 					pawns_by_act[act] += 1
-				elif id != "king" and PieceDefDatabase.get_def(id).rarity >= PieceDef.Rarity.EPIC:
+				elif id != "king" and Content.piece(id).rarity >= PieceDef.Rarity.EPIC:
 					rare_by_act[act] += 1
 	_expect(pawns_by_act[0] > 0 and pawns_by_act[1] == 0 and pawns_by_act[2] == 0, "from Act 2 on, a normal battle has no pawns")
 	_expect(rare_by_act[2] > rare_by_act[1] and rare_by_act[1] > rare_by_act[0], "each act fields more epic and legendary pieces than the last")
@@ -234,7 +234,7 @@ func _test_enemy_rarity_floor() -> void:
 				if act >= 1:
 					guarded = guarded and squares.has(king_square + Vector2i(0, -1))
 		if act >= RunState.ACT_COUNT:
-			for boss: EncounterDef in EncounterDefDatabase.bosses_for_act(act):
+			for boss: EncounterDef in EncounterGenerator.bosses_for_act(act):
 				var army: Array[Dictionary] = EncounterGenerator.upgrade_boss_pawns(boss.enemy_placements, act, 5)
 				army = EncounterGenerator.reinforce(army, 12, 5, act)
 				for placement: Dictionary in army:

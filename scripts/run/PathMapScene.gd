@@ -71,7 +71,7 @@ func _render() -> void:
 	elif run_manager.map_progress_service.is_current_node_resolved(run_state):
 		current_status.text = _text("MAP_CHOOSE_NEXT")
 	else:
-		var definition: MapNodeDef = MapNodeDefDatabase.get_def(current.node_type_id)
+		var definition: MapNodeDef = Content.map_node(current.node_type_id)
 		current_status.text = _text("MAP_RESUME_NODE") % _text(String(definition.display_name_key))
 
 func _scroll_to_progress() -> void:
@@ -113,7 +113,7 @@ const DIRECT_NODE_TYPES: Array[StringName] = [&"event", &"shop", &"rest"]
 
 func _open_node(node_id: StringName) -> void:
 	var node: MapNodeState = run_manager.current_run.map_state.get_node(node_id)
-	var definition: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id) if node != null else null
+	var definition: MapNodeDef = Content.map_node(node.node_type_id) if node != null else null
 	if definition != null and (definition.is_battle or node.node_type_id in DIRECT_NODE_TYPES):
 		presented_node_id = node_id
 		_on_action_pressed()
@@ -124,7 +124,7 @@ func _show_node_overlay(node_id: StringName) -> void:
 	var node: MapNodeState = run_manager.current_run.map_state.get_node(node_id)
 	if node == null:
 		return
-	var definition: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id)
+	var definition: MapNodeDef = Content.map_node(node.node_type_id)
 	presented_node_id = node_id
 	$NodeOverlay/Center/Panel/Content/Title.text = _text(String(definition.display_name_key))
 	_overlay_type_id = node.node_type_id
@@ -144,7 +144,7 @@ func _on_action_pressed() -> void:
 	if presented_node_id.is_empty() or run_manager.current_run == null:
 		return
 	var node: MapNodeState = run_manager.current_run.map_state.get_node(presented_node_id)
-	var definition: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id)
+	var definition: MapNodeDef = Content.map_node(node.node_type_id)
 	if definition.is_battle:
 		var deployment_error: Error = run_manager.begin_deployment()
 		if deployment_error != OK:

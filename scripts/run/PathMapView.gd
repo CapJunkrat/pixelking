@@ -236,7 +236,7 @@ func _scatter_scenery(width: float, height: float) -> void:
 			_trees.append(spot)
 
 func _create_node_button(node: MapNodeState) -> Button:
-	var definition: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id)
+	var definition: MapNodeDef = Content.map_node(node.node_type_id)
 	var button: Button = Button.new()
 	button.name = "Node_%s" % String(node.node_id).get_file()
 	button.add_to_group("map_node_cards")
@@ -423,7 +423,7 @@ func _draw_medallion(node: MapNodeState) -> void:
 		draw_polyline(PackedVector2Array([badge + Vector2(-2.5, 0.0), badge + Vector2(-0.5, 2.0), badge + Vector2(3.0, -2.0)]), SILHOUETTE, 1.5)
 	var font: Font = get_theme_default_font()
 	if font != null:
-		var definition: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id)
+		var definition: MapNodeDef = Content.map_node(node.node_type_id)
 		var caption: String = _text(String(definition.display_name_key))
 		var anchor: Vector2 = Vector2(_centers[node.node_id].x - 40.0, _centers[node.node_id].y + radius + 14.0)
 		draw_string_outline(font, anchor, caption, HORIZONTAL_ALIGNMENT_CENTER, 80.0, 10, 3, SILHOUETTE)

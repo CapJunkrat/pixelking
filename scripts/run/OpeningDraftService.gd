@@ -30,7 +30,7 @@ func apply_choice(run_state: RunState, rng: RunRngService, piece_def_id: String)
 	var candidates: Array = run_state.pending_choice.get("candidate_piece_def_ids", []) as Array
 	if piece_def_id not in candidates:
 		return ERR_INVALID_PARAMETER
-	var definition: PieceDef = PieceDefDatabase.get_def(piece_def_id)
+	var definition: PieceDef = Content.piece(piece_def_id)
 	if definition == null or not definition.is_valid_opening_draft_piece():
 		return ERR_INVALID_DATA
 	var selected_ids: Array[String] = _to_string_array(run_state.pending_choice.get("selected_piece_def_ids", []))
@@ -62,7 +62,7 @@ func validate_pending_choice(run_state: RunState) -> bool:
 		return false
 	var has_rare: bool = false
 	for candidate_id: String in candidates:
-		var definition: PieceDef = PieceDefDatabase.get_def(candidate_id)
+		var definition: PieceDef = Content.piece(candidate_id)
 		if definition == null or not definition.is_valid_opening_draft_piece():
 			return false
 		has_rare = has_rare or definition.is_rare_or_higher()
@@ -89,7 +89,7 @@ const GUARANTEED_ODDS: Array[int] = [0, 58, 36, 6]
 ## so the many common pieces cannot crowd out the few epic ones.
 func _generate_candidates(rng: RunRngService) -> Array[String]:
 	var by_tier: Array = [[], [], [], []]
-	for definition: PieceDef in PieceDefDatabase.opening_draft_defs():
+	for definition: PieceDef in Content.opening_draft_pieces():
 		(by_tier[clampi(int(definition.rarity), 0, 3)] as Array).append(definition)
 	var ids: Array[String] = []
 	var chosen: Array[PieceDef] = []

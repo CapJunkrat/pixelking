@@ -20,7 +20,7 @@ func _run() -> void:
 	var battle_node_id: StringName = &""
 	for node_id: StringName in manager.available_map_node_ids():
 		var node: MapNodeState = manager.current_run.map_state.get_node(node_id)
-		if MapNodeDefDatabase.get_def(node.node_type_id).is_battle:
+		if Content.map_node(node.node_type_id).is_battle:
 			battle_node_id = node_id
 			break
 	_expect(not battle_node_id.is_empty(), "test seed offers an initial battle")

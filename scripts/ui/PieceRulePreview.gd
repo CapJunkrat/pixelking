@@ -4,7 +4,7 @@ extends RefCounted
 const DEFAULT_GRID_SIZE := 5
 
 static func pattern(piece_def_id: String, grid_size: int = DEFAULT_GRID_SIZE) -> Dictionary:
-	var definition: PieceDef = PieceDefDatabase.get_def(piece_def_id)
+	var definition: PieceDef = Content.piece(piece_def_id)
 	if definition == null:
 		return {}
 	var board: BoardState = BoardState.new(grid_size, false)

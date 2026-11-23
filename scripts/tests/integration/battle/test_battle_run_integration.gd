@@ -29,7 +29,7 @@ func _run() -> void:
 	_expect(str(game_state.get("ai_difficulty")) == EnemyMoveSelector.DIFFICULTY_MEDIUM, "the battle's enemy plays at the journey's difficulty")
 	var battle_scene: PackedScene = load("res://scenes/battle/BattleScene.tscn") as PackedScene
 	var node_before: MapNodeState = manager.current_map_node()
-	var army_before: Array = EncounterDefDatabase.for_node(manager.current_run, node_before).enemy_placements.duplicate(true)
+	var army_before: Array = EncounterGenerator.encounter_for_node(manager.current_run, node_before).enemy_placements.duplicate(true)
 
 	# A draw: fought again for free, the retry kept.
 	var draw_battle: Control = await _finish_battle(battle_scene, game_state, -1, true)
@@ -41,7 +41,7 @@ func _run() -> void:
 	_expect((draw_flow.get("exit_button") as Button).text == "Redeploy and Retry", "draw result offers to redeploy")
 	_expect("retry is kept" in (draw_flow.get("result_detail") as Label).text, "draw result says the retry is kept")
 	_expect(manager.current_map_node().node_id == node_before.node_id, "a draw keeps the same battle node")
-	_expect(EncounterDefDatabase.for_node(manager.current_run, manager.current_map_node()).enemy_placements == army_before, "a draw is fought again against the same army")
+	_expect(EncounterGenerator.encounter_for_node(manager.current_run, manager.current_map_node()).enemy_placements == army_before, "a draw is fought again against the same army")
 	draw_battle.queue_free()
 	await process_frame
 	manager.confirm_deployment()

@@ -107,7 +107,7 @@ func discovered_piece_ids() -> Array[String]:
 	if stored is Array:
 		for value: Variant in stored as Array:
 			var piece_id: String = str(value)
-			if PieceDefDatabase.has_def(piece_id) and piece_id not in result:
+			if Content.piece(piece_id) != null and piece_id not in result:
 				result.append(piece_id)
 	result.sort()
 	return result
@@ -120,7 +120,7 @@ func record_discovered_piece_ids(piece_ids: Array[String]) -> Error:
 	var discovered: Array[String] = discovered_piece_ids()
 	var changed: bool = false
 	for piece_id: String in piece_ids:
-		if PieceDefDatabase.has_def(piece_id) and piece_id not in discovered:
+		if Content.piece(piece_id) != null and piece_id not in discovered:
 			discovered.append(piece_id)
 			changed = true
 	if not changed:

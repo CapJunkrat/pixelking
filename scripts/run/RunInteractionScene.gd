@@ -112,7 +112,7 @@ func _render() -> void:
 	var type: String = str(pending.get("type", "interaction"))
 	_badge_type = HEADER_ICON.get(type, &"event")
 	_badge.queue_redraw()
-	var event_def: EventDef = RunContentDatabase.event_def(StringName(str(pending.get("event_id", "")))) if type == "event" else null
+	var event_def: EventDef = Content.event(StringName(str(pending.get("event_id", "")))) if type == "event" else null
 	_vignette.visible = event_def != null
 	_badge.visible = event_def == null
 	if event_def != null:
@@ -195,7 +195,7 @@ func _card(option: Dictionary) -> Button:
 	tags.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# Recruits show how rare they are.
 	if kind == "piece":
-		var piece_def: PieceDef = PieceDefDatabase.get_def(str(payload.get("piece_def_id", "")))
+		var piece_def: PieceDef = Content.piece(str(payload.get("piece_def_id", "")))
 		if piece_def != null:
 			var rarity: int = clampi(piece_def.rarity, 0, RARITY_COLORS.size() - 1)
 			tags.add_child(_chip(_localized(RARITY_KEYS[rarity]), RARITY_COLORS[rarity]))
@@ -225,7 +225,7 @@ func _card(option: Dictionary) -> Button:
 	return card
 
 func _recipe_view(payload: Dictionary) -> FusionRecipeView:
-	var recipe: FusionRecipeDef = FusionRecipeDatabase.get_def(StringName(str(payload.get("recipe_id", ""))))
+	var recipe: FusionRecipeDef = Content.recipe(StringName(str(payload.get("recipe_id", ""))))
 	if recipe == null:
 		return null
 	var view: FusionRecipeView = FusionRecipeView.new()
@@ -235,7 +235,7 @@ func _recipe_view(payload: Dictionary) -> FusionRecipeView:
 	return view
 
 func _on_recipe_piece_held(piece_def_id: String) -> void:
-	var definition: PieceDef = PieceDefDatabase.get_def(piece_def_id)
+	var definition: PieceDef = Content.piece(piece_def_id)
 	if definition != null:
 		_piece_info.call("show_definition", definition)
 
@@ -251,20 +251,20 @@ func _detail(kind: String, payload: Dictionary) -> String:
 		return _localized(str(payload["detail_key"]))
 	match kind:
 		"piece":
-			var definition: PieceDef = PieceDefDatabase.get_def(str(payload.get("piece_def_id", "")))
+			var definition: PieceDef = Content.piece(str(payload.get("piece_def_id", "")))
 			return _localized(PieceRulePreview.move_key(definition)) if definition != null else ""
 		"relic", "item":
-			var item: ChallengerItemDef = ChallengerItemDatabase.get_def(StringName(str(payload.get("relic_id", payload.get("item_id", "")))))
+			var item: ChallengerItemDef = Content.challenger_item(StringName(str(payload.get("relic_id", payload.get("item_id", "")))))
 			return _localized(String(item.description_key)) if item != null else ""
 		SlotReplaceService.PICK:
-			var held: ChallengerItemDef = ChallengerItemDatabase.get_def(StringName(str(payload.get("slot_id", ""))))
+			var held: ChallengerItemDef = Content.challenger_item(StringName(str(payload.get("slot_id", ""))))
 			return _localized(String(held.description_key)) if held != null else ""
 		"gold":
 			return _localized("INTERACTION_GOLD_DETAIL") % int(payload.get("amount", 0))
 		"restore_retry":
 			return _localized("INTERACTION_RETRY_DETAIL")
 		"fusion":
-			var recipe: FusionRecipeDef = FusionRecipeDatabase.get_def(StringName(str(payload.get("recipe_id", ""))))
+			var recipe: FusionRecipeDef = Content.recipe(StringName(str(payload.get("recipe_id", ""))))
 			return _localized(String(recipe.description_key)) if recipe != null else ""
 	return ""
 
@@ -276,13 +276,13 @@ func _option_icon(kind: String, payload: Dictionary) -> Control:
 		"shop_replace_pick":
 			texture = _piece_texture(str(payload.get("replaced_def_id", "")))
 		"relic", "item":
-			var item: ChallengerItemDef = ChallengerItemDatabase.get_def(StringName(str(payload.get("relic_id", payload.get("item_id", "")))))
+			var item: ChallengerItemDef = Content.challenger_item(StringName(str(payload.get("relic_id", payload.get("item_id", "")))))
 			texture = item.icon if item != null else null
 		SlotReplaceService.PICK:
-			var held: ChallengerItemDef = ChallengerItemDatabase.get_def(StringName(str(payload.get("slot_id", ""))))
+			var held: ChallengerItemDef = Content.challenger_item(StringName(str(payload.get("slot_id", ""))))
 			texture = held.icon if held != null else null
 		"fusion":
-			var recipe: FusionRecipeDef = FusionRecipeDatabase.get_def(StringName(str(payload.get("recipe_id", ""))))
+			var recipe: FusionRecipeDef = Content.recipe(StringName(str(payload.get("recipe_id", ""))))
 			texture = _piece_texture(String(recipe.result_piece_def_id)) if recipe != null else null
 	if texture != null:
 		var picture: TextureRect = TextureRect.new()

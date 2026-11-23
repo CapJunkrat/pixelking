@@ -24,7 +24,7 @@ func is_valid(total_layers: int) -> bool:
 		and layer_index >= 0
 		and layer_index < total_layers
 		and lane_index >= 0
-		and MapNodeDefDatabase.has_def(node_type_id)
+		and Content.map_node(node_type_id) != null
 		and _unique_count(outgoing_node_ids) == outgoing_node_ids.size()
 	)
 

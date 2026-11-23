@@ -14,12 +14,12 @@ func is_valid() -> bool:
 		return false
 	if display_name_key.is_empty() or description_key.is_empty():
 		return false
-	var result_definition: PieceDef = PieceDefDatabase.get_def(String(result_piece_def_id))
+	var result_definition: PieceDef = Content.piece(String(result_piece_def_id))
 	if result_definition == null:
 		return false
 	var king_ingredient_count: int = 0
 	for ingredient_id: StringName in ingredient_piece_def_ids:
-		var ingredient_definition: PieceDef = PieceDefDatabase.get_def(String(ingredient_id))
+		var ingredient_definition: PieceDef = Content.piece(String(ingredient_id))
 		if ingredient_definition == null:
 			return false
 		king_ingredient_count += 1 if ingredient_definition.is_king else 0

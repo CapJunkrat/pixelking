@@ -33,7 +33,7 @@ static func pick(ids: Array, rng: RunRngService, stream: StringName, progress: f
 	var by_tier: Array = [[], [], [], []]
 	for value: Variant in ids + LEGENDARY_OFFERS:
 		var id: String = str(value)
-		var definition: PieceDef = PieceDefDatabase.get_def(id)
+		var definition: PieceDef = Content.piece(id)
 		if definition == null or definition.is_king or definition.rarity > PieceDef.Rarity.LEGENDARY:
 			continue
 		if id not in by_tier[definition.rarity]:
@@ -62,5 +62,5 @@ static func run_progress(run_state: RunState) -> float:
 	return clampf(run_state.run_stage(), 0.0, 1.0)
 
 static func rarity_of(id: String) -> int:
-	var definition: PieceDef = PieceDefDatabase.get_def(id)
+	var definition: PieceDef = Content.piece(id)
 	return clampi(definition.rarity, 0, LEGENDARY) if definition != null else COMMON

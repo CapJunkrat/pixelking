@@ -175,7 +175,7 @@ func _stat(value: String, caption: String, color: Color) -> PanelContainer:
 	return box
 
 func _piece_name(piece_id: String, text: Callable) -> String:
-	var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
+	var definition: PieceDef = Content.piece(piece_id)
 	return text.call(String(definition.display_name_key)) if definition != null else piece_id
 
 func set_retry_visible(visible_value: bool) -> void:

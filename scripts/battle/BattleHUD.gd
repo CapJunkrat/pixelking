@@ -167,12 +167,12 @@ func _load_encounter() -> void:
 	var node: MapNodeState = run_manager.call("current_map_node") as MapNodeState
 	if node == null:
 		return
-	var definition: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id)
+	var definition: MapNodeDef = Content.map_node(node.node_type_id)
 	if definition == null or not definition.is_battle:
 		return
 	_tier_color = TIER_COLORS.get(definition.id, GOLD)
 	enemy_label.text = _text(String(definition.display_name_key)).to_upper()
-	var encounter: EncounterDef = EncounterDefDatabase.for_current(run_manager.get("current_run") as RunState)
+	var encounter: EncounterDef = EncounterGenerator.encounter_for_current(run_manager.get("current_run") as RunState)
 	if encounter != null and encounter.is_boss and not encounter.display_name_key.is_empty():
 		enemy_label.text = _text(String(encounter.display_name_key)).to_upper()
 	enemy_label.add_theme_color_override("font_color", _tier_color)

@@ -9,7 +9,7 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
-	var table: BattleRewardTableDef = RunContentDatabase.battle_reward_table()
+	var table: BattleRewardTableDef = Content.reward_table()
 	for progress: float in [0.0, 1.0]:
 		var rng: RunRngService = RunRngService.new()
 		rng.initialize(77)
@@ -28,7 +28,7 @@ func _run() -> void:
 	_expect(late[2] + late[3] > early[2] + early[3], "epic and legendary grow more likely deeper in the map")
 	var only_common: RunRngService = RunRngService.new()
 	only_common.initialize(3)
-	_expect(PieceDefDatabase.get_def(RarityOdds.pick(["pawn"], only_common, &"reward_rng", 0.0)) != null, "a short list still yields a piece")
+	_expect(Content.piece(RarityOdds.pick(["pawn"], only_common, &"reward_rng", 0.0)) != null, "a short list still yields a piece")
 	print("[PASS] Rarity odds test" if not failed else "[FAIL] Rarity odds test")
 	quit(1 if failed else 0)
 

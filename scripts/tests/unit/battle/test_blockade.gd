@@ -98,7 +98,7 @@ func _test_timed_freeze_skips_a_turn() -> void:
 func _test_coming_hatch_skips_a_turn() -> void:
 	var board: BoardState = _gorgon_board()
 	var egg: ChessPiece = _put(board, Vector2i(4, 0), "ember_egg", W)
-	egg.hatch_piece = ChessPiece.new(PieceDefDatabase.get_def("ember_bird"), W)
+	egg.hatch_piece = ChessPiece.new(Content.piece("ember_bird"), W)
 	egg.hatch_serial = 3
 	var processor: BattleCommandProcessor = BattleCommandProcessor.new(board)
 	var result: BattleCommandResult = processor.execute(MoveAction.new(Vector2i(2, 2), Vector2i(1, 1), B))
@@ -106,7 +106,7 @@ func _test_coming_hatch_skips_a_turn() -> void:
 	_expect(_has_event(result.events, BattleCommandProcessor.EVENT_TURN_SKIPPED), "the player waits for the hatch")
 
 func _test_item_that_frees_a_piece_keeps_the_turn() -> void:
-	var items: Array[ChallengerItemDef] = [ChallengerItemDatabase.get_def(&"royal_bomb")]
+	var items: Array[ChallengerItemDef] = [Content.challenger_item(&"royal_bomb")]
 	var processor: BattleCommandProcessor = BattleCommandProcessor.new(_gorgon_board(), items, W)
 	processor.execute(MoveAction.new(Vector2i(2, 2), Vector2i(1, 1), B))
 	_expect(not processor.status.is_finished(), "a usable item that removes the Gorgon is a way out")
@@ -168,7 +168,7 @@ func _empty_board() -> BoardState:
 	return board
 
 func _put(board: BoardState, square: Vector2i, def_id: String, color: int) -> ChessPiece:
-	var piece: ChessPiece = ChessPiece.new(PieceDefDatabase.get_def(def_id), color)
+	var piece: ChessPiece = ChessPiece.new(Content.piece(def_id), color)
 	board.place_piece_for_setup(square, piece)
 	return piece
 

@@ -39,7 +39,7 @@ func _place_kings(board: BoardState, white_pos: Vector2i, black_pos: Vector2i) -
 	board.turn = GameRules.PieceColor.WHITE
 
 func _piece(id: String, color: int) -> ChessPiece:
-	return ChessPiece.new(PieceDefDatabase.get_def(id), color)
+	return ChessPiece.new(Content.piece(id), color)
 
 func _expect(condition: bool, message: String) -> void:
 	if condition:

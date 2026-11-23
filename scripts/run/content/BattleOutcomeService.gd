@@ -26,8 +26,8 @@ func apply_victory(run_state: RunState, rng: RunRngService, progress: MapProgres
 	if run_state == null or rng == null or progress == null or deployment == null:
 		return ERR_INVALID_PARAMETER
 	var node: MapNodeState = run_state.map_state.get_node(run_state.current_node_id) if run_state.map_state != null else null
-	var node_definition: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id) if node != null else null
-	var encounter: EncounterDef = EncounterDefDatabase.for_node(run_state, node)
+	var node_definition: MapNodeDef = Content.map_node(node.node_type_id) if node != null else null
+	var encounter: EncounterDef = EncounterGenerator.encounter_for_node(run_state, node)
 	if node_definition == null or not node_definition.is_battle or encounter == null:
 		return ERR_INVALID_DATA
 	var error: Error = progress.resolve_current_node(run_state, {"outcome": "victory", "gold_before_reward": run_state.gold})

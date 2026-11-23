@@ -4,7 +4,7 @@ extends RefCounted
 const RestSiteDefType = preload("res://scripts/content/RestSiteDef.gd")
 
 func generate(run_state: RunState, reward_service: RunRewardService) -> Error:
-	var definition: RestSiteDefType = RunContentDatabase.rest_site()
+	var definition: RestSiteDefType = Content.rest_site()
 	if definition == null:
 		return ERR_DOES_NOT_EXIST
 	var options: Array[Dictionary] = [
@@ -29,7 +29,7 @@ static func best_trainee(run_state: RunState) -> PieceInstanceState:
 	var best: PieceInstanceState = null
 	var best_gap: int = 1000
 	for piece: PieceInstanceState in run_state.player_roster:
-		var definition: PieceDef = PieceDefDatabase.get_def(String(piece.piece_def_id))
+		var definition: PieceDef = Content.piece(String(piece.piece_def_id))
 		if definition == null or definition.evolve_at_captures <= 0:
 			continue
 		var gap: int = definition.evolve_at_captures - piece.capture_count

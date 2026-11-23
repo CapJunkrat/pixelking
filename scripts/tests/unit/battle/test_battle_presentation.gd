@@ -28,11 +28,11 @@ func _run() -> void:
 	log_panel.consume(result.events)
 	_expect(not log_panel.lines.is_empty(), "battle log derives readable lines from BattleEvents")
 	_expect("knight" in log_panel.log_label.text.to_lower(), "battle log describes the moved piece")
-	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("portal_mage")) == &"teleport", "teleport rules select the portal presentation")
-	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("manticore")) == &"bent_ray", "bent-ray rules select a turning presentation")
-	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("ember_bird")) == &"lob", "jumping slide rules select a lob presentation")
-	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("gorgon")) == &"petrify", "immobilizing traits select a petrify presentation")
-	_expect(BattleBoardView.presentation_kind_for(PieceDefDatabase.get_def("assassin"), true) == &"chained_capture", "capture-action traits select a chained strike presentation")
+	_expect(BattleBoardView.presentation_kind_for(Content.piece("portal_mage")) == &"teleport", "teleport rules select the portal presentation")
+	_expect(BattleBoardView.presentation_kind_for(Content.piece("manticore")) == &"bent_ray", "bent-ray rules select a turning presentation")
+	_expect(BattleBoardView.presentation_kind_for(Content.piece("ember_bird")) == &"lob", "jumping slide rules select a lob presentation")
+	_expect(BattleBoardView.presentation_kind_for(Content.piece("gorgon")) == &"petrify", "immobilizing traits select a petrify presentation")
+	_expect(BattleBoardView.presentation_kind_for(Content.piece("assassin"), true) == &"chained_capture", "capture-action traits select a chained strike presentation")
 	var strike_expectations: Dictionary = {
 		"pawn": [PieceDef.StrikeType.BLUNT, PieceDef.WeightClass.LIGHT],
 		"knight": [PieceDef.StrikeType.CRUSH, PieceDef.WeightClass.MEDIUM],
@@ -53,9 +53,9 @@ func _run() -> void:
 		"archmage": [PieceDef.StrikeType.ARCANE, PieceDef.WeightClass.MEDIUM],
 	}
 	for piece_id: String in strike_expectations:
-		var strike_def: PieceDef = PieceDefDatabase.get_def(piece_id)
+		var strike_def: PieceDef = Content.piece(piece_id)
 		_expect(strike_def.strike_type == strike_expectations[piece_id][0] and strike_def.weight_class == strike_expectations[piece_id][1], "%s carries its strike type and weight class" % piece_id)
-	_expect(PieceDefDatabase.get_def("gorgon").strike_type == PieceDef.StrikeType.VENOM, "the gorgon bites adjacent enemies with a venom strike")
+	_expect(Content.piece("gorgon").strike_type == PieceDef.StrikeType.VENOM, "the gorgon bites adjacent enemies with a venom strike")
 	var portal_pattern: Dictionary = PieceRulePreview.pattern("portal_mage", 5)
 	_expect(portal_pattern.get(Vector2i(2, 2)) == "move" and portal_pattern.get(Vector2i(1, 0)) == "both", "rule preview derives teleport and adjacent attacks from live MovementRules")
 	var gorgon_pattern: Dictionary = PieceRulePreview.pattern("gorgon", 5)

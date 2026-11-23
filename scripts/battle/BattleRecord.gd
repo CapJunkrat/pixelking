@@ -102,7 +102,7 @@ func build() -> Dictionary:
 	var board: BoardState = BoardState.new(board_size, false)
 	board.clear_for_setup()
 	for entry: Dictionary in pieces:
-		var definition: PieceDef = PieceDefDatabase.get_def(str(entry["def"]))
+		var definition: PieceDef = Content.piece(str(entry["def"]))
 		if definition == null:
 			return {"error": "unknown piece %s" % entry["def"]}
 		var piece: ChessPiece = ChessPiece.create_with_instance_id(definition, int(entry["color"]), int(entry["id"]))
@@ -115,7 +115,7 @@ func build() -> Dictionary:
 	board.set_rocks(rocks)
 	var items: Array[ChallengerItemDef] = []
 	for item_id: String in item_ids:
-		var item: ChallengerItemDef = ChallengerItemDatabase.get_def(StringName(item_id))
+		var item: ChallengerItemDef = Content.challenger_item(StringName(item_id))
 		if item == null:
 			return {"error": "unknown item %s" % item_id}
 		items.append(item)

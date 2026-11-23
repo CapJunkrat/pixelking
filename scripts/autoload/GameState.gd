@@ -65,7 +65,7 @@ func start_run_battle(run_state: RunState) -> bool:
 	run_board.clear_for_setup()
 	for instance_id: int in run_state.active_piece_ids:
 		var piece_state: PieceInstanceState = run_state.get_piece_state(instance_id)
-		var definition: PieceDef = PieceDefDatabase.get_def(String(piece_state.piece_def_id)) if piece_state != null else null
+		var definition: PieceDef = Content.piece(String(piece_state.piece_def_id)) if piece_state != null else null
 		if definition == null:
 			return false
 		var runtime_piece: ChessPiece = ChessPiece.create_with_instance_id(definition, player_color, instance_id)
@@ -73,7 +73,7 @@ func start_run_battle(run_state: RunState) -> bool:
 		if not run_board.place_piece_for_setup(deployment.player_position(instance_id), runtime_piece):
 			return false
 	for enemy_placement: Dictionary in deployment.enemy_placements:
-		var enemy_definition: PieceDef = PieceDefDatabase.get_def(str(enemy_placement.get("piece_def_id", "")))
+		var enemy_definition: PieceDef = Content.piece(str(enemy_placement.get("piece_def_id", "")))
 		var enemy_position: Vector2i = DeploymentState.position_from_value(enemy_placement.get("position", {}))
 		if enemy_definition == null or not run_board.place_piece_for_setup(enemy_position, ChessPiece.new(enemy_definition, GameRules.PieceColor.BLACK)):
 			return false
@@ -82,13 +82,13 @@ func start_run_battle(run_state: RunState) -> bool:
 	run_board.set_rocks(deployment.rocks)
 	challenger_items.clear()
 	for item_id: StringName in run_state.challenger_slots:
-		var item_definition: ChallengerItemDef = ChallengerItemDatabase.get_def(item_id)
+		var item_definition: ChallengerItemDef = Content.challenger_item(item_id)
 		if item_definition == null:
 			return false
 		challenger_items.append(item_definition)
 	ai_difficulty = run_state.ai_difficulty
 	var turn_limit: int = 0
-	var encounter: EncounterDef = EncounterDefDatabase.for_current(run_state)
+	var encounter: EncounterDef = EncounterGenerator.encounter_for_current(run_state)
 	if encounter != null:
 		turn_limit = encounter.turn_limit
 	var node: MapNodeState = run_state.map_state.get_node(run_state.current_node_id) if run_state.map_state != null else null

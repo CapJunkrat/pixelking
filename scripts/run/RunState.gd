@@ -96,7 +96,7 @@ func initialize_new(seed_value: int, _mode_value: String = MODE_STANDARD) -> voi
 	next_piece_instance_id = 1
 
 func allocate_piece(piece_def_id: String, make_king: bool = false) -> PieceInstanceState:
-	var definition: PieceDef = PieceDefDatabase.get_def(piece_def_id)
+	var definition: PieceDef = Content.piece(piece_def_id)
 	if definition == null or definition.is_king != make_king:
 		return null
 	if make_king and _king_count() > 0:
@@ -180,7 +180,7 @@ func is_valid() -> bool:
 	if gold < 0 or challenger_slots.size() > LEGACY_MAX_CHALLENGER_SLOTS:
 		return false
 	for item_id: StringName in challenger_slots:
-		if ChallengerItemDatabase.get_def(item_id) == null:
+		if Content.challenger_item(item_id) == null:
 			return false
 	if not _pending_choice_is_valid() or not _map_progress_is_valid():
 		return false
@@ -404,11 +404,11 @@ func _has_unresolved_current_node() -> bool:
 	return _current_node() != null and not _current_node_is_resolved()
 
 func _current_node_is_unresolved_battle() -> bool:
-	var definition: MapNodeDef = MapNodeDefDatabase.get_def(_current_node_type())
+	var definition: MapNodeDef = Content.map_node(_current_node_type())
 	return _has_unresolved_current_node() and definition != null and definition.is_battle
 
 func _current_node_is_resolved_battle() -> bool:
-	var definition: MapNodeDef = MapNodeDefDatabase.get_def(_current_node_type())
+	var definition: MapNodeDef = Content.map_node(_current_node_type())
 	return _current_node_is_resolved() and definition != null and definition.is_battle
 
 func _pending_choice_is_valid() -> bool:
@@ -446,7 +446,7 @@ func _fusion_confirmation_is_valid() -> bool:
 	var plan: FusionPlanType = FusionPlanType.new()
 	if not plan.load_from_dictionary(plan_value as Dictionary):
 		return false
-	var recipe: FusionRecipeDef = FusionRecipeDatabase.get_def(plan.recipe_id)
+	var recipe: FusionRecipeDef = Content.recipe(plan.recipe_id)
 	if recipe == null or recipe.result_piece_def_id != plan.result_piece_def_id:
 		return false
 	for instance_id: int in plan.ingredient_instance_ids:
@@ -498,7 +498,7 @@ func _opening_choice_is_valid() -> bool:
 		if unique_candidates.has(candidate_id):
 			return false
 		unique_candidates[candidate_id] = true
-		var definition: PieceDef = PieceDefDatabase.get_def(candidate_id)
+		var definition: PieceDef = Content.piece(candidate_id)
 		if definition == null or not definition.is_valid_opening_draft_piece():
 			return false
 		has_rare = has_rare or definition.is_rare_or_higher()

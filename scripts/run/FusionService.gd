@@ -8,7 +8,7 @@ func can_fuse(run_state: RunState, recipe_id: StringName) -> bool:
 
 func eligible_recipes(run_state: RunState) -> Array[FusionRecipeDef]:
 	var result: Array[FusionRecipeDef] = []
-	for recipe: FusionRecipeDef in FusionRecipeDatabase.all_defs():
+	for recipe: FusionRecipeDef in Content.recipes():
 		if create_plan_for_recipe(run_state, recipe) != null:
 			result.append(recipe)
 	return result
@@ -20,7 +20,7 @@ func create_plan(
 	source_choice_id: String = "",
 	price: int = 0
 ) -> FusionPlan:
-	var recipe: FusionRecipeDef = FusionRecipeDatabase.get_def(recipe_id)
+	var recipe: FusionRecipeDef = Content.recipe(recipe_id)
 	return create_plan_for_recipe(run_state, recipe, original_pending_choice, source_choice_id, price)
 
 func create_plan_for_recipe(
@@ -33,7 +33,7 @@ func create_plan_for_recipe(
 	last_error_message = ""
 	if run_state == null or recipe == null or price < 0:
 		return _fail_plan("Missing Run, recipe, or valid price")
-	var result_definition: PieceDef = PieceDefDatabase.get_def(String(recipe.result_piece_def_id))
+	var result_definition: PieceDef = Content.piece(String(recipe.result_piece_def_id))
 	if result_definition == null:
 		return _fail_plan("Fusion result definition is missing")
 	var ingredient_ids: Array[int] = _select_ingredient_instances(run_state, recipe)
@@ -76,7 +76,7 @@ func validate_plan(run_state: RunState, plan: FusionPlan, recipe_override: Fusio
 	last_error_message = ""
 	if run_state == null or plan == null or not plan.is_structurally_valid():
 		return _fail_validation("Fusion plan structure is invalid")
-	var recipe: FusionRecipeDef = recipe_override if recipe_override != null else FusionRecipeDatabase.get_def(plan.recipe_id)
+	var recipe: FusionRecipeDef = recipe_override if recipe_override != null else Content.recipe(plan.recipe_id)
 	if recipe == null or recipe.id != plan.recipe_id or recipe.result_piece_def_id != plan.result_piece_def_id:
 		return _fail_validation("Fusion recipe no longer matches the plan")
 	if plan.ingredient_instance_ids.size() != recipe.ingredient_piece_def_ids.size():
@@ -94,7 +94,7 @@ func validate_plan(run_state: RunState, plan: FusionPlan, recipe_override: Fusio
 		king_count += 1 if piece.is_king else 0
 	if actual != required:
 		return _fail_validation("Planned ingredients no longer match the recipe")
-	var result_definition: PieceDef = PieceDefDatabase.get_def(String(plan.result_piece_def_id))
+	var result_definition: PieceDef = Content.piece(String(plan.result_piece_def_id))
 	if result_definition == null or result_definition.is_king != plan.result_is_king:
 		return _fail_validation("Fusion result King identity changed")
 	if plan.result_is_king:
@@ -141,7 +141,7 @@ func confirm(
 		if fused == null:
 			_restore(run_state, snapshot)
 			return ERR_OUT_OF_MEMORY
-		var fused_definition: PieceDef = PieceDefDatabase.get_def(String(plan.result_piece_def_id))
+		var fused_definition: PieceDef = Content.piece(String(plan.result_piece_def_id))
 		if fused_definition != null and fused_definition.learn_capacity > 0:
 			while inherited.size() > fused_definition.learn_capacity:
 				inherited.remove_at(0)
@@ -180,7 +180,7 @@ func preview_description(run_state: RunState, plan: FusionPlan) -> String:
 		if instance_id != plan.preserved_king_instance_id:
 			active_removed += 1 if instance_id in run_state.active_piece_ids else 0
 			reserve_removed += 1 if instance_id in run_state.reserve_piece_ids else 0
-	var result_definition: PieceDef = PieceDefDatabase.get_def(String(plan.result_piece_def_id))
+	var result_definition: PieceDef = Content.piece(String(plan.result_piece_def_id))
 	var rarity_keys: Array[String] = ["RARITY_COMMON", "RARITY_RARE", "RARITY_EPIC", "RARITY_LEGENDARY", "RARITY_MYTHIC"]
 	var rarity_label: String = _t(rarity_keys[result_definition.rarity]) if result_definition != null and result_definition.rarity >= 0 and result_definition.rarity < rarity_keys.size() else "?"
 	var lines: Array[String] = [
@@ -199,7 +199,7 @@ func preview_description(run_state: RunState, plan: FusionPlan) -> String:
 	return "\n".join(lines)
 
 func _piece_name(piece_def_id: String) -> String:
-	var definition: PieceDef = PieceDefDatabase.get_def(piece_def_id)
+	var definition: PieceDef = Content.piece(piece_def_id)
 	return _t(String(definition.display_name_key)) if definition != null else piece_def_id
 
 func _t(key: String) -> String:

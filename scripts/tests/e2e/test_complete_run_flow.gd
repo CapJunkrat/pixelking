@@ -36,7 +36,7 @@ func _run() -> void:
 			break
 		_expect(manager.select_map_node(available[0]) == OK, "next route node is selected")
 		var current: MapNodeState = manager.current_map_node()
-		var definition: MapNodeDef = MapNodeDefDatabase.get_def(current.node_type_id)
+		var definition: MapNodeDef = Content.map_node(current.node_type_id)
 		if definition.is_battle:
 			_expect(manager.begin_deployment() == OK, "battle deployment begins")
 			_expect(manager.confirm_deployment() == OK, "battle deployment is confirmed")

@@ -11,8 +11,8 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
-	for id: StringName in RunContentDatabase.relic_ids():
-		_expect(ChallengerItemDatabase.get_def(id).effect_type != &"noop", "%s does something" % id)
+	for id: StringName in Content.relic_ids():
+		_expect(Content.challenger_item(id).effect_type != &"noop", "%s does something" % id)
 
 	# Holy Water: the chosen piece cannot be captured on the enemy's next turn.
 	var board: BoardState = _board()
@@ -56,15 +56,15 @@ func _run() -> void:
 func _board() -> BoardState:
 	var board: BoardState = BoardState.new(8, false)
 	board.clear_for_setup()
-	board.place_piece_for_setup(Vector2i(0, 0), ChessPiece.new(PieceDefDatabase.get_def("king"), W))
-	board.place_piece_for_setup(Vector2i(7, 7), ChessPiece.new(PieceDefDatabase.get_def("king"), B))
-	board.place_piece_for_setup(Vector2i(3, 3), ChessPiece.new(PieceDefDatabase.get_def("knight"), W))
-	board.place_piece_for_setup(Vector2i(3, 5), ChessPiece.new(PieceDefDatabase.get_def("rook"), B))
+	board.place_piece_for_setup(Vector2i(0, 0), ChessPiece.new(Content.piece("king"), W))
+	board.place_piece_for_setup(Vector2i(7, 7), ChessPiece.new(Content.piece("king"), B))
+	board.place_piece_for_setup(Vector2i(3, 3), ChessPiece.new(Content.piece("knight"), W))
+	board.place_piece_for_setup(Vector2i(3, 5), ChessPiece.new(Content.piece("rook"), B))
 	board.finalize_setup(W)
 	return board
 
 func _item(id: StringName) -> ChallengerItemDef:
-	return ChallengerItemDatabase.get_def(id)
+	return Content.challenger_item(id)
 
 func _expect(condition: bool, message: String) -> void:
 	if condition:

@@ -34,6 +34,35 @@ const ARMY_SIZE_FROM_ACT: Array = [
 	{"act": 1, "normal": [4, 4], "elite": [5, 5]},
 ]
 
+## The encounter of `node` in this run. A Boss node draws one of its act's Bosses
+## (any Boss in the acts past the third), the same one for the same battle seed.
+static func encounter_for_node(run_state: RunState, node: MapNodeState) -> EncounterDef:
+	if node == null:
+		return null
+	var node_definition: MapNodeDef = Content.map_node(node.node_type_id)
+	if node_definition == null or not node_definition.is_battle:
+		return null
+	if node.node_type_id != &"boss" or run_state == null:
+		return Content.encounter(node_definition.encounter_def_id)
+	var pool: Array[EncounterDef] = bosses_for_act(run_state.act_index)
+	if pool.is_empty():
+		return Content.encounter(node_definition.encounter_def_id)
+	return pool[absi(run_state.current_encounter_seed) % pool.size()]
+
+## The encounter of the run's current node.
+static func encounter_for_current(run_state: RunState) -> EncounterDef:
+	if run_state == null or run_state.map_state == null:
+		return null
+	return encounter_for_node(run_state, run_state.map_state.get_node(run_state.current_node_id))
+
+## The Bosses that can close act `act_index` (0 = Act 1); every Boss after Act 3.
+static func bosses_for_act(act_index: int) -> Array[EncounterDef]:
+	var result: Array[EncounterDef] = []
+	for definition: EncounterDef in Content.encounters():
+		if definition.is_boss and definition.act > 0 and (act_index >= RunState.ACT_COUNT or definition.act == act_index + 1):
+			result.append(definition)
+	return result
+
 ## [min, max] pieces besides the King for `tier` in `act`; empty in Act 1, which buys
 ## from the strength budget instead.
 static func army_size(tier: StringName, act: int) -> Array:
@@ -60,9 +89,9 @@ static func fusion_enemies(act: int) -> Array[String]:
 	var result: Array[String] = []
 	if act < EPIC_FUSIONS_FROM_ACT:
 		return result
-	for recipe: FusionRecipeDef in FusionRecipeDatabase.all_defs():
+	for recipe: FusionRecipeDef in Content.recipes():
 		var id: String = String(recipe.result_piece_def_id)
-		var definition: PieceDef = PieceDefDatabase.get_def(id)
+		var definition: PieceDef = Content.piece(id)
 		if definition == null or definition.is_king or id in result:
 			continue
 		if act >= ALL_FUSIONS_FROM_ACT or definition.rarity == PieceDef.Rarity.EPIC:
@@ -103,7 +132,7 @@ static func min_rarity(act: int) -> int:
 
 ## Whether `id` may stand in an enemy army in `act` (Kings always may).
 static func meets_rarity_floor(id: String, act: int) -> bool:
-	var definition: PieceDef = PieceDefDatabase.get_def(id)
+	var definition: PieceDef = Content.piece(id)
 	return definition != null and (definition.is_king or int(definition.rarity) >= min_rarity(act))
 
 static func _above_floor(ids: Array[String], act: int) -> Array[String]:
@@ -229,7 +258,7 @@ static func _pick_by_rarity(pool: Array[String], act: int, budget: int, rng: Ran
 	for id: String in pool:
 		if budget >= 0 and _value(id) > budget:
 			continue
-		var definition: PieceDef = PieceDefDatabase.get_def(id)
+		var definition: PieceDef = Content.piece(id)
 		if definition == null:
 			continue
 		var tier_index: int = clampi(definition.rarity, 0, 3)
@@ -330,9 +359,9 @@ static func _place(army: Array[String], king_file: int, guard_slots: Array[int])
 		if index in guard_slots and guard_index < guard_squares.size():
 			square = guard_squares[guard_index]
 			guard_index += 1
-		elif DeploymentFormation.moves_forward_only(PieceDefDatabase.get_def(id)):
+		elif DeploymentFormation.moves_forward_only(Content.piece(id)):
 			square = _free(taken, middle_out, FRONT_RANK)
-		elif PieceDefDatabase.get_def(id).weight_class == PieceDef.WeightClass.HEAVY:
+		elif Content.piece(id).weight_class == PieceDef.WeightClass.HEAVY:
 			square = _free(taken, corners, BACK_RANK)
 		else:
 			square = _free(taken, middle_out, BACK_RANK)
@@ -397,7 +426,7 @@ static func _placement(id: String, square: Vector2i, index: int) -> Dictionary:
 	return {"placement_id": "gen_%d" % index, "piece_def_id": id, "position": {"x": square.x, "y": square.y}}
 
 static func _value(id: String) -> int:
-	var definition: PieceDef = PieceDefDatabase.get_def(id)
+	var definition: PieceDef = Content.piece(id)
 	return definition.base_value if definition != null else 99
 
 ## The player's strength: the value of every active piece besides the King.
@@ -406,5 +435,5 @@ static func player_strength(run_state: RunState) -> int:
 	for instance_id: int in run_state.active_piece_ids:
 		var piece: PieceInstanceState = run_state.get_piece_state(instance_id)
 		if piece != null and not piece.is_king:
-			total += PieceDefDatabase.get_def(String(piece.piece_def_id)).base_value
+			total += Content.piece(String(piece.piece_def_id)).base_value
 	return total

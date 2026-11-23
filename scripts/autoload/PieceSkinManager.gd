@@ -43,7 +43,7 @@ func piece_texture(color: StringName, piece_type: StringName) -> Texture2D:
 	if skin == null:
 		return null
 	# Forms of one piece (squire levels, tide states) share that piece's picture.
-	var definition: PieceDef = PieceDefDatabase.get_def(String(piece_type))
+	var definition: PieceDef = Content.piece(String(piece_type))
 	if definition != null:
 		piece_type = StringName(definition.art_key())
 	if skin.has_texture(color, piece_type):

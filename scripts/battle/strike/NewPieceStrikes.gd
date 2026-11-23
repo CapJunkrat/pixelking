@@ -95,7 +95,7 @@ static func reaction_for_type(strike_type: int) -> StringName:
 
 ## The reaction a captured piece always plays, or &"" to use the attacker's.
 static func victim_reaction(victim_id: StringName) -> StringName:
-	var definition: PieceDef = PieceDefDatabase.get_def(String(victim_id))
+	var definition: PieceDef = Content.piece(String(victim_id))
 	var key: StringName = StringName(definition.art_key()) if definition != null else victim_id
 	return VICTIM_REACTIONS.get(key, &"")
 

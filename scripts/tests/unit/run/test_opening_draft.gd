@@ -27,7 +27,7 @@ func _init() -> void:
 		var pair: Dictionary = _new_run_pair(9000 + seed_offset)
 		service.call("ensure_pending_choice", pair["run"], pair["rng"])
 		for id: Variant in ((pair["run"] as RunState).pending_choice.get("candidate_piece_def_ids", []) as Array):
-			var definition: PieceDef = PieceDefDatabase.get_def(str(id))
+			var definition: PieceDef = Content.piece(str(id))
 			if definition != null and definition.rarity >= PieceDef.Rarity.EPIC:
 				with_epic += 1
 				break
@@ -89,14 +89,14 @@ func _unique_count(values: Array) -> int:
 
 func _contains_rare(ids: Array) -> bool:
 	for id_value: Variant in ids:
-		var definition: PieceDef = PieceDefDatabase.get_def(str(id_value))
+		var definition: PieceDef = Content.piece(str(id_value))
 		if definition != null and definition.rarity >= PieceDef.Rarity.RARE:
 			return true
 	return false
 
 func _all_opening_eligible(ids: Array) -> bool:
 	for id_value: Variant in ids:
-		var definition: PieceDef = PieceDefDatabase.get_def(str(id_value))
+		var definition: PieceDef = Content.piece(str(id_value))
 		if definition == null or not definition.is_valid_opening_draft_piece():
 			return false
 	return true

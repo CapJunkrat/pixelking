@@ -49,7 +49,7 @@ func _empty_board(size: int = 5) -> BoardState:
 	return BoardState.new(size, false)
 
 func _piece(id: String, color: int) -> ChessPiece:
-	return ChessPiece.new(PieceDefDatabase.get_def(id), color)
+	return ChessPiece.new(Content.piece(id), color)
 
 func _place_kings(board: BoardState, white_pos: Vector2i, black_pos: Vector2i) -> void:
 	board.set_piece(white_pos, _piece("king", GameRules.PieceColor.WHITE))
@@ -97,7 +97,7 @@ func test_simulation_clone_preserves_identity() -> void:
 
 func test_inherited_king_movement_can_be_extended() -> void:
 	_log("\n-- test_inherited_king_movement_can_be_extended --")
-	var king_definition := PieceDefDatabase.get_def("king")
+	var king_definition := Content.piece("king")
 	var inherited_profile := MovementProfile.new()
 	inherited_profile.parent = king_definition.movement_profile
 	var rook_slide := SlideMovementRule.new()
@@ -128,7 +128,7 @@ func test_inherited_king_movement_can_be_extended() -> void:
 
 func test_royal_tag_does_not_define_the_king() -> void:
 	_log("\n-- test_royal_tag_does_not_define_the_king --")
-	var king_definition := PieceDefDatabase.get_def("king")
+	var king_definition := Content.piece("king")
 	var royal_guard_definition := PieceDef.new()
 	royal_guard_definition.id = "royal_guard"
 	royal_guard_definition.is_royal = true

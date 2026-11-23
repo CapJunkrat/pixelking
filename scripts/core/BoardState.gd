@@ -102,7 +102,7 @@ func _reset_turn_state() -> void:
 	growth = {}
 
 func _place(pos: Vector2i, def_id: String, color: int) -> void:
-	grid[pos.x][pos.y] = ChessPiece.new(PieceDefDatabase.get_def(def_id), color)
+	grid[pos.x][pos.y] = ChessPiece.new(Content.piece(def_id), color)
 
 func clear_for_setup() -> void:
 	_create_empty_grid()
@@ -462,7 +462,7 @@ func _can_take_instance(color: int, instance_id: int) -> bool:
 ## (the board is the one after `color`'s move, with the enemy to move).
 func _guards_square(square: Vector2i, color: int) -> bool:
 	var trial: BoardState = clone()
-	var intruder: ChessPiece = ChessPiece.new(PieceDefDatabase.get_def("pawn"), GameRules.opposite(color), false)
+	var intruder: ChessPiece = ChessPiece.new(Content.piece("pawn"), GameRules.opposite(color), false)
 	intruder.instance_id = -1
 	intruder.has_moved = true
 	trial.set_piece(square, intruder)
@@ -654,18 +654,18 @@ func _apply_move(from: Vector2i, to: Vector2i, promotion_id: String, simulate: b
 			_record_capture(piece, result)
 		var alive: bool = get_piece(landing) == piece
 		if alive and is_pawn_move and landing.y == _promotion_rank(moving_color):
-			var promoted: ChessPiece = _action_piece(PieceDefDatabase.get_def(promotion_id), moving_color)
+			var promoted: ChessPiece = _action_piece(Content.piece(promotion_id), moving_color)
 			promoted.has_moved = true
 			promoted.origin = piece.origin
 			set_piece(landing, promoted)
 			result.promoted = true
 		elif alive and not piece.def.promotes_to.is_empty() and landing.y == _promotion_rank(moving_color):
-			var promoted_def: PieceDef = PieceDefDatabase.get_def(piece.def.promotes_to)
+			var promoted_def: PieceDef = Content.piece(piece.def.promotes_to)
 			if promoted_def != null:
 				piece.def = promoted_def
 				result.promoted = true
 		elif alive and not piece.def.alternate_form_id.is_empty():
-			var form: PieceDef = PieceDefDatabase.get_def(piece.def.alternate_form_id)
+			var form: PieceDef = Content.piece(piece.def.alternate_form_id)
 			if form != null:
 				piece.def = form
 				result.form_changed = form.id
@@ -779,7 +779,7 @@ func _record_capture(piece: ChessPiece, result: MoveOutcome) -> void:
 		if str(entry.get("cause", "")) == "capture":
 			victim_id = str(entry.get("piece_def_id", ""))
 			break
-	var victim_def: PieceDef = PieceDefDatabase.get_def(victim_id)
+	var victim_def: PieceDef = Content.piece(victim_id)
 	if piece.def.learn_capacity > 0 and victim_def != null and not victim_def.is_king:
 		var learned_id: String = victim_def.run_form_id()
 		if learned_id != piece.def.id and learned_id not in piece.learned_def_ids:
@@ -788,7 +788,7 @@ func _record_capture(piece: ChessPiece, result: MoveOutcome) -> void:
 				piece.learned_def_ids.remove_at(0)
 			result.learned = learned_id
 	while piece.def.evolve_at_captures > 0 and piece.capture_count >= piece.def.evolve_at_captures:
-		var next: PieceDef = PieceDefDatabase.get_def(piece.def.evolves_into)
+		var next: PieceDef = Content.piece(piece.def.evolves_into)
 		if next == null or next == piece.def:
 			break
 		piece.def = next
@@ -809,7 +809,7 @@ func _action_piece(definition: PieceDef, color: int) -> ChessPiece:
 ## A fallen reviving piece leaves an egg on its side's free square nearest the
 ## owner's bottom-left corner. With no free square left it is gone for good.
 func _lay_egg(victim: ChessPiece, serial: int, result: MoveOutcome) -> void:
-	var egg_def: PieceDef = PieceDefDatabase.get_def(victim.def.egg_def_id)
+	var egg_def: PieceDef = Content.piece(victim.def.egg_def_id)
 	var square: Vector2i = egg_square(victim.color)
 	if egg_def == null or square.x < 0:
 		return

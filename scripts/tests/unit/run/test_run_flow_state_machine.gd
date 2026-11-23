@@ -70,7 +70,7 @@ func _expect_invalid_without_side_effects(manager: AppRunManager, message: Strin
 func _first_battle_node_id(manager: AppRunManager) -> StringName:
 	for node_id: StringName in manager.available_map_node_ids():
 		var node: MapNodeState = manager.current_run.map_state.get_node(node_id)
-		var definition: MapNodeDef = MapNodeDefDatabase.get_def(node.node_type_id)
+		var definition: MapNodeDef = Content.map_node(node.node_type_id)
 		if definition != null and definition.is_battle:
 			return node_id
 	return &""

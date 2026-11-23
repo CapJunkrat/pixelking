@@ -36,7 +36,7 @@ func _run() -> void:
 				for placement: Dictionary in enemies:
 					var id: String = str(placement["piece_def_id"])
 					if id != "king":
-						enemy_strength_total += PieceDefDatabase.get_def(id).base_value
+						enemy_strength_total += Content.piece(id).base_value
 				var started: int = Time.get_ticks_msec()
 				var outcome: Array = _play(run, enemies, selector)
 				if OS.get_environment("SIM_VERBOSE") == "1":
@@ -77,7 +77,7 @@ func _play(run: RunState, enemies: Array[Dictionary], selector: EnemyMoveSelecto
 		board.place_piece_for_setup(formation[instance_id], piece.to_chess_piece(GameRules.PieceColor.WHITE))
 	for placement: Dictionary in enemies:
 		var square: Vector2i = DeploymentState.position_from_value(placement["position"])
-		board.place_piece_for_setup(square, ChessPiece.new(PieceDefDatabase.get_def(str(placement["piece_def_id"])), GameRules.PieceColor.BLACK))
+		board.place_piece_for_setup(square, ChessPiece.new(Content.piece(str(placement["piece_def_id"])), GameRules.PieceColor.BLACK))
 	board.finalize_setup(GameRules.PieceColor.WHITE)
 	var processor: BattleCommandProcessor = BattleCommandProcessor.new(board)
 	processor.shield_kings_for_opening()

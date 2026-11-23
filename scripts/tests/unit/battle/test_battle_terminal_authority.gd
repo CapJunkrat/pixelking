@@ -14,9 +14,9 @@ func _run() -> void:
 func _test_king_capture_finishes_once() -> void:
 	var board: BoardState = BoardState.new(5, false)
 	board.clear_for_setup()
-	board.place_piece_for_setup(Vector2i(0, 0), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.WHITE))
-	board.place_piece_for_setup(Vector2i(4, 4), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.BLACK))
-	board.place_piece_for_setup(Vector2i(4, 0), ChessPiece.new(PieceDefDatabase.get_def("rook"), GameRules.PieceColor.WHITE))
+	board.place_piece_for_setup(Vector2i(0, 0), ChessPiece.new(Content.piece("king"), GameRules.PieceColor.WHITE))
+	board.place_piece_for_setup(Vector2i(4, 4), ChessPiece.new(Content.piece("king"), GameRules.PieceColor.BLACK))
+	board.place_piece_for_setup(Vector2i(4, 0), ChessPiece.new(Content.piece("rook"), GameRules.PieceColor.WHITE))
 	board.finalize_setup(GameRules.PieceColor.WHITE)
 	var processor: BattleCommandProcessor = BattleCommandProcessor.new(board)
 	var result: BattleCommandResult = processor.execute(MoveAction.new(Vector2i(4, 0), Vector2i(4, 4), GameRules.PieceColor.WHITE))
@@ -32,8 +32,8 @@ func _test_king_capture_finishes_once() -> void:
 func _test_initial_draw_is_evaluated_by_processor() -> void:
 	var board: BoardState = BoardState.new(5, false)
 	board.clear_for_setup()
-	board.place_piece_for_setup(Vector2i(0, 0), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.WHITE))
-	board.place_piece_for_setup(Vector2i(4, 4), ChessPiece.new(PieceDefDatabase.get_def("king"), GameRules.PieceColor.BLACK))
+	board.place_piece_for_setup(Vector2i(0, 0), ChessPiece.new(Content.piece("king"), GameRules.PieceColor.WHITE))
+	board.place_piece_for_setup(Vector2i(4, 4), ChessPiece.new(Content.piece("king"), GameRules.PieceColor.BLACK))
 	board.finalize_setup(GameRules.PieceColor.WHITE)
 	var processor: BattleCommandProcessor = BattleCommandProcessor.new(board)
 	var result: BattleCommandResult = processor.evaluate_terminal_state()

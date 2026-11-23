@@ -142,6 +142,6 @@ func _board(specs: Dictionary, color: int = B) -> BoardState:
 	var board := BoardState.new(8, false)
 	for square: Vector2i in specs:
 		var spec: Array = specs[square]
-		board.place_piece_for_setup(square, ChessPiece.new(PieceDefDatabase.get_def(spec[0]), spec[1]))
+		board.place_piece_for_setup(square, ChessPiece.new(Content.piece(spec[0]), spec[1]))
 	board.turn = color
 	return board

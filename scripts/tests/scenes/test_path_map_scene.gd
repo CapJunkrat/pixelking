@@ -44,7 +44,7 @@ func _run() -> void:
 	var selected_card: Button = selectable_cards[0]
 	for candidate: Button in selectable_cards:
 		var candidate_type_id: StringName = candidate.get_meta("node_type_id", &"")
-		var candidate_definition: MapNodeDef = MapNodeDefDatabase.get_def(candidate_type_id)
+		var candidate_definition: MapNodeDef = Content.map_node(candidate_type_id)
 		if candidate_definition != null and not candidate_definition.is_battle:
 			selected_card = candidate
 			break
@@ -55,7 +55,7 @@ func _run() -> void:
 	var overlay: ColorRect = path_map.get_node("NodeOverlay") as ColorRect
 	_expect(view.is_travelling() and not overlay.visible, "the king walks to the chosen node before its details open")
 	var selected_node: MapNodeState = run_manager.current_run.map_state.get_node(selected_id)
-	var selected_definition: MapNodeDef = MapNodeDefDatabase.get_def(selected_node.node_type_id)
+	var selected_definition: MapNodeDef = Content.map_node(selected_node.node_type_id)
 	var is_event: bool = selected_node.node_type_id == &"event"
 	var waited: int = 0
 	while not overlay.visible and waited < 240 and (not is_event or run_manager.current_run.pending_choice.is_empty()):

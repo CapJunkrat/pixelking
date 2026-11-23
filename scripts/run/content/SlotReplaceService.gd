@@ -34,12 +34,12 @@ func stage(run_state: RunState, pending: Dictionary, choice_id: String, payload:
 	var options: Array[Dictionary] = []
 	for index: int in range(run_state.challenger_slots.size()):
 		var slot_id: StringName = run_state.challenger_slots[index]
-		var definition: ChallengerItemDef = ChallengerItemDatabase.get_def(slot_id)
+		var definition: ChallengerItemDef = Content.challenger_item(slot_id)
 		var allowed: bool = can_give_up(run_state, slot_id)
 		var data: Dictionary = {"kind": PICK, "slot_id": String(slot_id)}
 		if not allowed:
 			data["detail_key"] = "SLOT_FULL_BANNER_BLOCKED"
-		var option: Dictionary = RunChoiceBuilder.option("slot_drop_%d" % index, RunContentDatabase.item_label(slot_id), PICK, data, allowed)
+		var option: Dictionary = RunChoiceBuilder.option("slot_drop_%d" % index, ContentText.item_name(slot_id), PICK, data, allowed)
 		if definition != null:
 			option["label_key"] = String(definition.display_name_key)
 		options.append(option)
@@ -50,7 +50,7 @@ func stage(run_state: RunState, pending: Dictionary, choice_id: String, payload:
 	var staged: Dictionary = RunChoiceBuilder.pending(pending_type, "Your Slots Are Full", "", options, false)
 	staged["title_key"] = "SLOT_FULL_TITLE"
 	staged["description_key"] = "SLOT_FULL_DESC"
-	staged["description_args"] = [RunContentDatabase.item_label(new_id)]
+	staged["description_args"] = [ContentText.item_name(new_id)]
 	for key: String in ["event_id", "gold_awarded"]:
 		if pending.has(key):
 			staged[key] = pending[key]

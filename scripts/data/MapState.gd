@@ -33,7 +33,7 @@ func node_type_count(node_type_id: StringName) -> int:
 func is_valid() -> bool:
 	if map_version != CURRENT_VERSION or map_id.is_empty() or template_id.is_empty() or nodes.is_empty():
 		return false
-	var template: MapTemplateDef = MapTemplateDatabase.get_def(template_id)
+	var template: MapTemplateDef = Content.map_template(template_id)
 	if template == null or not template.is_valid():
 		return false
 	if total_layers < template.min_layers or total_layers > template.max_layers:

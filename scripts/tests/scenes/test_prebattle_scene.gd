@@ -223,7 +223,7 @@ func _prepare_battle_run(manager: AppRunManager) -> void:
 	manager.ensure_run_map()
 	for node_id: StringName in manager.available_map_node_ids():
 		var node: MapNodeState = manager.current_run.map_state.get_node(node_id)
-		if MapNodeDefDatabase.get_def(node.node_type_id).is_battle:
+		if Content.map_node(node.node_type_id).is_battle:
 			manager.select_map_node(node_id)
 			break
 

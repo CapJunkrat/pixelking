@@ -31,7 +31,7 @@ static func arrange(run_state: RunState, board_size: int, fixed: Dictionary = {}
 		var piece: PieceInstanceState = run_state.get_piece_state(instance_id)
 		if piece == null or result.has(instance_id):
 			continue
-		var definition: PieceDef = PieceDefDatabase.get_def(String(piece.piece_def_id))
+		var definition: PieceDef = Content.piece(String(piece.piece_def_id))
 		if piece.is_king and not occupied.has(Vector2i(centre, 0)):
 			result[instance_id] = Vector2i(centre, 0)
 			occupied[Vector2i(centre, 0)] = true
@@ -44,8 +44,8 @@ static func arrange(run_state: RunState, board_size: int, fixed: Dictionary = {}
 		else:
 			others.append(piece)
 	others.sort_custom(func(a: PieceInstanceState, b: PieceInstanceState) -> bool:
-		var value_a: int = PieceDefDatabase.get_def(String(a.piece_def_id)).base_value
-		var value_b: int = PieceDefDatabase.get_def(String(b.piece_def_id)).base_value
+		var value_a: int = Content.piece(String(a.piece_def_id)).base_value
+		var value_b: int = Content.piece(String(b.piece_def_id)).base_value
 		return value_a > value_b if value_a != value_b else a.instance_id < b.instance_id)
 	for piece: PieceInstanceState in forward:
 		result[piece.instance_id] = _take(occupied, [[middle_out, 1], [middle_out, 0]], board_size)

@@ -86,4 +86,4 @@ func _board(pieces: Dictionary, white_king: Vector2i = Vector2i(7, 0)) -> BoardS
 	return board
 
 func _piece(piece_id: StringName, color: int) -> ChessPiece:
-	return ChessPiece.new(PieceDefDatabase.get_def(piece_id), color)
+	return ChessPiece.new(Content.piece(piece_id), color)

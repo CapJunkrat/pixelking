@@ -19,7 +19,7 @@ func is_valid() -> bool:
 		return false
 	var unique_ids: Dictionary = {}
 	for node_type_id: StringName in guaranteed_node_type_ids + filler_node_type_ids + [boss_node_type_id]:
-		if node_type_id.is_empty() or not MapNodeDefDatabase.has_def(node_type_id):
+		if node_type_id.is_empty() or Content.map_node(node_type_id) == null:
 			return false
 		unique_ids[node_type_id] = true
 	return unique_ids.size() >= 4

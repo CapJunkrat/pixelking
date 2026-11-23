@@ -281,7 +281,7 @@ func _format_event(event: BattleEvent) -> String:
 		BattleCommandProcessor.EVENT_KING_EXECUTION:
 			return "  " + _text("LOG_CAPTURED") % _who(str(data.get("victim_def_id", "king")), int(data.get("victim_color", 0)))
 		BattleCommandProcessor.EVENT_ITEM_USED:
-			var item: ChallengerItemDef = ChallengerItemDatabase.get_def(StringName(str(data.get("item_id", ""))))
+			var item: ChallengerItemDef = Content.challenger_item(StringName(str(data.get("item_id", ""))))
 			return _text("LOG_ITEM_USED") % (_text(String(item.display_name_key)) if item != null else str(data.get("item_id", "")))
 		BattleCommandProcessor.EVENT_EGG_LAID:
 			return "  [color=#%s]%s[/color]" % [GOLD_SOFT.to_html(false), _text("LOG_EGG_LAID") % _who(_hatchling(str(data.get("piece_def_id", ""))), int(data.get("color", 0)))]
@@ -299,15 +299,15 @@ func _format_event(event: BattleEvent) -> String:
 
 ## The bird an egg belongs to (for "Your Ember Bird laid an egg").
 func _hatchling(egg_id: String) -> String:
-	for piece_id: String in PieceDefDatabase.all_ids():
-		var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
+	for piece_id: String in Content.piece_ids():
+		var definition: PieceDef = Content.piece(piece_id)
 		if definition != null and definition.egg_def_id == egg_id:
 			return piece_id
 	return egg_id
 
 ## "Your Knight" in teal or "Enemy Knight" in coral.
 func _who(piece_id: String, color: int) -> String:
-	var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
+	var definition: PieceDef = Content.piece(piece_id)
 	var name: String = _text(String(definition.display_name_key)) if definition != null else piece_id
 	var yours: bool = color == _player_color()
 	return "[color=#%s]%s[/color]" % [(TEAL if yours else ENEMY).to_html(false), (_text("LOG_YOUR") if yours else _text("LOG_ENEMY")) % name]

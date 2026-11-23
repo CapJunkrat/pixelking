@@ -977,8 +977,8 @@ func present_events(events: Array[BattleEvent], speed: float = 1.0) -> void:
 	if proxy == null:
 		_finish_without_move()
 		return
-	var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
-	var profile: PieceMotionProfile = definition.motion_profile if definition != null and definition.motion_profile != null else PieceMotionProfileDatabase.get_profile(&"queen")
+	var definition: PieceDef = Content.piece(piece_id)
+	var profile: PieceMotionProfile = definition.motion_profile if definition != null and definition.motion_profile != null else Content.motion_profile(&"queen")
 	var duration: float = (profile.capture_duration if captured else profile.move_duration) / maxf(speed, 0.1)
 	var presentation_kind: StringName = presentation_kind_for(definition, captured)
 	var weight: int = definition.weight_class if definition != null else PieceDef.WeightClass.MEDIUM
@@ -1097,7 +1097,7 @@ func _present_strike(move_data: Dictionary, capture_data: Dictionary, speed: flo
 	if not board.in_bounds(victim_square) or victim_square == from:
 		return false
 	var attacker_id: String = str(move_data.get("piece_def_id", ""))
-	var attacker_def: PieceDef = PieceDefDatabase.get_def(attacker_id)
+	var attacker_def: PieceDef = Content.piece(attacker_id)
 	if attacker_def == null:
 		return false
 	# Forms of one piece (Squire levels, tide states) share that piece's attack.
@@ -1108,7 +1108,7 @@ func _present_strike(move_data: Dictionary, capture_data: Dictionary, speed: flo
 	var strike_type: int = attack[1]
 	if not StrikeDirector.can_play(attack_id, strike_type):
 		return false
-	var victim_def: PieceDef = PieceDefDatabase.get_def(str(capture_data.get("piece_def_id", "")))
+	var victim_def: PieceDef = Content.piece(str(capture_data.get("piece_def_id", "")))
 	var attacker_texture: Texture2D = _texture_for(int(move_data.get("color", player_color)), attacker_id)
 	var victim_texture: Texture2D = _texture_for(int(capture_data.get("color", player_color)), str(capture_data.get("piece_def_id", "")))
 	if victim_def == null or attacker_texture == null or victim_texture == null:
@@ -1280,8 +1280,8 @@ func _play_echo_strike(move_data: Dictionary, entry: Dictionary, speed: float) -
 	var to: Vector2i = move_data.get("to", NO_SQUARE)
 	var victim_square: Vector2i = entry.get("position", NO_SQUARE)
 	var attacker_id: String = str(move_data.get("piece_def_id", ""))
-	var attacker_def: PieceDef = PieceDefDatabase.get_def(attacker_id)
-	var victim_def: PieceDef = PieceDefDatabase.get_def(str(entry.get("piece_def_id", "")))
+	var attacker_def: PieceDef = Content.piece(attacker_id)
+	var victim_def: PieceDef = Content.piece(str(entry.get("piece_def_id", "")))
 	if attacker_def == null or victim_def == null or not board.in_bounds(victim_square):
 		return
 	var attack: Array = StrikeDirector.resolve_attack(StringName(attacker_def.art_key()), attacker_def.strike_type, from, victim_square)

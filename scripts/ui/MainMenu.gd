@@ -228,8 +228,8 @@ func _render_codex() -> void:
 		child.queue_free()
 	var discovered: Array[String] = run_manager.discovered_piece_ids()
 	var all_ids: Array[String] = []
-	for piece_id: String in PieceDefDatabase.all_ids():
-		var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
+	for piece_id: String in Content.piece_ids():
+		var definition: PieceDef = Content.piece(piece_id)
 		if definition != null and not definition.is_egg:
 			all_ids.append(piece_id)
 	all_ids.sort_custom(_codex_order)
@@ -245,8 +245,8 @@ const CODEX_MAX_TAGS := 4
 
 ## Rarest first; within a rarity the more valuable piece first, then by id.
 func _codex_order(a: String, b: String) -> bool:
-	var first: PieceDef = PieceDefDatabase.get_def(a)
-	var second: PieceDef = PieceDefDatabase.get_def(b)
+	var first: PieceDef = Content.piece(a)
+	var second: PieceDef = Content.piece(b)
 	if first.rarity != second.rarity:
 		return first.rarity > second.rarity
 	if first.base_value != second.base_value:
@@ -254,7 +254,7 @@ func _codex_order(a: String, b: String) -> bool:
 	return a < b
 
 func _make_codex_card(piece_id: String, revealed: bool) -> PanelContainer:
-	var definition: PieceDef = PieceDefDatabase.get_def(piece_id)
+	var definition: PieceDef = Content.piece(piece_id)
 	var accent: Color = PieceRulePreview.rarity_color(definition) if revealed and definition != null else Color(0.3, 0.32, 0.38, 1.0)
 	var card: PanelContainer = PanelContainer.new()
 	card.name = "Codex_%s" % piece_id
