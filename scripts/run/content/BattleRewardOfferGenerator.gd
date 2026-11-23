@@ -38,10 +38,9 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 		options.append(RunChoiceBuilder.option("recipe_%s" % recipe.id, RunContentDatabase.recipe_label(recipe), "fusion", {"recipe_id": String(recipe.id)}))
 	var progress: float = RarityOdds.run_progress(run_state) + (RarityOdds.ELITE_BONUS if elite else 0.0)
 	var piece_id: String = RarityOdds.pick(table.recruit_piece_ids, rng, &"reward_rng", progress)
-	var item_roll_matches: bool = (
-		run_state.has_challenger_room()
-		and rng.randi_range(&"reward_rng", 0, table.consumable_roll_sides - 1) == table.consumable_roll_hit
-	)
+	# With every slot full, items and relics are still offered: taking one asks which
+	# relic or item to give up (SlotReplaceService).
+	var item_roll_matches: bool = rng.randi_range(&"reward_rng", 0, table.consumable_roll_sides - 1) == table.consumable_roll_hit
 	if item_roll_matches:
 		var consumables: Array[StringName] = RunContentDatabase.consumable_ids()
 		var item_id: String = String(consumables[rng.pick_index(&"reward_rng", consumables.size())]) if not consumables.is_empty() else String(table.bonus_consumable_id)
@@ -53,7 +52,7 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 	while options.size() < 3 and tries < 12:
 		tries += 1
 		var relic: StringName = reward_service.unowned_relic(run_state, rng, &"reward_rng")
-		if not relic.is_empty() and relic not in offered_relics and run_state.has_challenger_room():
+		if not relic.is_empty() and relic not in offered_relics:
 			offered_relics.append(relic)
 			options.append(RunChoiceBuilder.option("relic_%s" % relic, RunContentDatabase.relic_label(relic), "relic", {"relic_id": String(relic)}))
 			continue

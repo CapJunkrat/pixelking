@@ -37,6 +37,7 @@ const TESTS = [
 	{"path": "res://scripts/tests/unit/run/test_run_flow_state_machine.gd", "layer": "unit", "domain": "run", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/run/test_run_rng.gd", "layer": "unit", "domain": "run", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/unit/run/test_run_state.gd", "layer": "unit", "domain": "run", "kind": "scene_tree"},
+	{"path": "res://scripts/tests/unit/run/test_slot_replace.gd", "layer": "unit", "domain": "run", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/integration/battle/test_atomic_run_item_use.gd", "layer": "integration", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/integration/battle/test_battle_item_window.gd", "layer": "integration", "domain": "battle", "kind": "scene_tree"},
 	{"path": "res://scripts/tests/integration/battle/test_battle_run_integration.gd", "layer": "integration", "domain": "battle", "kind": "scene_tree"},

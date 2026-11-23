@@ -120,7 +120,7 @@ func _render() -> void:
 	for option_value: Variant in pending.get("options", []) as Array:
 		if option_value is Dictionary:
 			choices.add_child(_card(option_value as Dictionary))
-	leave_button.visible = (bool(pending.get("allow_leave", false)) or type in RunContentService.LEAVABLE_TYPES or type == "run_summary") and not pending.has("shop_return")
+	leave_button.visible = (bool(pending.get("allow_leave", false)) or type in RunContentService.LEAVABLE_TYPES or type == "run_summary") and not pending.has("shop_return") and not pending.has("slot_return")
 	leave_button.text = _localized("INTERACTION_FINISH_RUN") if type == "run_summary" else _localized("INTERACTION_WALK_AWAY" if type in ["event", "rest"] else "INTERACTION_LEAVE")
 
 ## One choice: a picture, what it is, what it does, and its price or risk.
@@ -218,6 +218,9 @@ func _detail(kind: String, payload: Dictionary) -> String:
 		"relic", "item":
 			var item: ChallengerItemDef = ChallengerItemDatabase.get_def(StringName(str(payload.get("relic_id", payload.get("item_id", "")))))
 			return _localized(String(item.description_key)) if item != null else ""
+		SlotReplaceService.PICK:
+			var held: ChallengerItemDef = ChallengerItemDatabase.get_def(StringName(str(payload.get("slot_id", ""))))
+			return _localized(String(held.description_key)) if held != null else ""
 		"gold":
 			return _localized("INTERACTION_GOLD_DETAIL") % int(payload.get("amount", 0))
 		"restore_retry":
@@ -237,6 +240,9 @@ func _option_icon(kind: String, payload: Dictionary) -> Control:
 		"relic", "item":
 			var item: ChallengerItemDef = ChallengerItemDatabase.get_def(StringName(str(payload.get("relic_id", payload.get("item_id", "")))))
 			texture = item.icon if item != null else null
+		SlotReplaceService.PICK:
+			var held: ChallengerItemDef = ChallengerItemDatabase.get_def(StringName(str(payload.get("slot_id", ""))))
+			texture = held.icon if held != null else null
 		"fusion":
 			var recipe: FusionRecipeDef = FusionRecipeDatabase.get_def(StringName(str(payload.get("recipe_id", ""))))
 			texture = _piece_texture(String(recipe.result_piece_def_id)) if recipe != null else null
@@ -286,7 +292,8 @@ func _submit(choice_id: String) -> void:
 	var purchased: bool = was_type == "shop" and (run_manager.current_run == null or run_manager.current_run.pending_choice.is_empty())
 	_sfx(&"coins" if purchased else &"confirm")
 	var outcome: String = ""
-	if run_manager.current_run != null and was_type in ["event", "rest"]:
+	# (Not while a relic or item to give up is still being picked.)
+	if run_manager.current_run != null and was_type in ["event", "rest"] and run_manager.current_run.pending_choice.is_empty():
 		outcome = str(run_manager.current_run.run_statistics.get("last_outcome", ""))
 	if not outcome.is_empty():
 		_show_outcome(outcome)

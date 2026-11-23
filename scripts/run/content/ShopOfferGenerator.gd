@@ -25,7 +25,7 @@ func generate(run_state: RunState, rng: RunRngService, fusion_service: FusionSer
 		_add_piece(options, offered_pieces, stock, missing, run_state, rng, reward_service, pool)
 	var relic: StringName = reward_service.unowned_relic(run_state, rng, &"shop_rng")
 	if not relic.is_empty():
-		options.append(RunChoiceBuilder.option("buy_relic", "%s — %d Gold" % [RunContentDatabase.relic_label(relic), pool.relic_price], "relic", {"relic_id": String(relic), "price": pool.relic_price}, run_state.gold >= pool.relic_price and run_state.has_challenger_room()))
+		options.append(RunChoiceBuilder.option("buy_relic", "%s — %d Gold" % [RunContentDatabase.relic_label(relic), pool.relic_price], "relic", {"relic_id": String(relic), "price": pool.relic_price}, run_state.gold >= pool.relic_price))
 	else:
 		_add_piece(options, offered_pieces, stock, missing, run_state, rng, reward_service, pool)
 	var offered_items: Array[StringName] = []
@@ -97,11 +97,12 @@ static func missing_materials(run_state: RunState) -> Array[String]:
 				result.append(id)
 	return result
 
-## A consumable not already on the shelf (sold out of room: shown but not buyable).
+## A consumable not already on the shelf. With every slot full it stays buyable: buying
+## it asks which relic or item to give up (SlotReplaceService).
 func _add_item(options: Array[Dictionary], offered: Array[StringName], run_state: RunState, rng: RunRngService, pool: ShopPoolDefType) -> void:
 	var consumables: Array[StringName] = RunContentDatabase.consumable_ids()
 	for item: StringName in offered:
 		consumables.erase(item)
 	var item_id: StringName = consumables[rng.pick_index(&"shop_rng", consumables.size())] if not consumables.is_empty() else pool.consumable_id
 	offered.append(item_id)
-	options.append(RunChoiceBuilder.option("buy_item_%d" % offered.size(), "%s — %d Gold" % [RunContentDatabase.item_label(item_id), pool.consumable_price], "item", {"item_id": String(item_id), "price": pool.consumable_price}, run_state.gold >= pool.consumable_price and run_state.has_challenger_room()))
+	options.append(RunChoiceBuilder.option("buy_item_%d" % offered.size(), "%s — %d Gold" % [RunContentDatabase.item_label(item_id), pool.consumable_price], "item", {"item_id": String(item_id), "price": pool.consumable_price}, run_state.gold >= pool.consumable_price))

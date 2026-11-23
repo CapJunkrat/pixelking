@@ -17,6 +17,7 @@ var shop_generator: ShopOfferGenerator
 var event_generator: EventOfferGenerator
 var rest_generator: RestOfferGenerator
 var summary_service: RunSummaryService
+var slot_replace_service: SlotReplaceService
 
 func _init(service: FusionService = null) -> void:
 	fusion_service = service if service != null else FusionService.new()
@@ -28,6 +29,7 @@ func _init(service: FusionService = null) -> void:
 	shop_generator = ShopOfferGenerator.new()
 	event_generator = EventOfferGenerator.new()
 	rest_generator = RestOfferGenerator.new()
+	slot_replace_service = SlotReplaceService.new()
 
 func begin_current_node(run_state: RunState, rng: RunRngService) -> Error:
 	if run_state == null or rng == null or run_state.map_state == null or not run_state.pending_choice.is_empty():
@@ -63,12 +65,21 @@ func submit(run_state: RunState, _rng: RunRngService, progress: MapProgressServi
 		return ERR_INVALID_PARAMETER
 	var pending_type: String = str(pending.get("type", ""))
 	var payload: Dictionary = option.get("payload", {}) as Dictionary
+	match str(payload.get("kind", "")):
+		SlotReplaceService.CANCEL:
+			run_state.pending_choice = (pending.get("slot_return", {}) as Dictionary).duplicate(true)
+			return OK
+		SlotReplaceService.PICK:
+			return _submit_slot_pick(run_state, _rng, progress, pending, StringName(str(payload.get("slot_id", ""))))
 	match pending_type:
 		"battle_reward":
 			if str(payload.get("kind", "")) == "fusion":
 				return fusion_interaction_service.stage(run_state, pending, choice_id, payload)
 			if str(payload.get("kind", "")) == "piece" and not run_state.has_room_for_piece():
 				roster_choice_service.stage_overflow(run_state, str(payload.get("piece_def_id", "")))
+				return OK
+			if SlotReplaceService.needs_room(run_state, payload):
+				slot_replace_service.stage(run_state, pending, choice_id, payload)
 				return OK
 			var reward_error: Error = reward_service.apply(run_state, payload)
 			if reward_error != OK:
@@ -80,17 +91,54 @@ func submit(run_state: RunState, _rng: RunRngService, progress: MapProgressServi
 		"shop":
 			return _submit_shop(run_state, progress, pending, choice_id, payload)
 		"event", "rest":
-			var gold_before: int = run_state.gold
-			var outcome: Dictionary = _apply_chance_effect(run_state, _rng, payload)
-			if int(outcome.get("error", OK)) != OK:
-				return int(outcome["error"])
-			run_state.run_statistics["last_outcome"] = str(outcome.get("text", ""))
-			run_state.run_statistics["last_outcome_info"] = _outcome_info(run_state, payload, outcome, run_state.gold - gold_before)
-			return _resolve_interaction_node(run_state, progress, {"outcome": pending_type, "choice": choice_id, "success": bool(outcome.get("success", true))})
+			# A relic or item with every slot full: pick what to give up first, before
+			# anything is paid or rolled (so stepping back never re-rolls the event).
+			if SlotReplaceService.needs_room(run_state, payload) and run_state.gold >= int(payload.get("cost", 0)):
+				slot_replace_service.stage(run_state, pending, choice_id, payload)
+				return OK
+			return _submit_chance(run_state, _rng, progress, pending_type, choice_id, payload)
 		"fusion_confirmation":
 			return fusion_interaction_service.submit(run_state, progress, deployment, choice_id)
 		_:
 			return ERR_INVALID_PARAMETER
+
+func _submit_chance(run_state: RunState, rng: RunRngService, progress: MapProgressService, pending_type: String, choice_id: String, payload: Dictionary) -> Error:
+	var gold_before: int = run_state.gold
+	var outcome: Dictionary = _apply_chance_effect(run_state, rng, payload)
+	if int(outcome.get("error", OK)) != OK:
+		return int(outcome["error"])
+	run_state.run_statistics["last_outcome"] = str(outcome.get("text", ""))
+	run_state.run_statistics["last_outcome_info"] = _outcome_info(run_state, payload, outcome, run_state.gold - gold_before)
+	return _resolve_interaction_node(run_state, progress, {"outcome": pending_type, "choice": choice_id, "success": bool(outcome.get("success", true))})
+
+## The player chose `slot_id` to give up for the relic or item of the staged option
+## ("slot_source"): buy it, take the reward, or play out the event, giving the slot up
+## only once the new one is really gained. Undone on any failure.
+func _submit_slot_pick(run_state: RunState, rng: RunRngService, progress: MapProgressService, pending: Dictionary, slot_id: StringName) -> Error:
+	var source: Dictionary = pending.get("slot_source", {}) as Dictionary
+	var payload: Dictionary = (source.get("payload", {}) as Dictionary).duplicate(true)
+	var choice_id: String = str(source.get("choice_id", ""))
+	var pending_type: String = str(pending.get("type", ""))
+	if not SlotReplaceService.can_give_up(run_state, slot_id):
+		return ERR_UNAVAILABLE
+	if pending_type in ["event", "rest"]:
+		payload["give_up_slot"] = String(slot_id)
+		return _submit_chance(run_state, rng, progress, pending_type, choice_id, payload)
+	var price: int = int(payload.get("price", 0))
+	if run_state.gold < price:
+		return ERR_UNAVAILABLE
+	var snapshot: Dictionary = run_state.to_dictionary()
+	var error: Error = SlotReplaceService.give_up(run_state, slot_id)
+	if error == OK:
+		error = reward_service.apply(run_state, payload)
+	if error != OK:
+		run_state.load_from_dictionary(snapshot, false)
+		return error
+	run_state.gold -= price
+	if pending_type == "shop":
+		return _resolve_interaction_node(run_state, progress, {"outcome": "purchase", "choice": choice_id})
+	run_state.pending_choice.clear()
+	return OK
 
 ## Pays the option's cost, rolls its chance, applies the matching effect and returns
 ## {"error": Error, "success": bool, "text": String} with what the player is told.
@@ -117,7 +165,20 @@ func _apply_chance_effect(run_state: RunState, rng: RunRngService, payload: Dict
 		run_state.gold += int(effect.get("amount", 0))
 		named = _desert(run_state, rng)
 	else:
+		# The slot picked to make room goes only when a relic or item really comes in.
+		# Giving up the War Banner can move a piece to the reserve, so a failure from
+		# here on restores the whole run, not only the slots.
+		var before_give_up: Dictionary = {}
+		if payload.has("give_up_slot") and SlotReplaceService.needs_room(run_state, effect):
+			before_give_up = run_state.to_dictionary()
+			if SlotReplaceService.give_up(run_state, StringName(str(payload["give_up_slot"]))) != OK:
+				run_state.gold = snapshot
+				run_state.challenger_slots = slots_snapshot
+				run_state.retries_left = retries_snapshot
+				return {"error": ERR_UNAVAILABLE}
 		var error: Error = reward_service.apply(run_state, effect)
+		if error != OK and not before_give_up.is_empty():
+			run_state.load_from_dictionary(before_give_up, false)
 		if error != OK:
 			run_state.gold = snapshot
 			run_state.challenger_slots = slots_snapshot
@@ -200,6 +261,10 @@ func _submit_shop(run_state: RunState, progress: MapProgressService, pending: Di
 	# No room for the recruit: buying it means letting one of your pieces go first.
 	if str(payload.get("kind", "")) == "piece" and not run_state.has_room_for_piece():
 		roster_choice_service.stage_shop_replace_confirm(run_state, pending, choice_id, payload)
+		return OK
+	# No slot for the relic or item: one has to be given up.
+	if SlotReplaceService.needs_room(run_state, payload):
+		slot_replace_service.stage(run_state, pending, choice_id, payload)
 		return OK
 	if str(payload.get("kind", "")) == "fusion":
 		return fusion_interaction_service.stage(run_state, pending, choice_id, payload)
